@@ -94,10 +94,6 @@ type
   SIZE_T = ULONG_PTR;
 {$ENDIF}
 
-{$IFNDEF DELPHIXE3_UP}
-  PMethod = ^TMethod;
-{$ENDIF}
-
   PObject = ^TObject;
   {$POINTERMATH ON}
   PVTable = ^Pointer;
