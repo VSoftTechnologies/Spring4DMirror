@@ -18,6 +18,11 @@ __recovery/
 *.plist
 *.rsm
 *.tds
+*.dcp
+*.bpl
+packages/**/*.rc
+packages/**/*.res
+buildlog.html
 
 # 64bit Delphi files
 *.o
