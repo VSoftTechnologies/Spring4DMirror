@@ -107,14 +107,17 @@ type
   private
     fSet1: ISet<Integer>;
     fSet2: ISet<Integer>;
+    fChangeCount: Integer;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
     procedure CheckSet(const collection: ISet<Integer>; const values: array of Integer);
+    procedure NotifyChange(Sender: TObject; const item: Integer; action: TCollectionChangedAction);
   published
     procedure TestExceptWith;
     procedure TestIntersectWith;
     procedure TestIntersectWithList;
+    procedure TestIntersectWithSameNoChange;
     procedure TestUnionWith;
     procedure TestSetEquals;
     procedure TestSetEqualsList;
@@ -140,8 +143,10 @@ type
     procedure TestListCountWithInsert;
     procedure TestListInsertBetween;
     procedure TestListInsertBeginning;
+    procedure TestListInsertEnd;
     procedure TestListInsertRangeArray;
     procedure TestListInsertRangeIEnumerable;
+    procedure TestListInsertRangeIEnumerableSelf;
     procedure TestListInsertRangeIEnumerableWithExtraCapacity;
     procedure TestListSimpleDelete;
     procedure TestListMultipleDelete;
@@ -167,6 +172,7 @@ type
     procedure TestGetRange_AllItems;
     procedure TestGetRange_FirstItems;
     procedure TestGetRange_LastItems;
+    procedure TestGetRange_NoItems;
 
     procedure TestExtract_ItemNotInList;
     procedure TestExtractAll_OneItemInList;
@@ -183,6 +189,7 @@ type
 
     procedure TestTryMethodsReturnDefaultWhenFalse;
 
+    procedure TestDeleteRange;
     procedure TestDeleteRangeEmptyList;
 
     procedure EqualsToArray;
@@ -201,6 +208,8 @@ type
     procedure TestAdd;
     procedure TestDelete;
     procedure TestExtractRange;
+    procedure TestListInsertRangeIEnumerableSelf;
+    procedure TestGetRange_SomeItems;
   end;
 
   TTestSortedList = class(TTestCase)
@@ -910,8 +919,8 @@ end;
 procedure TTestEmptyHashSet.SetUp;
 begin
   inherited;
-  fSet := TCollections.CreateSet<Integer>;
-  fEmpty := TCollections.CreateSet<Integer>;
+  fSet := TCollections.CreateSet<Integer>(10);
+  fEmpty := TCollections.CreateSet<Integer>(10);
 end;
 
 procedure TTestEmptyHashSet.TearDown;
@@ -973,11 +982,17 @@ begin
     CheckTrue(collection.Contains(value));
 end;
 
+procedure TTestNormalHashSet.NotifyChange(Sender: TObject; const item: Integer;
+  action: TCollectionChangedAction);
+begin
+  Inc(fChangeCount);
+end;
+
 procedure TTestNormalHashSet.SetUp;
 begin
   inherited;
-  fSet1 := TCollections.CreateSet<Integer>;
-  fSet2 := TCollections.CreateSet<Integer>;
+  fSet1 := TCollections.CreateSet<Integer>(10);
+  fSet2 := TCollections.CreateSet<Integer>(10);
   fSet1.AddRange([1, 2, 3]);
   fSet2.AddRange([3, 1, 4, 5]);
 end;
@@ -1018,6 +1033,15 @@ begin
   list.AddRange([3, 1, 4, 5]);
   fSet1.IntersectWith(list);
   CheckSet(fSet1, [1, 3]);
+end;
+
+procedure TTestNormalHashSet.TestIntersectWithSameNoChange;
+begin
+  fSet1.OnChanged.Add(NotifyChange);
+  fSet2.Clear;
+  fSet2.AddRange(fSet1);
+  fSet1.IntersectWith(fSet2);
+  CheckEquals(0, fChangeCount);
 end;
 
 procedure TTestNormalHashSet.TestIsSubsetOf;
@@ -1142,6 +1166,22 @@ begin
   CheckEquals(SUT.Last, values[MaxItems-1]);
   SUT[0] := MaxItems;
   CheckNotEquals(SUT.First, values[0]);
+end;
+
+procedure TTestIntegerList.TestDeleteRange;
+begin
+  SUT.Add(1);
+  SUT.DeleteRange(1, 0);
+  CheckException(EArgumentOutOfRangeException,
+    procedure
+    begin
+      SUT.DeleteRange(1, 1);
+    end);
+  CheckException(EArgumentOutOfRangeException,
+    procedure
+    begin
+      SUT.DeleteRange(2, 0);
+    end);
 end;
 
 procedure TTestIntegerList.TestDeleteRangeEmptyList;
@@ -1273,6 +1313,15 @@ begin
   CheckEquals(2, values.Count);
   CheckEquals(SUT[1], values[0]);
   CheckEquals(SUT[2], values[1]);
+end;
+
+procedure TTestIntegerList.TestGetRange_NoItems;
+var
+  values: IList<Integer>;
+begin
+  SimpleFillList;
+  values := SUT.GetRange(2, 0);
+  CheckEquals(0, values.Count);
 end;
 
 type
@@ -1522,6 +1571,17 @@ begin
   CheckEquals(1, SUT[2]);
 end;
 
+procedure TTestIntegerList.TestListInsertEnd;
+begin
+  SUT.Add(0);
+  SUT.Add(1);
+  SUT.Insert(2, 42);
+  CheckEquals(3, SUT.Count);
+  CheckEquals(0, SUT[0]);
+  CheckEquals(1, SUT[1]);
+  CheckEquals(42, SUT[2]);
+end;
+
 procedure TTestIntegerList.TestListInsertRangeArray;
 begin
   SUT.Add(0);
@@ -1536,6 +1596,14 @@ begin
   SUT.Add(1);
   SUT.InsertRange(1, TEnumerable.Range(3, 2));
   CheckTrue(SUT.EqualsTo([0, 3, 4, 1]));
+end;
+
+procedure TTestIntegerList.TestListInsertRangeIEnumerableSelf;
+begin
+  SUT.Add(0);
+  SUT.Add(1);
+  SUT.InsertRange(1, SUT);
+  CheckTrue(SUT.EqualsTo([0, 0, 1, 1]));
 end;
 
 procedure TTestIntegerList.TestListInsertRangeIEnumerableWithExtraCapacity;
@@ -1697,6 +1765,28 @@ begin
   CheckEquals('0', values[0]);
   CheckEquals('1', values[1]);
   CheckEquals('2', values[2]);
+end;
+
+procedure TTestStringList.TestGetRange_SomeItems;
+var
+  values: IList<string>;
+begin
+  FillList;
+  values := SUT.GetRange(0, 3);
+  CheckEquals(3, values.Count);
+  CheckEquals(SUT[0], values[0]);
+  CheckEquals(SUT[1], values[1]);
+  CheckEquals(SUT[2], values[2]);
+end;
+
+procedure TTestStringList.TestListInsertRangeIEnumerableSelf;
+begin
+  SUT.Add('1');
+  SUT.Add('2');
+  SUT.InsertRange(1, SUT);
+  CheckTrue(SUT.EqualsTo(['1', '1', '2', '2']));;
+  SUT.Delete(1);
+  SUT.Delete(0);
 end;
 
 {$ENDREGION}
@@ -2053,7 +2143,7 @@ begin
   method.Code := @TTestStackOfIntegerChangedEvent.HandlerA;
   method.Data := Pointer(Self);
 
-  event.Add(TMethodPointer(method));
+  event.Add(method);
 
   SUT.Push(0);
 
@@ -2743,7 +2833,7 @@ begin
   method.Code := @TTestStackOfIntegerChangedEvent.HandlerA;
   method.Data := Pointer(Self);
 
-  event.Add(TMethodPointer(method));
+  event.Add(method);
 
   SUT.Enqueue(0);
 
@@ -2884,7 +2974,7 @@ begin
   method.Code := @TTestStackOfIntegerChangedEvent.HandlerA;
   method.Data := Pointer(Self);
 
-  event.Add(TMethodPointer(method));
+  event.Add(method);
 
   SUT.AddFirst(0);
 
@@ -3171,17 +3261,6 @@ end;
 
 {$REGION 'TTestObjectList'}
 
-type
-  TTestNotEqual = class(TPersistent)
-  public
-    function Equals(Obj: TObject): Boolean; override;
-  end;
-
-function TTestNotEqual.Equals(Obj: TObject): Boolean;
-begin
-  Result := False;
-end;
-
 procedure TTestObjectList.SetUp;
 begin
   SUT := TCollections.CreateObjectList<TPersistent>;
@@ -3202,12 +3281,16 @@ end;
 
 procedure TTestObjectList.TestIndexOf;
 var
-  obj: TPersistent;
+  obj1, obj2: TPersistent;
 begin
-  obj := TTestNotEqual.Create;
-  SUT.Add(obj);
-  CheckEquals(-1, SUT.IndexOf(obj));
-  CheckFalse(SUT.Contains(obj));
+  obj1 := TPersistent.Create;
+  obj2 := TPersistent.Create;
+  SUT.Add(obj1);
+  SUT.Add(obj2);
+  CheckEquals(0, SUT.IndexOf(obj1));
+  CheckTrue(SUT.Contains(obj1));
+  CheckEquals(1, SUT.IndexOf(obj2));
+  CheckTrue(SUT.Contains(obj2));
 end;
 
 procedure TTestObjectList.TestExtractAt;

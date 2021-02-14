@@ -36,7 +36,7 @@ uses
   Spring.Collections.HashTable,
   Spring.Collections.Trees;
 
-{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}{$ENDIF}
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
 type
   /// <summary>
@@ -74,18 +74,12 @@ type
     type
       TItem = THashSetItem<T>;
       TItems = TArray<TItem>;
+      PItem = ^TItem;
 
-      TEnumerator = class(TRefCountedObject, IEnumerator<T>)
+      TEnumerator = class(THashTableEnumerator, IEnumerator<T>)
       private
-        {$IFDEF AUTOREFCOUNT}[Unsafe]{$ENDIF}
-        fSource: THashSet<T>;
-        fItemIndex: Integer;
-        fVersion: Integer;
         fCurrent: T;
         function GetCurrent: T;
-      public
-        constructor Create(const source: THashSet<T>);
-        destructor Destroy; override;
         function MoveNext: Boolean;
       end;
   {$ENDREGION}
@@ -99,14 +93,14 @@ type
     procedure SetCapacity(value: Integer);
   {$ENDREGION}
     class function EqualsThunk(instance: Pointer; const left, right): Boolean; static;
-    procedure ClearInternal;
   protected
     function CreateSet: ISet<T>; override;
     function TryGetElementAt(var item: T; index: Integer): Boolean;
     property Capacity: Integer read GetCapacity;
   public
     constructor Create(capacity: Integer; const comparer: IEqualityComparer<T>);
-    destructor Destroy; override;
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
 
   {$REGION 'Implements IEnumerable<T>'}
     function GetEnumerator: IEnumerator<T>;
@@ -118,7 +112,6 @@ type
     function Add(const item: T): Boolean;
     function Remove(const item: T): Boolean;
     function Extract(const item: T): T;
-
     procedure Clear;
   {$ENDREGION}
 
@@ -159,7 +152,8 @@ type
     function CreateSet: ISet<T>; override;
   public
     constructor Create(const comparer: IComparer<T>);
-    destructor Destroy; override;
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
 
   {$REGION 'Implements IEnumerable<T>'}
     function GetEnumerator: IEnumerator<T>;
@@ -205,9 +199,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(other), 'other');
-{$ENDIF}
+  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
@@ -219,34 +211,34 @@ end;
 
 procedure TSetBase<T>.IntersectWith(const other: IEnumerable<T>);
 var
+  count, i: Integer;
   enumerator: IEnumerator<T>;
   items: TArray<T>;
   item: T;
-  i: Integer;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(other), 'other');
-{$ENDIF}
+  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
-  if not other.IsEmpty then
+  count := IEnumerable<T>(this).Count;
+  if count > 0 then
   begin
-    SetLength(items, IEnumerable<T>(this).Count);
+    SetLength(items, count);
     i := 0;
-    enumerator := other.GetEnumerator;
+    enumerator := IEnumerable<T>(this).GetEnumerator;
     while enumerator.MoveNext do
     begin
       item := enumerator.Current;
-      if IEnumerable<T>(this).Contains(item) then
+      if not other.Contains(item) then
       begin
         items[i] := item;
         Inc(i);
-        ICollection<T>(this).Remove(item);
       end;
     end;
-    SetLength(items, i);
+    if i > 0 then
+    begin
+      SetLength(items, i);
+      ICollection<T>(this).RemoveRange(items);
+    end;
   end;
-  ICollection<T>(this).Clear;
-  ICollection<T>(this).AddRange(items);
 end;
 
 function TSetBase<T>.IsSubsetOf(const other: IEnumerable<T>): Boolean;
@@ -254,9 +246,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(other), 'other');
-{$ENDIF}
+  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
@@ -274,9 +264,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(other), 'other');
-{$ENDIF}
+  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
@@ -294,9 +282,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(other), 'other');
-{$ENDIF}
+  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
@@ -315,9 +301,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(other), 'other');
-{$ENDIF}
+  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
   localSet := CreateSet;
 
@@ -346,9 +330,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(other), 'other');
-{$ENDIF}
+  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
@@ -365,20 +347,24 @@ end;
 
 constructor THashSet<T>.Create(capacity: Integer; const comparer: IEqualityComparer<T>);
 begin
-  inherited Create;
-  if Assigned(comparer) then
-    fKeyComparer := comparer
-  else
-    fKeyComparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
-
-  fHashTable.Initialize(TypeInfo(TItems), @EqualsThunk, fKeyComparer);
-  fHashTable.Capacity := capacity;
+  fKeyComparer := comparer;
+  fHashTable.ItemsInfo := TypeInfo(TItems);
+  SetCapacity(capacity);
 end;
 
-destructor THashSet<T>.Destroy;
+procedure THashSet<T>.AfterConstruction;
+begin
+  inherited AfterConstruction;
+
+  if not Assigned(fKeyComparer) then
+    fKeyComparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
+  fHashTable.Initialize(@EqualsThunk, fKeyComparer);
+end;
+
+procedure THashSet<T>.BeforeDestruction;
 begin
   Clear;
-  inherited Destroy;
+  inherited BeforeDestruction;
 end;
 
 function THashSet<T>.CreateSet: ISet<T>;
@@ -398,48 +384,45 @@ end;
 
 function THashSet<T>.TryGetElementAt(var item: T; index: Integer): Boolean;
 begin
-  Result := Cardinal(index) < Cardinal(fHashTable.Count);
-  if Result then
+  if Cardinal(index) < Cardinal(fHashTable.Count) then
   begin
     fHashTable.EnsureCompact;
     item := TItems(fHashTable.Items)[index].Item;
+    Exit(True);
   end;
+  item := Default(T);
+  Result := False;
 end;
 
 function THashSet<T>.Add(const item: T): Boolean;
 var
-  entry: ^TItem;
+  entry: PItem;
 begin
   entry := fHashTable.Add(item, fKeyComparer.GetHashCode(item));
-  Result := Assigned(entry);
-  if Result then
+  if Assigned(entry) then
   begin
     entry.Item := item;
-    Changed(item, caAdded);
+    DoNotify(item, caAdded);
+    Exit(True);
   end;
+  Result := False;
 end;
 
 procedure THashSet<T>.Clear;
-begin
-  if not Assigned(Notify) then
-    fHashTable.Clear
-  else
-    ClearInternal;
-end;
-
-procedure THashSet<T>.ClearInternal;
 var
-  oldItemIndex, oldItemCount: Integer;
-  oldItems: TArray<TItem>;
+  item: PItem;
+  i: Integer;
 begin
-  oldItemCount := fHashTable.ItemCount;
-  oldItems := TItems(fHashTable.Items);
+  if Assigned(Notify) then
+  begin
+    fHashTable.ClearCount;
+    item := PItem(fHashTable.Items);
+    for i := 1 to fHashTable.ItemCount do
+      if item.HashCode >= 0 then
+        Notify(Self, item.Item, caRemoved);
+  end;
 
   fHashTable.Clear;
-
-  for oldItemIndex := 0 to oldItemCount - 1 do
-    if oldItems[oldItemIndex].HashCode >= 0 then
-      Changed(oldItems[oldItemIndex].Item, caRemoved);
 end;
 
 class function THashSet<T>.EqualsThunk(instance: Pointer; const left, right): Boolean;
@@ -457,12 +440,12 @@ end;
 
 function THashSet<T>.Extract(const item: T): T;
 var
-  entry: ^TItem;
+  entry: PItem;
 begin
   entry := fHashTable.Delete(item, fKeyComparer.GetHashCode(item));
   if Assigned(entry) then
   begin
-    Changed(entry.Item, caExtracted);
+    DoNotify(entry.Item, caExtracted);
     Result := entry.Item;
     entry.Item := Default(T);
   end
@@ -472,7 +455,7 @@ end;
 
 function THashSet<T>.GetEnumerator: IEnumerator<T>;
 begin
-  Result := TEnumerator.Create(Self);
+  Result := TEnumerator.Create(Self, @fHashTable);
 end;
 
 function THashSet<T>.GetCapacity: Integer;
@@ -492,15 +475,17 @@ end;
 
 function THashSet<T>.Remove(const item: T): Boolean;
 var
-  entry: ^TItem;
+  entry: PItem;
 begin
   entry := fHashTable.Delete(item, fKeyComparer.GetHashCode(item));
-  Result := Assigned(entry);
-  if Result then
+  if Assigned(entry) then
   begin
-    Changed(entry.Item, caRemoved);
+    DoNotify(entry.Item, caRemoved);
     entry.Item := Default(T);
-  end;
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 function THashSet<T>.ToArray: TArray<T>;
@@ -522,42 +507,18 @@ end;
 
 {$REGION 'THashSet<T>.TEnumerator'}
 
-constructor THashSet<T>.TEnumerator.Create(const source: THashSet<T>);
-begin
-  fSource := source;
-  fSource._AddRef;
-  fItemIndex := -1;
-  fVersion := fSource.fHashTable.Version;
-end;
-
-destructor THashSet<T>.TEnumerator.Destroy;
-begin
-  fSource._Release;
-end;
-
 function THashSet<T>.TEnumerator.GetCurrent: T;
 begin
   Result := fCurrent;
 end;
 
 function THashSet<T>.TEnumerator.MoveNext: Boolean;
-var
-  hashTable: ^THashTable;
 begin
-  hashTable := @fSource.fHashTable;
-  if fVersion <> hashTable.Version then
-    raise Error.EnumFailedVersion;
-
-  while fItemIndex < hashTable.ItemCount - 1 do
+  if inherited MoveNext then
   begin
-    Inc(fItemIndex);
-    if TItems(hashTable.Items)[fItemIndex].HashCode >= 0 then
-    begin
-      fCurrent := TItems(hashTable.Items)[fItemIndex].Item;
-      Exit(True);
-    end;
+    fCurrent := PItem(fItem).Item;
+    Exit(True);
   end;
-  fCurrent := Default(T);
   Result := False;
 end;
 
@@ -569,20 +530,25 @@ end;
 constructor TSortedSet<T>.Create(const comparer: IComparer<T>);
 begin
   fComparer := comparer;
-  inherited Create;
+end;
+
+procedure TSortedSet<T>.AfterConstruction;
+begin
+  inherited AfterConstruction;
+
   fTree := TRedBlackTree<T>.Create(fComparer);
+end;
+
+procedure TSortedSet<T>.BeforeDestruction;
+begin
+  Clear;
+  fTree.Free;
+  inherited BeforeDestruction;
 end;
 
 function TSortedSet<T>.CreateSet: ISet<T>;
 begin
   Result := TSortedSet<T>.Create(Comparer);
-end;
-
-destructor TSortedSet<T>.Destroy;
-begin
-  Clear;
-  fTree.Free;
-  inherited Destroy;
 end;
 
 function TSortedSet<T>.Add(const item: T): Boolean;
@@ -592,7 +558,7 @@ begin
   {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
   Result := fTree.Add(item);
   if Result then
-    Changed(item, caAdded);
+    DoNotify(item, caAdded);
 end;
 
 procedure TSortedSet<T>.Clear;
@@ -605,9 +571,9 @@ begin
   {$Q-}
   Inc(fVersion);
   {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-  if Assigned(OnChanged) and OnChanged.CanInvoke then // optimization: if no notification needs to be send the entire tree traversal won't be done
+  if Assigned(Notify) then // optimization: if no notification needs to be send the entire tree traversal won't be done
     for node in fTree.Root^ do
-      Changed(PNode(node).Key, caRemoved);
+      Notify(Self, PNode(node).Key, caRemoved);
 
   fTree.Clear;
 end;
@@ -629,7 +595,7 @@ begin
     Inc(fVersion);
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
     fTree.DeleteNode(node);
-    Changed(Result, caExtracted);
+    DoNotify(Result, caExtracted);
   end
   else
     Result := Default(T);
@@ -662,7 +628,7 @@ begin
     Inc(fVersion);
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
     fTree.DeleteNode(node);
-    Changed(item, caRemoved);
+    DoNotify(item, caRemoved);
   end;
 end;
 
@@ -706,18 +672,20 @@ end;
 
 function TSortedSet<T>.TEnumerator.MoveNext: Boolean;
 begin
-  if fVersion <> fSource.fVersion then
-    raise Error.EnumFailedVersion;
-
-  if fFinished then
-    Exit(False);
-  if not Assigned(fCurrent) then
-    fCurrent := fSource.fTree.Root.LeftMost
+  if fVersion = fSource.fVersion then
+  begin
+    if fFinished then
+      Exit(False);
+    if not Assigned(fCurrent) then
+      fCurrent := fSource.fTree.Root.LeftMost
+    else
+      fCurrent := fCurrent.Next;
+    Result := Assigned(fCurrent);
+    if not Result then
+      fFinished := True;
+  end
   else
-    fCurrent := fCurrent.Next;
-  Result := Assigned(fCurrent);
-  if not Result then
-    fFinished := True;
+    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 procedure TSortedSet<T>.SetCapacity(value: Integer);
@@ -738,8 +706,10 @@ end;
 constructor TFoldedHashSet<T>.Create(elementType: PTypeInfo; capacity: Integer;
   const comparer: IEqualityComparer<T>);
 begin
+  fKeyComparer := comparer;
+  fHashTable.ItemsInfo := TypeInfo(TItems);
+  SetCapacity(capacity);
   fElementType := elementType;
-  inherited Create(capacity, comparer);
 end;
 
 function TFoldedHashSet<T>.GetElementType: PTypeInfo;

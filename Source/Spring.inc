@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2020 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -61,6 +61,12 @@
   {$DEFINE SUPPORTS_CONSTREF}
 {$ENDIF}
 
+{$IFNDEF DELPHIX_RIO_UP}
+  {$IF Defined(CPUX64) and Defined(MSWINDOWS)}
+    {$DEFINE PASS_64BIT_VALUE_REGISTER}
+  {$IFEND}
+{$ENDIF}
+
 {$IFDEF MSWINDOWS}
   // Use the unused vmtAutoTable slot in the class VMT to store the init table
   // otherwise a global dictionary will be used which is slightly slower
@@ -70,20 +76,6 @@
   {$UNDEF USE_VMTAUTOTABLE}
 {$ENDIF}
 
-// This will enable implicit assignment compatibility of Variant and Nullable<T>
-// This reduces type safety as the compiler might try to turn types into Variants
-// first to then assign them to a nullable
-// Example: n of type Nullable<Integer> might be assigned a string because the
-// compiler tries to turn the string into an Integer via VarToInt.
-// This is against the type safety provided by Nullable<T> where it only accepts
-// values of the type T.
-// Use this define to provide backwards compatibility. It is enabled by default
-// for now to find possible issues rather than changing the behavior without notice
-{$DEFINE UNSAFE_NULLABLE}
-{$IFDEF UNSAFE_NULLABLE}
-  // Raise deprecated warning in places where implicit operators are being used
-  {$DEFINE UNSAFE_NULLABLE_WARN}
-{$ENDIF}
 // This will enable the implicit operator for unboxing a nullable value
 // Be aware that this may possibly raise an exception if the nullable does not
 // contain a value, i.e. is null

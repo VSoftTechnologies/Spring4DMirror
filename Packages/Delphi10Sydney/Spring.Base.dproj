@@ -7,7 +7,7 @@
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Package</AppType>
         <FrameworkType>None</FrameworkType>
-        <ProjectVersion>19.0</ProjectVersion>
+        <ProjectVersion>19.1</ProjectVersion>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
@@ -93,6 +93,7 @@
         <DCCReference Include="..\..\Source\Base\Spring.DesignPatterns.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.Events.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.Events.Base.pas"/>
+        <DCCReference Include="..\..\Source\Base\Spring.HazardEra.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.Helpers.pas"/>
         <DCCReference Include="..\..\Source\Base\Logging\Spring.Logging.pas"/>
         <DCCReference Include="..\..\Source\Base\Logging\Spring.Logging.Appenders.pas"/>

@@ -32,8 +32,11 @@ uses
   Spring,
   TypInfo;
 
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
+
 type
   TEqualsMethod = function(const left, right): Boolean of object;
+  TGetHashCodeMethod = function(const value): Integer of object;
 
   THashTableEntry = record
     HashCode, BucketIndex, ItemIndex: Integer;
@@ -58,27 +61,30 @@ type
 
     function GetCapacity: Integer;
     procedure SetCapacity(const Value: Integer);
+    procedure SetItemsInfo(const Value: PTypeInfo);
   public
-    procedure Initialize(itemsInfo: PTypeInfo; const equals: Pointer; const comparer: IInterface);
+    procedure Initialize(const equals: Pointer; const comparer: IInterface);
 
     procedure EnsureCompact;
     procedure Grow;
     procedure Pack;
-    function Find(const key; var entry: THashTableEntry): Boolean;
+    function Find(const key; hashCode: Integer): Pointer; overload;
+    function Find(const key; var entry: THashTableEntry): Boolean; overload;
     procedure Rehash(newCapacity: NativeInt);
-    procedure IncrementVersion; inline;
 
     function Add(const key; hashCode: Integer): Pointer;
-    function AddOrSet(const key; hashCode: Integer; out isExistingEntry: Boolean): Pointer;
+    function AddOrSet(const key; hashCode: Integer; var overwriteExisting: Boolean): Pointer;
     function Delete(const key; hashCode: Integer): Pointer; overload;
     function Delete(const entry: THashTableEntry): Pointer; overload;
     procedure Clear;
+    procedure ClearCount;
 
     property Buckets: TArray<Integer> read fBuckets;
     property Capacity: Integer read GetCapacity write SetCapacity;
     property Count: Integer read fCount;
     property ItemCount: Integer read fItemCount;
     property Items: PByte read fItems;
+    property ItemsInfo: PTypeInfo read fItemsInfo write SetItemsInfo;
     property ItemSize: Integer read fItemSize;
     property Version: Integer read fVersion;
   end;
@@ -86,7 +92,8 @@ type
 implementation
 
 uses
-  Math;
+  Math,
+  Spring.ResourceStrings;
 
 const
   // use the MSB of the HashCode to note removed items
@@ -98,11 +105,8 @@ const
 
 {$REGION 'THashTable'}
 
-procedure THashTable.Initialize(itemsInfo: PTypeInfo; const equals: Pointer;
-  const comparer: IInterface);
+procedure THashTable.Initialize(const equals: Pointer; const comparer: IInterface);
 begin
-  fItemsInfo := itemsInfo;
-  fItemSize := itemsInfo.TypeData.elSize;
   TMethod(fEquals).Code := equals;
   TMethod(fEquals).Data := @TMethod(fEqualsMethod);
   fEqualsMethod := InterfaceToMethodPointer(comparer, 0);
@@ -141,18 +145,25 @@ begin
 end;
 
 function THashTable.AddOrSet(const key; hashCode: Integer;
-  out isExistingEntry: Boolean): Pointer;
+  var overwriteExisting: Boolean): Pointer;
 var
   entry: THashTableEntry;
 begin
   entry.HashCode := hashCode;
-  isExistingEntry := Find(key, entry);
-  if not isExistingEntry then
+  if Find(key, entry) then
+  begin
+    if not overwriteExisting then
+      Exit(nil);
+  end
+  else
+  begin
+    overwriteExisting := False;
     if fItemCount = DynArrayLength(fItems) then
     begin
       Grow;
       Find(key, entry);
     end;
+  end;
 
   {$Q-}
   Inc(fVersion);
@@ -163,7 +174,7 @@ begin
   Result := fItems + entry.ItemIndex * fItemSize;
   PInteger(Result)^ := entry.HashCode;
 
-  if not isExistingEntry then
+  if not overwriteExisting then
   begin
     Inc(fCount);
     Inc(fItemCount);
@@ -207,6 +218,14 @@ begin
   Capacity := 0;
 end;
 
+procedure THashTable.ClearCount;
+begin
+  {$Q-}
+  Inc(fVersion);
+  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+  fCount := 0;
+end;
+
 procedure THashTable.EnsureCompact;
 begin
   if fCount <> fItemCount then
@@ -226,31 +245,56 @@ begin
   Rehash(newCapacity);
 end;
 
-procedure THashTable.IncrementVersion;
-begin
-  {$Q-}
-  Inc(fVersion);
-  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-end;
-
 procedure THashTable.Pack;
 var
   sourceItem, targetItem: PByte;
+  itemType: PTypeInfo;
   i: Integer;
 begin
   sourceItem := fItems;
   targetItem := fItems;
+  itemType := fItemsInfo.TypeData.elType2^;
   for i := 0 to fItemCount - 1 do
   begin
     if PInteger(sourceItem)^ >= 0 then // not removed
     begin
       if targetItem < sourceItem then // need to fill a gap caused by previous items that were removed
-        CopyRecord(targetItem, sourceItem, fItemsInfo.TypeData.elType2^);
+        CopyRecord(targetItem, sourceItem, itemType);
       Inc(targetItem, fItemSize);
     end;
     Inc(sourceItem, fItemSize);
   end;
-  FinalizeArray(targetItem, fItemsInfo.TypeData.elType2^, fItemCount - fCount); // clear remaining items that were previously moved
+  FinalizeArray(targetItem, itemType, fItemCount - fCount); // clear remaining items that were previously moved
+end;
+
+function THashTable.Find(const key; hashCode: Integer): Pointer;
+var
+  bucketValue, bucketIndex: Integer;
+  item: PByte;
+begin
+  if fItems <> nil then
+  begin
+    hashCode := hashCode and not RemovedFlag;
+    bucketIndex := hashCode and fBucketIndexMask;
+    while True do
+    begin
+      bucketValue := fBuckets[bucketIndex];
+
+      if bucketValue = EmptyBucket then
+        Exit(nil);
+
+      if (bucketValue <> UsedBucket)
+        and (bucketValue and fBucketHashCodeMask = hashCode and fBucketHashCodeMask) then
+      begin
+        item := @fItems[bucketValue and fBucketIndexMask * fItemSize];
+        if fEquals((item + KeyOffset)^, key) then
+          Exit(item);
+      end;
+
+      bucketIndex := (bucketIndex + 1) and fBucketIndexMask;
+    end;
+  end;
+  Result := nil;
 end;
 
 function THashTable.Find(const key; var entry: THashTableEntry): Boolean;
@@ -340,7 +384,7 @@ procedure THashTable.SetCapacity(const value: Integer);
 var
   newCapacity: Integer;
 begin
-  Guard.CheckRange(value >= fCount, 'capacity');
+  if value < fCount then raise EArgumentOutOfRangeException.CreateRes(@SArgumentOutOfRange_Capacity);
 
   if value = 0 then
     newCapacity := 0
@@ -348,6 +392,12 @@ begin
     newCapacity := Math.Max(MinCapacity, value);
   if newCapacity <> Capacity then
     Rehash(newCapacity);
+end;
+
+procedure THashTable.SetItemsInfo(const value: PTypeInfo);
+begin
+  fItemsInfo := value;
+  fItemSize := value.TypeData.elSize;
 end;
 
 {$ENDREGION}

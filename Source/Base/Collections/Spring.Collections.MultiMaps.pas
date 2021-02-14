@@ -37,7 +37,7 @@ uses
   Spring.Events,
   Spring.Events.Base;
 
-{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}{$ENDIF}
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
 type
   TMultiMapItem<TKey, TValue> = packed record
@@ -194,7 +194,8 @@ type
   public
     constructor Create(const keyComparer: IEqualityComparer<TKey>;
       ownerships: TDictionaryOwnerships);
-    destructor Destroy; override;
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
 
   {$REGION 'Implements IEnumerable<TPair<TKey, TValue>>'}
     function GetEnumerator: IEnumerator<TKeyValuePair>;
@@ -292,7 +293,6 @@ uses
 constructor TValueCollection<T>.Create(
   const source: TRefCountedObject; hashTable: PHashTable; count: PInteger);
 begin
-  inherited Create;
   fSource := source;
   fHashTable := hashTable;
   fCount := count;
@@ -412,10 +412,10 @@ begin
       if PInteger(item)^ >= 0 then
         fEnumerator := IEnumerable(PPointer(item + fHashTable.ItemSize - SizeOf(Pointer))^).GetEnumerator;
     end;
-    Exit(False);
+    Result := False;
   end
   else
-    raise Error.EnumFailedVersion;
+    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -444,7 +444,6 @@ constructor TWrappedCollection<T>.Create(key: Pointer;
   const onDestroy: TNotifyEventImpl; const updateValues: TUpdateValues;
   const delegate: ICollection<T>);
 begin
-  inherited Create;
   fOnDestroy := onDestroy;
   fOnDestroy.Add(HandleDestroy);
   fUpdateValues := updateValues;
@@ -456,7 +455,6 @@ destructor TWrappedCollection<T>.Destroy;
 begin
   if Assigned(fOnDestroy) then
     fOnDestroy.Remove(HandleDestroy);
-  inherited Destroy;
 end;
 
 function TWrappedCollection<T>.Contains(
@@ -532,7 +530,7 @@ procedure TWrappedCollection<T>.TEnumerator.ValidateEnumerator;
 begin
   fSource.RefreshIfEmpty;
   if fSource.fDelegate <> fOriginal then
-    raise Error.EnumFailedVersion;
+    RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -544,38 +542,44 @@ constructor TMultiMapBase<TKey, TValue>.Create(
   const keyComparer: IEqualityComparer<TKey>;
   ownerships: TDictionaryOwnerships);
 begin
-  if doOwnsKeys in ownerships then
-    if KeyType.Kind <> tkClass then
-      raise Error.NoClassType(KeyType);
+  if TType.Kind<TKey> <> tkClass then
+    if doOwnsKeys in ownerships then
+      RaiseHelper.NoClassType(TypeInfo(TKey));
 
-  if doOwnsValues in ownerships then
-    if ValueType.Kind <> tkClass then
-      raise Error.NoClassType(ValueType);
+  if TType.Kind<TValue> <> tkClass then
+    if doOwnsValues in ownerships then
+      RaiseHelper.NoClassType(TypeInfo(TValue));
 
-  inherited Create;
   fOwnerships := ownerships;
-  if Assigned(keyComparer) then
-    fKeyComparer := keyComparer
-  else
-    fKeyComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, KeyType, SizeOf(TKey)));
+  fKeyComparer := keyComparer
+end;
 
-  fKeys := TKeyCollection.Create(Self, @fHashTable, KeyType, fKeyComparer, 0);
+procedure TMultiMapBase<TKey, TValue>.AfterConstruction;
+var
+  keyType: PTypeInfo;
+begin
+  inherited AfterConstruction;
+
+  keyType := GetKeyType;
+  if not Assigned(fKeyComparer) then
+    fKeyComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, keyType, SizeOf(TKey)));
+  fHashTable.ItemsInfo := TypeInfo(TItems);
+  fHashTable.Initialize(@EqualsThunk, fKeyComparer);
+
+  fKeys := TKeyCollection.Create(Self, @fHashTable, fKeyComparer, keyType, 0);
   fValues := TValueCollection.Create(Self, @fHashTable, @fCount);
-
-  fHashTable.Initialize(TypeInfo(TItems), @EqualsThunk, fKeyComparer);
-
   fOnDestroy := TNotifyEventImpl.Create;
   fOnDestroy.UseFreeNotification := False;
 end;
 
-destructor TMultiMapBase<TKey, TValue>.Destroy;
+procedure TMultiMapBase<TKey, TValue>.BeforeDestruction;
 begin
   fOnDestroy.Invoke(Self);
   fOnDestroy.Free;
   Clear;
   fKeys.Free;
   fValues.Free;
-  inherited Destroy;
+  inherited BeforeDestruction;
 end;
 
 class function TMultiMapBase<TKey, TValue>.EqualsThunk(instance: Pointer; const left, right): Boolean;
@@ -612,7 +616,7 @@ procedure TMultiMapBase<TKey, TValue>.AddRange(const key: TKey;
 var
   i: Integer;
 begin
-  for i := Low(values) to High(values) do
+  for i := 0 to High(values) do
     Add(key, values[i]);
 end;
 
@@ -622,9 +626,7 @@ var
   enumerator: IEnumerator<TValue>;
   item: TValue;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(values), 'values');
-{$ENDIF}
+  if not Assigned(values) then RaiseHelper.ArgumentNil(ExceptionArgument.values);
 
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
@@ -842,15 +844,15 @@ begin
     Result := False;
 end;
 
-function TMultiMapBase<TKey, TValue>.TryAdd(const key: TKey;
-  const value: TValue): Boolean;
+function TMultiMapBase<TKey, TValue>.TryAdd(const key: TKey; const value: TValue): Boolean;
 var
   entry: PItem;
-  isExisting: Boolean;
+  overrideExisting: Boolean;
 begin
-  entry := fHashTable.AddOrSet(key, fKeyComparer.GetHashCode(key), isExisting);
+  overrideExisting := True;
+  entry := fHashTable.AddOrSet(key, fKeyComparer.GetHashCode(key), overrideExisting);
 
-  if not isExisting then
+  if not overrideExisting then
   begin
     entry.Key := key;
     entry.Values := CreateCollection;
@@ -921,7 +923,7 @@ end;
 
 function TListMultiMap<TKey, TValue>.CreateCollection: ICollection<TValue>;
 begin
-  Result := TCollections.CreateList<TValue>(IComparer<TValue>(_LookupVtableInfo(giComparer, ValueType, SizeOf(TValue))));
+  Result := TCollections.CreateList<TValue>(IComparer<TValue>(_LookupVtableInfo(giComparer, GetValueType, SizeOf(TValue))));
 end;
 
 {$ENDREGION}
@@ -934,7 +936,16 @@ constructor THashMultiMap<TKey, TValue>.Create(
   const valueComparer: IEqualityComparer<TValue>;
   ownerships: TDictionaryOwnerships);
 begin
-  inherited Create(keyComparer, ownerships);
+  if TType.Kind<TKey> <> tkClass then
+    if doOwnsKeys in ownerships then
+      RaiseHelper.NoClassType(TypeInfo(TKey));
+
+  if TType.Kind<TValue> <> tkClass then
+    if doOwnsValues in ownerships then
+      RaiseHelper.NoClassType(TypeInfo(TValue));
+
+  fOwnerships := ownerships;
+  fKeyComparer := keyComparer;
   fValueComparer := valueComparer;
 end;
 
@@ -957,7 +968,16 @@ constructor TTreeMultiMap<TKey, TValue>.Create(
   const keyComparer: IEqualityComparer<TKey>;
   const valueComparer: IComparer<TValue>; ownerships: TDictionaryOwnerships);
 begin
-  inherited Create(keyComparer, ownerships);
+  if TType.Kind<TKey> <> tkClass then
+    if doOwnsKeys in ownerships then
+      RaiseHelper.NoClassType(TypeInfo(TKey));
+
+  if TType.Kind<TValue> <> tkClass then
+    if doOwnsValues in ownerships then
+      RaiseHelper.NoClassType(TypeInfo(TValue));
+
+  fOwnerships := ownerships;
+  fKeyComparer := keyComparer;
   fValueComparer := valueComparer;
 end;
 
@@ -993,10 +1013,20 @@ constructor TFoldedListMultiMap<TKey, TValue>.Create(keyType,
   valueType, elementType: PTypeInfo; const keyComparer: IEqualityComparer<TKey>;
   ownerships: TDictionaryOwnerships);
 begin
+  if TType.Kind<TKey> <> tkClass then
+    if doOwnsKeys in ownerships then
+      RaiseHelper.NoClassType(keyType);
+
+  if TType.Kind<TValue> <> tkClass then
+    if doOwnsValues in ownerships then
+      RaiseHelper.NoClassType(valueType);
+
+  fOwnerships := ownerships;
+  fKeyComparer := keyComparer;
+
   fElementType := elementType;
   fKeyType := keyType;
   fValueType := valueType;
-  inherited Create(keyComparer, ownerships);
 end;
 
 function TFoldedListMultiMap<TKey, TValue>.GetElementType: PTypeInfo;

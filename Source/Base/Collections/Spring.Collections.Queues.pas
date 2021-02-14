@@ -35,7 +35,7 @@ uses
   Spring.Collections.Base,
   Spring.Collections.Events;
 
-{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}{$ENDIF}
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
 type
   TAbstractQueue<T> = class abstract(TCircularArrayBuffer<T>)
@@ -177,7 +177,7 @@ begin
     DeleteFromHead(caRemoved);
   end
   else
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TAbstractQueue<T>.Extract: T;
@@ -188,7 +188,7 @@ begin
     DeleteFromHead(caExtracted);
   end
   else
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TAbstractQueue<T>.Peek: T;
@@ -196,7 +196,7 @@ begin
   if Count > 0 then
     Result := Items[Head]
   else
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TAbstractQueue<T>.PeekOrDefault: T;
@@ -209,38 +209,40 @@ end;
 
 function TAbstractQueue<T>.TryDequeue(var item: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
+  if Count > 0 then
   begin
     if OwnsObjects then
       item := Default(T)
     else
       item := Items[Head];
     DeleteFromHead(caRemoved);
-  end
-  else
-    item := Default(T);
+    Exit(True);
+  end;
+  item := Default(T);
+  Result := False;
 end;
 
 function TAbstractQueue<T>.TryExtract(var item: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
+  if Count > 0 then
   begin
     item := Items[Head];
     DeleteFromHead(caExtracted);
-  end
-  else
-    item := Default(T);
+    Exit(True);
+  end;
+  item := Default(T);
+  Result := False;
 end;
 
 function TAbstractQueue<T>.TryPeek(var item: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
-    item := Items[Head]
-  else
-    item := Default(T);
+  if Count > 0 then
+  begin
+    item := Items[Head];
+    Exit(True);
+  end;
+  item := Default(T);
+  Result := False;
 end;
 
 {$ENDREGION}
@@ -252,7 +254,7 @@ constructor TQueue<T>.Create(const values: array of T);
 var
   i: Integer;
 begin
-  inherited Create(Length(values));
+  SetCapacity(Length(values));
   for i := 0 to High(values) do
     Enqueue(values[i]);
 end;
@@ -262,7 +264,6 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-  inherited Create;
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
   begin
@@ -294,10 +295,9 @@ begin
   if Count <> Capacity then
   begin
     AddToTail(item);
-    Result := True;
-  end
-  else
-    Result := False;
+    Exit(True);
+  end;
+  Result := False;
 end;
 
 {$ENDREGION}
@@ -329,7 +329,7 @@ begin
     DeleteFromHead(caRemoved);
   end
   else
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TAbstractDeque<T>.RemoveLast: T;
@@ -339,11 +339,11 @@ begin
     if OwnsObjects then
       Result := Default(T)
     else
-      Result := Tail^;
+      Result := Items[Tail];
     DeleteFromTail(caRemoved);
   end
   else
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TAbstractDeque<T>.ExtractFirst: T;
@@ -354,72 +354,72 @@ begin
     DeleteFromHead(caExtracted);
   end
   else
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TAbstractDeque<T>.ExtractLast: T;
 begin
   if Count > 0 then
   begin
-    Result := Tail^;
+    Result := Items[Tail];
     DeleteFromTail(caExtracted);
   end
   else
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TAbstractDeque<T>.TryRemoveFirst(var item: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
+  if Count > 0 then
   begin
     if OwnsObjects then
       item := Default(T)
     else
       item := Items[Head];
     DeleteFromHead(caRemoved);
-  end
-  else
-    item := Default(T);
+    Exit(True);
+  end;
+  item := Default(T);
+  Result := False;
 end;
 
 function TAbstractDeque<T>.TryRemoveLast(var item: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
+  if Count > 0 then
   begin
     if OwnsObjects then
       item := Default(T)
     else
-      item := Tail^;
+      item := Items[Tail];
     DeleteFromTail(caRemoved);
-  end
-  else
-    item := Default(T);
+    Exit(True);
+  end;
+  item := Default(T);
+  Result := False;
 end;
 
 function TAbstractDeque<T>.TryExtractFirst(var item: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
+  if Count > 0 then
   begin
     item := Items[Head];
     DeleteFromHead(caExtracted);
-  end
-  else
-    item := Default(T);
+    Exit(True);
+  end;
+  item := Default(T);
+  Result := False;
 end;
 
 function TAbstractDeque<T>.TryExtractLast(var item: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
+  if Count > 0 then
   begin
-    item := Tail^;
+    item := Items[Tail];
     DeleteFromTail(caExtracted);
-  end
-  else
-    item := Default(T);
+    Exit(True);
+  end;
+  item := Default(T);
+  Result := False;
 end;
 
 {$ENDREGION}
@@ -431,7 +431,6 @@ constructor TDeque<T>.Create(const values: array of T);
 var
   i: Integer;
 begin
-  inherited Create;
   SetCapacity(Length(values));
   for i := 0 to High(values) do
     AddLast(values[i]);
@@ -442,7 +441,6 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-  inherited Create;
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
   begin
@@ -522,9 +520,8 @@ end;
 constructor TFoldedQueue<T>.Create(const elementType: PTypeInfo;
   const comparer: IComparer<T>; ownsObjects: Boolean);
 begin
-  fElementType := elementType;
   fComparer := comparer;
-  inherited Create;
+  fElementType := elementType;
   SetOwnsObjects(ownsObjects);
 end;
 

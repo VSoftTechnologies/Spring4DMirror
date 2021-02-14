@@ -34,7 +34,7 @@ uses
   Spring.Collections,
   Spring.Collections.Base;
 
-{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}{$ENDIF}
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
 type
 
@@ -92,7 +92,7 @@ type
     function TryGetFirst(var value: T): Boolean; overload;
     function TryGetLast(var value: T): Boolean; overload;
   public
-    destructor Destroy; override;
+    procedure BeforeDestruction; override;
 
     function GetEnumerator: IEnumerator<T>;
 
@@ -128,10 +128,10 @@ uses
 
 {$REGION 'TLinkedList<T>'}
 
-destructor TLinkedList<T>.Destroy;
+procedure TLinkedList<T>.BeforeDestruction;
 begin
   Clear;
-  inherited Destroy;
+  inherited BeforeDestruction;
 end;
 
 function TLinkedList<T>.Add(const item: T): Boolean;
@@ -256,7 +256,7 @@ begin
 {$ENDIF}
   end;
 
-  for i := Low(oldItems) to High(oldItems) do
+  for i := 0 to DynArrayHigh(oldItems) do
     Changed(oldItems[i], caRemoved);
 end;
 
@@ -420,14 +420,14 @@ end;
 procedure TLinkedList<T>.RemoveFirst;
 begin
   if not Assigned(fHead) then
-    raise EInvalidOperationException.CreateRes(@SLinkedListEmpty);
+    RaiseHelper.NoElements;
   InternalRemoveNode(fHead);
 end;
 
 procedure TLinkedList<T>.RemoveLast;
 begin
   if not Assigned(fHead) then
-    raise EInvalidOperationException.CreateRes(@SLinkedListEmpty);
+    RaiseHelper.NoElements;
   InternalRemoveNode(fHead.fPrev);
 end;
 
@@ -515,17 +515,19 @@ end;
 
 function TLinkedList<T>.TEnumerator.MoveNext: Boolean;
 begin
-  Result := False;
-
-  if fVersion <> fList.fVersion then
-    raise EInvalidOperationException.CreateRes(@SEnumFailedVersion);
-
-  if Assigned(fNode) then
+  if fVersion = fList.fVersion then
   begin
-    fCurrent := fNode.fItem;
-    fNode := fNode.Next;
-    Result := True;
-  end;
+    if Assigned(fNode) then
+    begin
+      fCurrent := fNode.fItem;
+      fNode := fNode.Next;
+      Result := True;
+    end
+    else
+      Result := False;
+  end
+  else
+    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}

@@ -29,26 +29,62 @@ unit Spring.Collections.Base;
 interface
 
 uses
+  Classes,
   Generics.Defaults,
   SysUtils,
   TypInfo,
   Spring,
-  Spring.Events.Base,
   Spring.Collections,
   Spring.Collections.Events,
-  Spring.Collections.HashTable;
+  Spring.Collections.HashTable,
+  Spring.Events.Base;
 
-{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}{$ENDIF}
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
 type
+  PEnumeratorVtable = ^TEnumeratorVtable;
+  TEnumeratorVtable = array[0..4] of Pointer;
+  PEnumeratorBlock = ^TEnumeratorBlock;
+  TEnumeratorBlock = record
+    Vtable: Pointer;
+    RefCount: Integer;
+    TypeInfo: PTypeInfo;
+    {$IFDEF AUTOREFCOUNT}[Unsafe]{$ENDIF}
+    Parent: TRefCountedObject;
+    function _Release: Integer; stdcall;
+    class function Create(enumerator: PPointer; vtable: PEnumeratorVtable;
+      typeInfo, getCurrent, moveNext: Pointer): Pointer; static;
+  end;
+
+  PComparerVtable = ^TComparerVtable;
+  TComparerVtable = array[0..3] of Pointer;
+  PPairComparer = ^TPairComparer;
+  TPairComparer = record
+    Vtable: Pointer;
+    RefCount: Integer;
+    KeyComparer, ValueComparer: IInterface;
+    function _Release: Integer; stdcall;
+    class function Create(comparer: PPointer; vtable: PComparerVtable;
+      compare: Pointer; keyType, valueType: PTypeInfo): Pointer; static;
+  end;
+
+  TPairComparer<TKey, TValue> = record
+    Vtable: Pointer;
+    RefCount: Integer;
+    KeyComparer: IComparer<TKey>;
+    ValueComparer: IComparer<TValue>;
+    class var Comparer_Vtable: TComparerVtable;
+    function Compare(const left, right: TPair<TKey, TValue>): Integer;
+    class function Default: IComparer<TPair<TKey, TValue>>; static;
+  end;
+
   TEnumerableBase = class abstract(TRefCountedObject)
   protected
-    this: IInterface;
+    this: Pointer;
     function GetCount: Integer;
     function GetIsEmpty: Boolean;
   public
-    constructor Create;
-    destructor Destroy; override;
+    class function NewInstance: TObject; override;
 
     function Any: Boolean; overload;
   end;
@@ -71,7 +107,7 @@ type
     function TryGetSingle(var value: T; const predicate: Predicate<T>): Boolean; overload;
     property Comparer: IComparer<T> read fComparer;
   public
-    constructor Create;
+    procedure AfterConstruction; override;
 
     function Aggregate(const func: Func<T, T, T>): T;
 
@@ -156,7 +192,7 @@ type
       fSource: IEnumerator;
       fElementType: PTypeInfo;
       fGetCurrent: TGetCurrentFunc;
-      function GetCurrent: TValue;
+      function GetCurrent: Spring.TValue;
     public
       constructor Create(const source: IEnumerator; elementType: PTypeInfo; getCurrent: TGetCurrentFunc);
       function MoveNext: Boolean;
@@ -170,20 +206,22 @@ type
   protected
     function QueryInterface(const IID: TGUID; out obj): HResult; stdcall;
   public
-    constructor Create(const source: IEnumerable; getCurrent: TGetCurrentFunc);
+    class function Create(const source: IEnumerable; out obj;
+      getCurrent: TGetCurrentFunc): HResult; overload; static;
     function AsObject: TObject;
     function GetEnumerator: IEnumerator;
   end;
 
   TCollectionWrapper = class(TEnumerableWrapper, ICollection)
   private type
-    TAddFunc = function(const collection: IInterface; const value: TValue): Boolean;
+    TAddFunc = function(const collection: IInterface; const value: Spring.TValue): Boolean;
   private
     fAdd: TAddFunc;
   public
-    constructor Create(const source: IEnumerable;
-      getCurrent: TEnumerableWrapper.TGetCurrentFunc; add: TAddFunc);
-    function Add(const item: TValue): Boolean;
+    class function Create(const source: IEnumerable; out obj;
+      getCurrent: TEnumerableWrapper.TGetCurrentFunc;
+      add: TAddFunc): HRESULT; overload; static;
+    function Add(const item: Spring.TValue): Boolean;
     procedure Clear;
   end;
 
@@ -243,29 +281,43 @@ type
     function TakeWhileIndex: Boolean;
     function Where: Boolean;
 
-    class function GetCurrent(const enumerator: IEnumerator; elementType: PTypeInfo): TValue; static;
-    class function Add(const collection: IInterface; const value: TValue): Boolean; static;
+    class function GetCurrent(const enumerator: IEnumerator; elementType: PTypeInfo): Spring.TValue; static;
+    class function Add(const collection: IInterface; const value: Spring.TValue): Boolean; static;
   end;
 
-  TIterator = class abstract(TRefCountedObject)
+  PIterator = ^TIterator;
+  TIterator = record
   private type
     TEnumeratorState = (Initial, Started, Finished);
   private
-    fSource: TRefCountedObject;
-    fIterator: PIteratorRec;
-    fState: TEnumeratorState;
+    Vtable: Pointer;
+    RefCount: Integer;
+    Parent: TRefCountedObject;
+    Iterator: PIteratorRec;
+    State: TEnumeratorState;
     procedure Start;
   public
-    constructor Create(source: TRefCountedObject; iterator: PIteratorRec);
-    destructor Destroy; override;
+    class function Create(enumerator: PPointer; vtable: PEnumeratorVtable;
+      parent: TRefCountedObject; iterator: PIteratorRec; getCurrent: Pointer): Pointer; static;
+    function _Release: Integer; stdcall;
     function MoveNext: Boolean;
   end;
 
   TIteratorBase<T> = class abstract(TEnumerableBase<T>)
   private type
-    TEnumerator = class(TIterator, IEnumerator<T>)
-    private
+    TIteratorRecT = TIteratorRec<T>;
+    PIteratorRecT = ^TIteratorRecT;
+
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+
+      fSource: TRefCountedObject;
+      fIterator: PIteratorRecT;
+      fState: TIterator.TEnumeratorState;
       function GetCurrent: T;
+
+      class var Enumerator_Vtable: TEnumeratorVtable;
     end;
   protected
     fIterator: TIteratorRec<T>;
@@ -291,8 +343,8 @@ type
     function GetItem(index: Integer): T;
   {$ENDREGION}
   public
-    constructor Create(const source: TArray<T>); overload;
-    constructor Create(const source: array of T); overload;
+    constructor Create(const values: TArray<T>); overload;
+    constructor Create(const values: array of T); overload;
 
   {$REGION 'Implements IEnumerable<T>'}
     function ToArray: TArray<T>;
@@ -346,7 +398,7 @@ type
     procedure Start; virtual;
     function TryMoveNext(var current: T): Boolean; virtual; abstract;
   public
-    constructor Create;
+    procedure AfterConstruction; override;
     function GetEnumerator: IEnumerator<T>;
     function MoveNext: Boolean;
   end;
@@ -378,19 +430,21 @@ type
     procedure EventChanged(Sender: TObject);
   protected
   {$REGION 'Property Accessors'}
-    function GetIsReadOnly: Boolean;
     function GetOnChanged: ICollectionChangedEvent<T>;
   {$ENDREGION}
     function QueryInterface(const IID: TGUID; out obj): HResult; stdcall;
     procedure Changed(const item: T; action: TCollectionChangedAction); virtual;
-    procedure DoNotify(const item: T; action: TCollectionChangedAction); inline;
+    procedure DoNotify(const item: T; action: TCollectionChangedAction);
+      // there are errors in the XE4 Win64 compiler when this method is inline
+      {$IF not (Defined(DELPHIXE4) and Defined(WIN64))}inline;{$IFEND}
     procedure Reset;
     property OnChanged: TCollectionChangedEventImpl<T> read fOnChanged;
     property Notify: TNotify read fNotify;
   public
-    constructor Create;
-    destructor Destroy; override;
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
 
+    function Add(const item: T): Boolean;
     procedure AddRange(const values: array of T); overload;
     procedure AddRange(const values: IEnumerable<T>); overload;
 
@@ -402,28 +456,36 @@ type
     procedure ExtractRange(const values: array of T); overload;
     procedure ExtractRange(const values: IEnumerable<T>); overload;
 
-    procedure CopyTo(var values: TArray<T>; index: Integer);
     function MoveTo(const collection: ICollection<T>): Integer; overload;
     function MoveTo(const collection: ICollection<T>;
       const match: Predicate<T>): Integer; overload;
   end;
 
-  TInnerCollection<T> = class(TEnumerableBase<T>,
+  THashTableEnumerator = class(TRefCountedObject)
+  protected
+    {$IFDEF AUTOREFCOUNT}[Unsafe]{$ENDIF}
+    fSource: TRefCountedObject;
+    fHashTable: PHashTable;
+    fIndex: Integer;
+    fVersion: Integer;
+    fItem: PByte;
+  public
+    constructor Create(const source: TRefCountedObject; hashTable: PHashTable); overload;
+    procedure BeforeDestruction; override;
+    function MoveNext: Boolean;
+  end;
+
+  TInnerCollection<T> = class sealed(TEnumerableBase<T>,
     IEnumerable<T>, IReadOnlyCollection<T>)
   private type
   {$REGION 'Nested Types'}
     PT = ^T;
-    TEnumerator = class(TRefCountedObject, IEnumerator<T>)
+    TEnumerator = class(THashTableEnumerator, IEnumerator<T>)
     private
-      {$IFDEF AUTOREFCOUNT}[Unsafe]{$ENDIF}
-      fSource: TInnerCollection<T>;
-      fIndex: Integer;
-      fVersion: Integer;
       fCurrent: T;
       function GetCurrent: T;
     public
-      constructor Create(const source: TInnerCollection<T>);
-      destructor Destroy; override;
+      procedure BeforeDestruction; override;
       function MoveNext: Boolean;
     end;
   {$ENDREGION}
@@ -441,8 +503,9 @@ type
   protected
     function GetElementType: PTypeInfo; override;
   public
-    constructor Create(const source: TRefCountedObject; hashTable: PHashTable;
-      elementType: PTypeInfo; const comparer: IEqualityComparer<T>; offset: Integer);
+    class function Create(const source: TRefCountedObject; hashTable: PHashTable;
+      const comparer: IEqualityComparer<T>; elementType: PTypeInfo;
+      offset: Integer): TInnerCollection<T>; overload; static;
 
   {$REGION 'Implements IInterface'}
     function _AddRef: Integer; stdcall;
@@ -457,37 +520,25 @@ type
   {$ENDREGION}
   end;
 
-  THashTableEnumerator = class(TRefCountedObject)
-  protected
-    {$IFDEF AUTOREFCOUNT}[Unsafe]{$ENDIF}
-    fSource: TRefCountedObject;
-    fHashTable: PHashTable;
-    fIndex: Integer;
-    fVersion: Integer;
-  public
-    constructor Create(const source: TRefCountedObject; hashTable: PHashTable);
-    destructor Destroy; override;
-    function MoveNext: Boolean;
-  end;
-
   TCircularArrayBuffer<T> = class(TEnumerableBase<T>)
   private
   {$REGION 'Nested Types'}
     type
-      TEnumerator = class(TRefCountedObject, IEnumerator<T>)
-      private
+      PEnumerator = ^TEnumerator;
+      TEnumerator = record
+        Vtable: Pointer;
+        RefCount: Integer;
+        TypeInfo: PTypeInfo;
         {$IFDEF AUTOREFCOUNT}[Unsafe]{$ENDIF}
         fSource: TCircularArrayBuffer<T>;
-        fIndex: Integer;
+        fIndex, fCount: Integer;
         fVersion: Integer;
         fCurrent: T;
         function GetCurrent: T;
-      public
-        constructor Create(const source: TCircularArrayBuffer<T>);
-        destructor Destroy; override;
         function MoveNext: Boolean;
+        class var Enumerator_Vtable: TEnumeratorVtable;
       end;
-      ItemType = TArrayManager<T>;
+      ItemType = TTypeInfo<T>;
       PT = ^T;
   {$ENDREGION}
   strict private
@@ -498,7 +549,7 @@ type
     fVersion: Integer;
     fHead: Integer;
     fTail: Integer;
-    function GetTail: PT; inline;
+    function GetTail: Integer; inline;
   protected
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
@@ -515,16 +566,16 @@ type
     procedure DeleteFromHead(action: TCollectionChangedAction); inline;
     procedure DeleteFromTail(action: TCollectionChangedAction); inline;
 
-    procedure DoNotify(const item: T; action: TCollectionChangedAction); inline;
     property Capacity: Integer read GetCapacity;
     property Count: Integer read GetCount;
     property Items: TArray<T> read fItems;
     property Head: Integer read fHead;
-    property Tail: PT read GetTail;
+    property Tail: Integer read GetTail;
     property OwnsObjects: Boolean read GetOwnsObjects;
   public
     constructor Create(capacity: Integer = 0; ownsObjects: Boolean = False);
-    destructor Destroy; override;
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
 
   {$REGION 'Implements IEnumerable<T>'}
     function GetEnumerator: IEnumerator<T>;
@@ -541,96 +592,33 @@ type
     procedure TrimExcess;
   end;
 
-  TMapBase<TKey, T> = class abstract(TCollectionBase<TPair<TKey, T>>)
+  TMapBase<TKey, TValue> = class abstract(TCollectionBase<TPair<TKey, TValue>>)
   private
     type
-      TKeyValuePair = TPair<TKey, T>;
+      TKeyValuePair = TPair<TKey, TValue>;
+      TKeyValuePairComparer = TPairComparer<TKey, TValue>;
   protected
     fOnKeyChanged: TCollectionChangedEventImpl<TKey>;
-    fOnValueChanged: TCollectionChangedEventImpl<T>;
+    fOnValueChanged: TCollectionChangedEventImpl<TValue>;
   {$REGION 'Property Accessors'}
     function GetOnKeyChanged: ICollectionChangedEvent<TKey>;
-    function GetOnValueChanged: ICollectionChangedEvent<T>;
+    function GetOnValueChanged: ICollectionChangedEvent<TValue>;
     function GetKeyType: PTypeInfo; virtual;
     function GetValueType: PTypeInfo; virtual;
   {$ENDREGION}
-    procedure DoNotify(const key: TKey; const value: T; action: TCollectionChangedAction);
-    procedure KeyChanged(const item: TKey; action: TCollectionChangedAction); inline;
-    procedure ValueChanged(const item: T; action: TCollectionChangedAction); inline;
+    procedure DoNotify(const key: TKey; const value: TValue; action: TCollectionChangedAction); overload;
   public
-    constructor Create;
-    destructor Destroy; override;
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
 
     function Add(const item: TKeyValuePair): Boolean; overload;
-    procedure Add(const key: TKey; const value: T); overload;
+    procedure Add(const key: TKey; const value: TValue); overload;
 
     function Remove(const item: TKeyValuePair): Boolean;
 
     function Extract(const item: TKeyValuePair): TKeyValuePair;
 
     function Contains(const item: TKeyValuePair): Boolean; overload;
-
-    property OnKeyChanged: ICollectionChangedEvent<TKey> read GetOnKeyChanged;
-    property OnValueChanged: ICollectionChangedEvent<T> read GetOnValueChanged;
-    property KeyType: PTypeInfo read GetKeyType;
-    property ValueType: PTypeInfo read GetValueType;
-  end;
-
-  /// <summary>
-  ///   Provides an abstract implementation for the <see cref="Spring.Collections|IList&lt;T&gt;" />
-  ///    interface.
-  /// </summary>
-  TListBase<T> = class abstract(TCollectionBase<T>)
-  protected
-  {$REGION 'Implements IInterface'}
-    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
-  {$ENDREGION}
-    function CreateList: IList<T>; virtual;
-  public
-    function Add(const item: T): Boolean;
-
-    function Remove(const item: T): Boolean;
-
-    function IndexOf(const item: T): Integer; overload;
-    function IndexOf(const item: T; index: Integer): Integer; overload;
-
-    function LastIndexOf(const item: T): Integer; overload;
-    function LastIndexOf(const item: T; index: Integer): Integer; overload;
-
-    procedure Reverse; overload;
-
-    procedure Sort; overload;
-    procedure Sort(const comparer: IComparer<T>); overload;
-    procedure Sort(const comparer: TComparison<T>); overload;
-    procedure Sort(const comparer: TComparison<T>; index, count: Integer); overload;
-  end;
-
-  Error = record
-    class function ArgumentOutOfRange(const s: string): Exception; static;
-    class function DuplicateKey: Exception; static;
-    class function EnumFailedVersion: Exception; static;
-    class function KeyNotFound: Exception; static;
-    class function MoreThanOneElement: Exception; static;
-    class function MoreThanOneMatch: Exception; static;
-    class function NoClassType(t: PTypeInfo): Exception; static;
-    class function NoElements: Exception; static;
-    class function NoMatch: Exception; static;
-    class function NotSupported: Exception; static;
-  end;
-
-  TArrayHelper = record
-    class function IndexOf1(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function IndexOf2(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function IndexOf4(items: Pointer; const item; index, count: Integer): Integer; static;
-    class function IndexOf8(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function IndexOfObj(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function IndexOfStr(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function LastIndexOf1(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function LastIndexOf2(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function LastIndexOf4(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function LastIndexOf8(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function LastIndexOfObj(const items: Pointer; const item; index, count: Integer): Integer; static;
-    class function LastIndexOfStr(const items: Pointer; const item; index, count: Integer): Integer; static;
   end;
 
 const
@@ -645,7 +633,9 @@ const
   EmptyBucket        = -1; // must be negative, note choice of BucketSentinelFlag
   UsedBucket         = -2; // likewise
 
-procedure UpdateNotify(actualClass, baseClass: TClass; const event: TEventBase; var code);
+procedure EnsureEventInstance(var event: TEventBase; var result;
+  eventClass: TEventBaseClass; eventChanged: TNotifyEvent);
+procedure UpdateNotify(instance: TObject; baseClass: TClass; const event: TEventBase; var code);
 
 implementation
 
@@ -661,7 +651,39 @@ uses
   Spring.Collections.Lists,
   Spring.ResourceStrings;
 
-procedure UpdateNotify(actualClass, baseClass: TClass; const event: TEventBase; var code);
+type
+  TEventImpl = class(TEventBase, IEvent);
+
+procedure EnsureEventInstance(var event: TEventBase; var result;
+  eventClass: TEventBaseClass; eventChanged: TNotifyEvent);
+
+  procedure CreateEvent(var event: TEventBase; var result;
+    eventClass: TEventBaseClass; eventChanged: TNotifyEvent);
+  var
+    newEvent: TEventBase;
+  begin
+    newEvent := eventClass.Create;
+    if AtomicCmpExchange(Pointer(event), Pointer(newEvent), nil) <> nil then
+      newEvent.Free
+    else
+    begin
+{$IFDEF AUTOREFCOUNT}
+      newEvent.__ObjAddRef;
+{$ENDIF AUTOREFCOUNT}
+      event.OnChanged := eventChanged;
+      eventChanged(event);
+    end;
+    IEvent(result) := TEventImpl(event);
+  end;
+
+begin
+  if Assigned(event) then
+    IntfAssign(IEvent(TEventImpl(event)), IInterface(result))
+  else
+    CreateEvent(event, result, eventClass, eventChanged);
+end;
+
+procedure UpdateNotify(instance: TObject; baseClass: TClass; const event: TEventBase; var code);
 const
   ChangedVirtualIndex = 1;
 var
@@ -669,7 +691,7 @@ var
 begin
 {$POINTERMATH ON}
   baseAddress := PPointer(baseClass)[ChangedVirtualIndex];
-  actualAddress := PPointer(actualClass)[ChangedVirtualIndex];
+  actualAddress := PPointer(instance.ClassType)[ChangedVirtualIndex];
 {$POINTERMATH OFF}
   if (Assigned(event) and event.CanInvoke) or (actualAddress <> baseAddress) then
     Pointer(code) := actualAddress
@@ -678,124 +700,97 @@ begin
 end;
 
 
-{$REGION 'TArrayHelper'}
+{$REGION 'TEnumeratorBlock'}
 
-class function TArrayHelper.IndexOf1(const items: Pointer; const item;
-  index, count: Integer): Integer;
+class function TEnumeratorBlock.Create(enumerator: PPointer; vtable: PEnumeratorVtable;
+  typeInfo, getCurrent, moveNext: Pointer): Pointer;
+
+  function GetEnumeratorBlockSize(typeInfo: Pointer): Integer; inline;
+  var
+    p: PByte;
+  begin
+    p := typeInfo;
+    Result := PTypeData(@p[p[1]+2]).RecSize;
+  end;
+
 begin
-  for Result := index to index + count - 1 do
-    if TArray<Byte>(items)[Result] = Byte(item) then
-      Exit;
-  Result := -1;
+  IInterface(enumerator^) := nil;
+  Result := AllocMem(GetEnumeratorBlockSize(typeInfo));
+  PEnumeratorBlock(Result).Vtable := vtable;
+  PEnumeratorBlock(Result).RefCount := 1;
+  PEnumeratorBlock(Result).TypeInfo := typeInfo;
+  enumerator^ := Result;
+
+  if not Assigned(vtable[0]) then
+  begin
+    vtable[0] := @NopQueryInterface;
+    vtable[1] := @RecAddRef;
+    vtable[2] := @TEnumeratorBlock._Release;
+    vtable[3] := getCurrent;
+    vtable[4] := moveNext;
+  end;
 end;
 
-class function TArrayHelper.IndexOf2(const items: Pointer; const item;
-  index, count: Integer): Integer;
+function TEnumeratorBlock._Release: Integer;
 begin
-  for Result := index to index + count - 1 do
-    if TArray<Word>(items)[Result] = Word(item) then
-      Exit;
-  Result := -1;
+  Result := AtomicDecrement(RefCount);
+  if Result = 0 then
+  begin
+    Parent._Release;
+    FinalizeRecord(@Self, TypeInfo);
+    FreeMem(@Self);
+  end;
 end;
 
-class function TArrayHelper.IndexOf4(items: Pointer; const item;
-  index, count: Integer): Integer;
+{$ENDREGION}
+
+
+{$REGION 'TPairComparer'}
+
+class function TPairComparer.Create(comparer: PPointer; vtable: PComparerVtable;
+  compare: Pointer; keyType, valueType: PTypeInfo): Pointer;
 begin
-  for Result := index to index + count - 1 do
-    if TArray<Cardinal>(items)[Result] = Cardinal(item) then
-      Exit;
-  Result := -1;
+  vtable[0] := @NopQueryInterface;
+  vtable[1] := @RecAddRef;
+  vtable[2] := @TPairComparer._Release;
+  vtable[3] := compare;
+
+  IInterface(comparer^) := nil;
+  Result := AllocMem(SizeOf(TPairComparer));
+  PPairComparer(Result).Vtable := vtable;
+  PPairComparer(Result).RefCount := 1;
+  PPairComparer(Result).KeyComparer := IInterface(_LookupVtableInfo(giComparer, keyType, GetTypeSize(keyType)));
+  PPairComparer(Result).ValueComparer := IInterface(_LookupVtableInfo(giComparer, valueType, GetTypeSize(valueType)));
+  comparer^ := Result;
 end;
 
-class function TArrayHelper.IndexOf8(const items: Pointer; const item;
-  index, count: Integer): Integer;
+function TPairComparer._Release: Integer;
 begin
-  for Result := index to index + count - 1 do
-    if TArray<UInt64>(items)[Result] = UInt64(item) then
-      Exit;
-  Result := -1;
+  Result := AtomicDecrement(RefCount);
+  if Result = 0 then
+  begin
+    KeyComparer := nil;
+    ValueComparer := nil;
+    FreeMem(@Self);
+  end;
 end;
 
-class function TArrayHelper.IndexOfObj(const items: Pointer; const item;
-  index, count: Integer): Integer;
+{$ENDREGION}
+
+
+{$REGION 'TPairComparer<TKey, TValue>' }
+
+function TPairComparer<TKey, TValue>.Compare(const left, right: TPair<TKey, TValue>): Integer;
 begin
-  for Result := index to index + count - 1 do
-    if TArray<TObject>(items)[Result] = nil then
-    begin
-      if TObject(item) = nil then
-        Exit;
-    end
-    else if TArray<TObject>(items)[Result].Equals(TObject(item)) then
-      Exit;
-  Result := -1;
+  Result := KeyComparer.Compare(left.Key, right.Key);
+  if Result = 0 then
+    Result := ValueComparer.Compare(left.Value, right.Value);
 end;
 
-class function TArrayHelper.IndexOfStr(const items: Pointer; const item;
-  index, count: Integer): Integer;
+class function TPairComparer<TKey, TValue>.Default: IComparer<TPair<TKey, TValue>>;
 begin
-  for Result := index to index + count - 1 do
-    if TArray<string>(items)[Result] = string(item) then
-      Exit;
-  Result := -1;
-end;
-
-class function TArrayHelper.LastIndexOf1(const items: Pointer; const item;
-  index, count: Integer): Integer;
-begin
-  for Result := index downto index - count do
-    if TArray<Byte>(items)[Result] = Byte(item) then
-      Exit;
-  Result := -1;
-end;
-
-class function TArrayHelper.LastIndexOf2(const items: Pointer; const item;
-  index, count: Integer): Integer;
-begin
-  for Result := index downto index - count do
-    if TArray<Word>(items)[Result] = Word(item) then
-      Exit;
-  Result := -1;
-end;
-
-class function TArrayHelper.LastIndexOf4(const items: Pointer; const item;
-  index, count: Integer): Integer;
-begin
-  for Result := index downto index - count do
-    if TArray<Cardinal>(items)[Result] = Cardinal(item) then
-      Exit;
-  Result := -1;
-end;
-
-class function TArrayHelper.LastIndexOf8(const items: Pointer; const item;
-  index, count: Integer): Integer;
-begin
-  for Result := index downto index - count do
-    if TArray<UInt64>(items)[Result] = UInt64(item) then
-      Exit;
-  Result := -1;
-end;
-
-class function TArrayHelper.LastIndexOfObj(const items: Pointer; const item;
-  index, count: Integer): Integer;
-begin
-  for Result := index downto index - count do
-    if TArray<TObject>(items)[Result] = nil then
-    begin
-      if TObject(item) = nil then
-        Exit;
-    end
-    else if TArray<TObject>(items)[Result].Equals(TObject(item)) then
-      Exit;
-  Result := -1;
-end;
-
-class function TArrayHelper.LastIndexOfStr(const items: Pointer; const item;
-  index, count: Integer): Integer;
-begin
-  for Result := index downto index - count do
-    if TArray<string>(items)[Result] = string(item) then
-      Exit;
-  Result := -1;
+  TPairComparer.Create(@Result, @Comparer_Vtable,
+    @TPairComparer<TKey, TValue>.Compare, TypeInfo(TKey), TypeInfo(TValue));
 end;
 
 {$ENDREGION}
@@ -803,21 +798,17 @@ end;
 
 {$REGION 'TEnumerableBase'}
 
+class function TEnumerableBase.NewInstance: TObject;
+begin
+  Result := inherited NewInstance;
+
+  // child classes must implement IEnumerable<T>
+  TEnumerableBase(Result).this := Pointer(PByte(Result) + GetInterfaceEntry(IEnumerableOfTGuid).IOffset);
+end;
+
 function TEnumerableBase.Any: Boolean;
 begin
   Result := not IEnumerable(this).IsEmpty;
-end;
-
-constructor TEnumerableBase.Create;
-begin
-  // child classes must implement IEnumerable<T>
-  // can use any specialization as they all have the same GUID
-  Pointer(this) := Pointer(PByte(Self) + GetInterfaceEntry(IEnumerable<Integer>).IOffset);
-end;
-
-destructor TEnumerableBase.Destroy;
-begin
-  Pointer(this) := nil;
 end;
 
 function TEnumerableBase.GetCount: Integer;
@@ -843,9 +834,9 @@ end;
 
 {$REGION 'TEnumerableBase<T>'}
 
-constructor TEnumerableBase<T>.Create;
+procedure TEnumerableBase<T>.AfterConstruction;
 begin
-  inherited Create;
+  inherited AfterConstruction;
   if not Assigned(fComparer) then
     fComparer := IComparer<T>(_LookupVtableInfo(giComparer, GetElementType, SizeOf(T)));
 end;
@@ -855,13 +846,11 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(func), 'func');
-{$ENDIF}
+  if not Assigned(func) then RaiseHelper.ArgumentNil(ExceptionArgument.func);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   if not enumerator.MoveNext then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
   Result := enumerator.Current;
   while enumerator.MoveNext do
     Result := func(Result, enumerator.Current);
@@ -872,9 +861,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
@@ -891,9 +878,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
@@ -905,12 +890,9 @@ begin
   Result := False;
 end;
 
-function TEnumerableBase<T>.Concat(
-  const second: IEnumerable<T>): IEnumerable<T>;
+function TEnumerableBase<T>.Concat(const second: IEnumerable<T>): IEnumerable<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(second), 'second');
-{$ENDIF}
+  if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
   Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
     0, Pointer(second), TIteratorKind.Concat);
@@ -930,9 +912,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(comparer), 'comparer');
-{$ENDIF}
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
@@ -965,7 +945,7 @@ end;
 function TEnumerableBase<T>.ElementAt(index: Integer): T;
 begin
   if not IEnumerable<T>(this).TryGetElementAt(Result, index) then
-    raise Error.ArgumentOutOfRange('index');
+    RaiseHelper.ArgumentOutOfRange_Index;
 end;
 
 function TEnumerableBase<T>.ElementAtOrDefault(index: Integer): T;
@@ -1002,7 +982,7 @@ function TEnumerableBase<T>.EqualsTo(const values: IEnumerable<T>): Boolean;
 var
   comparer: IEqualityComparer<T>;
 begin
-  if this = values then
+  if IInterface(this) = values then
     Result := True
   else
   begin
@@ -1016,10 +996,8 @@ function TEnumerableBase<T>.EqualsTo(const values: IEnumerable<T>;
 var
   e1, e2: IEnumerator<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(values), 'values');
-  Guard.CheckNotNull(Assigned(comparer), 'comparer');
-{$ENDIF}
+  if not Assigned(values) then RaiseHelper.ArgumentNil(ExceptionArgument.values);
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
 
   e1 := IEnumerable<T>(this).GetEnumerator;
   e2 := values.GetEnumerator;
@@ -1033,13 +1011,13 @@ end;
 function TEnumerableBase<T>.First: T;
 begin
   if not IEnumerable<T>(this).TryGetFirst(Result) then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TEnumerableBase<T>.First(const predicate: Predicate<T>): T;
 begin
   if not IEnumerable<T>(this).TryGetFirst(Result, predicate) then
-    raise Error.NoMatch;
+    RaiseHelper.NoMatch;
 end;
 
 function TEnumerableBase<T>.FirstOrDefault: T;
@@ -1070,9 +1048,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(action), 'action');
-{$ENDIF}
+  if not Assigned(action) then RaiseHelper.ArgumentNil(ExceptionArgument.action);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
@@ -1095,13 +1071,13 @@ end;
 function TEnumerableBase<T>.Last: T;
 begin
   if not IEnumerable<T>(this).TryGetLast(Result) then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TEnumerableBase<T>.Last(const predicate: Predicate<T>): T;
 begin
   if not IEnumerable<T>(this).TryGetLast(Result, predicate) then
-    raise Error.NoMatch;
+    RaiseHelper.NoMatch;
 end;
 
 function TEnumerableBase<T>.LastOrDefault: T;
@@ -1123,7 +1099,7 @@ end;
 function TEnumerableBase<T>.LastOrDefault(const predicate: Predicate<T>;
   const defaultValue: T): T;
 begin
-  if not IEnumerable<T>(this).TryGetLast(Result) then
+  if not IEnumerable<T>(this).TryGetLast(Result, predicate) then
     Result := defaultValue;
 end;
 
@@ -1137,9 +1113,11 @@ var
   enumerator: IEnumerator<T>;
   item: Integer;
 begin
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
+
   enumerator := IEnumerable<T>(this).GetEnumerator;
   if not enumerator.MoveNext then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
   Result := selector(enumerator.Current);
   while enumerator.MoveNext do
   begin
@@ -1154,13 +1132,11 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(comparer), 'comparer');
-{$ENDIF}
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   if not enumerator.MoveNext then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
   Result := enumerator.Current;
   while enumerator.MoveNext do
   begin
@@ -1185,9 +1161,11 @@ var
   enumerator: IEnumerator<T>;
   item: Integer;
 begin
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
+
   enumerator := IEnumerable<T>(this).GetEnumerator;
   if not enumerator.MoveNext then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
   Result := selector(enumerator.Current);
   while enumerator.MoveNext do
   begin
@@ -1202,13 +1180,11 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(comparer), 'comparer');
-{$ENDIF}
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   if not enumerator.MoveNext then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
   Result := enumerator.Current;
   while enumerator.MoveNext do
   begin
@@ -1229,34 +1205,24 @@ begin
     0, Pointer(fComparer), TIteratorKind.Ordered);
 end;
 
-function TEnumerableBase<T>.Ordered(
-  const comparer: IComparer<T>): IEnumerable<T>;
+function TEnumerableBase<T>.Ordered(const comparer: IComparer<T>): IEnumerable<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(comparer), 'comparer');
-{$ENDIF}
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
 
   Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
     0, Pointer(comparer), TIteratorKind.Ordered);
 end;
 
-function TEnumerableBase<T>.Ordered(
-  const comparer: TComparison<T>): IEnumerable<T>;
+function TEnumerableBase<T>.Ordered(const comparer: TComparison<T>): IEnumerable<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(comparer), 'comparer');
-{$ENDIF}
-
-  Result := Ordered(IComparer<T>(PPointer(@comparer)^));
+  Result := IEnumerable<T>(this).Ordered(IComparer<T>(PPointer(@comparer)^));
 end;
 
 function TEnumerableBase<T>.QueryInterface(const IID: TGUID; out obj): HResult;
 begin
-  if IID = IEnumerable then
-  begin
-    IEnumerable(obj) := TEnumerableWrapper.Create(IEnumerable(this), TIteratorRec<T>.GetCurrent);
-    Result := S_OK;
-  end else
+  if IID = IEnumerableGuid then
+    Result := TEnumerableWrapper.Create(IEnumerable(this), obj, TIteratorRec<T>.GetCurrent)
+  else
     Result := inherited QueryInterface(IID, obj);
 end;
 
@@ -1278,33 +1244,37 @@ var
 begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   if not enumerator.MoveNext then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
   Result := enumerator.Current;
   if enumerator.MoveNext then
-    raise Error.MoreThanOneElement;
+    RaiseHelper.MoreThanOneElement;
 end;
 
 function TEnumerableBase<T>.Single(const predicate: Predicate<T>): T;
 var
   enumerator: IEnumerator<T>;
+  item: T;
+  found: Boolean;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
+  found := False;
   enumerator := IEnumerable<T>(this).GetEnumerator;
-  while enumerator.MoveNext do
+  while True do
   begin
-    Result := enumerator.Current;
-    if predicate(Result) then
+    if not enumerator.MoveNext then Break;
+    item := enumerator.Current;
+    if predicate(item) then
     begin
-      while enumerator.MoveNext do
-        if predicate(enumerator.Current) then
-          raise Error.MoreThanOneMatch;
-      Exit;
+      found := not found;
+      if found then
+        Result := item
+      else
+        RaiseHelper.MoreThanOneMatch;
     end;
   end;
-  raise Error.NoMatch;
+  if not found then
+    RaiseHelper.NoMatch;
 end;
 
 function TEnumerableBase<T>.SingleOrDefault: T;
@@ -1324,7 +1294,7 @@ begin
     Exit(defaultValue);
   Result := enumerator.Current;
   if enumerator.MoveNext then
-    raise Error.MoreThanOneElement;
+    RaiseHelper.MoreThanOneElement;
 end;
 
 function TEnumerableBase<T>.SingleOrDefault(const predicate: Predicate<T>): T;
@@ -1335,28 +1305,31 @@ begin
   Result := IEnumerable<T>(this).SingleOrDefault(predicate, defaultValue);
 end;
 
-function TEnumerableBase<T>.SingleOrDefault(const predicate: Predicate<T>;
-  const defaultValue: T): T;
+function TEnumerableBase<T>.SingleOrDefault(const predicate: Predicate<T>; const defaultValue: T): T;
 var
   enumerator: IEnumerator<T>;
+  item: T;
+  found: Boolean;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
+  found := False;
   enumerator := IEnumerable<T>(this).GetEnumerator;
-  while enumerator.MoveNext do
+  while True do
   begin
-    Result := enumerator.Current;
-    if predicate(Result) then
+    if not enumerator.MoveNext then Break;
+    item := enumerator.Current;
+    if predicate(item) then
     begin
-      while enumerator.MoveNext do
-        if predicate(enumerator.Current) then
-          raise Error.MoreThanOneMatch;
-      Exit;
+      found := not found;
+      if found then
+        Result := item
+      else
+        RaiseHelper.MoreThanOneMatch;
     end;
   end;
-  Result := defaultValue;
+  if not found then
+    Result := defaultValue;
 end;
 
 function TEnumerableBase<T>.Skip(count: Integer): IEnumerable<T>;
@@ -1368,9 +1341,7 @@ end;
 function TEnumerableBase<T>.SkipWhile(
   const predicate: Predicate<T>): IEnumerable<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
     0, PPointer(@predicate)^, TIteratorKind.SkipWhile);
@@ -1379,9 +1350,7 @@ end;
 function TEnumerableBase<T>.SkipWhile(
   const predicate: Func<T, Integer, Boolean>): IEnumerable<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
     0, PPointer(@predicate)^, TIteratorKind.SkipWhileIndex);
@@ -1418,9 +1387,7 @@ end;
 function TEnumerableBase<T>.TakeWhile(
   const predicate: Predicate<T>): IEnumerable<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
     0, PPointer(@predicate)^, TIteratorKind.TakeWhile);
@@ -1429,9 +1396,7 @@ end;
 function TEnumerableBase<T>.TakeWhile(
   const predicate: Func<T, Integer, Boolean>): IEnumerable<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
     0, PPointer(@predicate)^, TIteratorKind.TakeWhileIndex);
@@ -1439,52 +1404,46 @@ end;
 
 function TEnumerableBase<T>.ToArray: TArray<T>;
 var
-  intf: IInterface;
-  count: Integer;
+  enumerator: IEnumerator<T>;
+  count, capacity: Integer;
 begin
   Result := nil;
-  if Supports(Self, ICollection<T>, intf) then
+  count := 0;
+  capacity := 0;
+  enumerator := IEnumerable<T>(this).GetEnumerator;
+  while enumerator.MoveNext do
   begin
-    count := ICollection<T>(intf).Count;
-    if count > 0 then
+    if count >= capacity then
     begin
-      SetLength(Result, count);
-      ICollection<T>(intf).CopyTo(Result, 0);
+      capacity := GrowCapacity(capacity);
+      SetLength(Result, capacity);
     end;
-  end
-  else
-  begin
-    count := 0;
-    intf := IEnumerable<T>(this).GetEnumerator;
-    while IEnumerator<T>(intf).MoveNext do
-    begin
-      if Result = nil then
-        SetLength(Result, 4)
-      else if Length(Result) = count then
-        SetLength(Result, count * 2);
-      Result[count] := IEnumerator<T>(intf).Current;
-      Inc(count);
-    end;
-    SetLength(Result, count);
+    Result[count] := enumerator.Current;
+    Inc(count);
   end;
+  SetLength(Result, count);
 end;
 
 function TEnumerableBase<T>.TryGetElementAt(var value: T; index: Integer): Boolean;
 var
   enumerator: IEnumerator<T>;
 begin
-  if index < 0 then
-    Exit(False);
-  enumerator := IEnumerable<T>(this).GetEnumerator;
-  while enumerator.MoveNext do
+  if index >= 0 then
   begin
-    if index = 0 then
+    enumerator := IEnumerable<T>(this).GetEnumerator;
+    while True do
     begin
+      if not enumerator.MoveNext then
+        Break;
+      Dec(index);
+      if index >= 0 then
+        Continue;
+
       value := enumerator.Current;
       Exit(True);
     end;
-    Dec(index);
   end;
+  value := Default(T);
   Result := False;
 end;
 
@@ -1507,9 +1466,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
@@ -1546,9 +1503,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   Result := False;
   enumerator := IEnumerable<T>(this).GetEnumerator;
@@ -1590,9 +1545,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   Result := False;
   enumerator := IEnumerable<T>(this).GetEnumerator;
@@ -1615,9 +1568,7 @@ end;
 
 function TEnumerableBase<T>.Where(const predicate: Predicate<T>): IEnumerable<T>;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
     0, PPointer(@predicate)^, TIteratorKind.Where);
@@ -1628,11 +1579,16 @@ end;
 
 {$REGION 'TEnumerableWrapper'}
 
-constructor TEnumerableWrapper.Create(const source: IEnumerable;
-  getCurrent: TGetCurrentFunc);
+class function TEnumerableWrapper.Create(const source: IEnumerable; out obj;
+  getCurrent: TGetCurrentFunc): HResult;
+var
+  wrapper: TEnumerableWrapper;
 begin
-  fSource := source;
-  fGetCurrent := getCurrent;
+  wrapper := TEnumerableWrapper.Create;
+  wrapper.fSource := source;
+  wrapper.fGetCurrent := getCurrent;
+  IEnumerable(obj) := wrapper;
+  Result := S_OK;
 end;
 
 function TEnumerableWrapper.AsObject: TObject;
@@ -1680,7 +1636,7 @@ begin
   fGetCurrent := getCurrent;
 end;
 
-function TEnumerableWrapper.TEnumerator.GetCurrent: TValue;
+function TEnumerableWrapper.TEnumerator.GetCurrent: Spring.TValue;
 begin
   Result := fGetCurrent(fSource, fElementType);
 end;
@@ -1695,14 +1651,20 @@ end;
 
 {$REGION 'TCollectionWrapper'}
 
-constructor TCollectionWrapper.Create(const source: IEnumerable;
-  getCurrent: TEnumerableWrapper.TGetCurrentFunc; add: TAddFunc);
+class function TCollectionWrapper.Create(const source: IEnumerable; out obj;
+  getCurrent: TEnumerableWrapper.TGetCurrentFunc; add: TAddFunc): HRESULT;
+var
+  wrapper: TCollectionWrapper;
 begin
-  inherited Create(source, getCurrent);
-  fAdd := add;
+  wrapper := TCollectionWrapper.Create;
+  wrapper.fSource := source;
+  wrapper.fGetCurrent := getCurrent;
+  wrapper.fAdd := add;
+  ICollection(obj) := wrapper;
+  Result := S_OK;
 end;
 
-function TCollectionWrapper.Add(const item: TValue): Boolean;
+function TCollectionWrapper.Add(const item: Spring.TValue): Boolean;
 begin
   Result := fAdd(fSource, item);
 end;
@@ -1719,9 +1681,9 @@ end;
 
 {$REGION 'TIterator<T>'}
 
-constructor TIterator<T>.Create;
+procedure TIterator<T>.AfterConstruction;
 begin
-  inherited Create;
+  inherited AfterConstruction;
   fState := STATE_INITIAL;
   fThreadId := GetCurrentThreadId;
 end;
@@ -1783,7 +1745,6 @@ constructor TSourceIterator<T>.Create(const source: IEnumerable<T>);
 begin
   fComparer := source.Comparer;
   fSource := source;
-  inherited Create;
 end;
 
 function TSourceIterator<T>.GetElementType: PTypeInfo;
@@ -1796,21 +1757,20 @@ end;
 
 {$REGION 'TCollectionBase<T>'}
 
-constructor TCollectionBase<T>.Create;
+procedure TCollectionBase<T>.AfterConstruction;
 begin
-  inherited Create;
-  UpdateNotify(ClassType, TCollectionBase<T>, fOnChanged, fNotify);
+  inherited AfterConstruction;
+  UpdateNotify(Self, TCollectionBase<T>, fOnChanged, fNotify);
 end;
 
-destructor TCollectionBase<T>.Destroy;
+procedure TCollectionBase<T>.BeforeDestruction;
 begin
   fOnChanged.Free;
-  inherited Destroy;
 end;
 
 procedure TCollectionBase<T>.EventChanged(Sender: TObject);
 begin
-  UpdateNotify(ClassType, TCollectionBase<T>, fOnChanged, fNotify);
+  UpdateNotify(Self, TCollectionBase<T>, fOnChanged, fNotify);
 end;
 
 procedure TCollectionBase<T>.DoNotify(const item: T;
@@ -1824,8 +1784,15 @@ procedure TCollectionBase<T>.AddRange(const values: array of T);
 var
   i: Integer;
 begin
-  for i := Low(values) to High(values) do
+  for i := 0 to High(values) do
     ICollection<T>(this).Add(values[i]);
+end;
+
+function TCollectionBase<T>.Add(const item: T): Boolean;
+begin
+  // only for usage with implementing IList<T>
+  IList<T>(this).Add(item);
+  Result := True;
 end;
 
 procedure TCollectionBase<T>.AddRange(const values: IEnumerable<T>);
@@ -1833,9 +1800,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(values), 'values');
-{$ENDIF}
+  if not Assigned(values) then RaiseHelper.ArgumentNil(ExceptionArgument.values);
 
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
@@ -1851,22 +1816,6 @@ begin
     fOnChanged.Invoke(Self, item, action);
 end;
 
-procedure TCollectionBase<T>.CopyTo(var values: TArray<T>; index: Integer);
-var
-  enumerator: IEnumerator<T>;
-begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckRange(Length(values), index, IEnumerable<T>(this).Count);
-{$ENDIF}
-
-  enumerator := IEnumerable<T>(this).GetEnumerator;
-  while enumerator.MoveNext do
-  begin
-    values[index] := enumerator.Current;
-    Inc(index);
-  end;
-end;
-
 function TCollectionBase<T>.ExtractAll(const match: Predicate<T>): TArray<T>;
 begin
   Result := IEnumerable<T>(this).Where(match).ToArray;
@@ -1877,7 +1826,7 @@ procedure TCollectionBase<T>.ExtractRange(const values: array of T);
 var
   i: Integer;
 begin
-  for i := Low(values) to High(values) do
+  for i := 0 to High(values) do
     ICollection<T>(this).Extract(values[i]);
 end;
 
@@ -1886,9 +1835,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(values), 'values');
-{$ENDIF}
+  if not Assigned(values) then RaiseHelper.ArgumentNil(ExceptionArgument.values);
 
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
@@ -1898,36 +1845,14 @@ begin
   end;
 end;
 
-function TCollectionBase<T>.GetIsReadOnly: Boolean;
-begin
-  Result := False;
-end;
-
 function TCollectionBase<T>.GetOnChanged: ICollectionChangedEvent<T>;
-var
-  onChanged: TCollectionChangedEventImpl<T>;
 begin
-  if not Assigned(fOnChanged) then
-  begin
-    onChanged := TCollectionChangedEventImpl<T>.Create;
-    if AtomicCmpExchange(Pointer(fOnChanged), Pointer(onChanged), nil) <> nil then
-      onChanged.Free
-    else
-    begin
-{$IFDEF AUTOREFCOUNT}
-      onChanged.__ObjAddRef;
-{$ENDIF AUTOREFCOUNT}
-      fOnChanged.OnChanged := EventChanged;
-      EventChanged(fOnChanged);
-    end;
-  end;
-
-  Result := fOnChanged;
+  EnsureEventInstance(TEventBase(fOnChanged), Result, TCollectionChangedEventImpl<T>, EventChanged);
 end;
 
 function TCollectionBase<T>.MoveTo(const collection: ICollection<T>): Integer;
 begin
-  Result := MoveTo(collection, nil);
+  Result := ICollection<T>(this).MoveTo(collection, nil);
 end;
 
 function TCollectionBase<T>.MoveTo(const collection: ICollection<T>;
@@ -1936,13 +1861,11 @@ var
   values: TArray<T>;
   i: Integer;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(collection), 'collection');
-{$ENDIF}
+  if not Assigned(collection) then RaiseHelper.ArgumentNil(ExceptionArgument.collection);
 
   Result := 0;
-  values := ToArray;
-  for i := Low(values) to High(values) do
+  values := IEnumerable<T>(this).ToArray;
+  for i := 0 to DynArrayHigh(values) do
     if not Assigned(match) or match(values[i]) then
     begin
       ICollection<T>(this).Extract(values[i]);
@@ -1953,11 +1876,9 @@ end;
 
 function TCollectionBase<T>.QueryInterface(const IID: TGUID; out obj): HResult;
 begin
-  if IID = ICollection then
-  begin
-    ICollection(obj) := TCollectionWrapper.Create(IEnumerable(this), TIteratorRec<T>.GetCurrent, TIteratorRec<T>.Add);
-    Result := S_OK;
-  end else
+  if IID = ICollectionGuid then
+    Result := TCollectionWrapper.Create(IEnumerable(this), obj, TIteratorRec<T>.GetCurrent, TIteratorRec<T>.Add)
+  else
     Result := inherited QueryInterface(IID, obj);
 end;
 
@@ -1971,7 +1892,7 @@ var
   i: Integer;
 begin
   Result := 0;
-  for i := Low(values) to High(values) do
+  for i := 0 to High(values) do
     if ICollection<T>(this).Remove(values[i]) then
       Inc(Result);
 end;
@@ -1981,9 +1902,7 @@ var
   enumerator: IEnumerator<T>;
   item: T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(values), 'values');
-{$ENDIF}
+  if not Assigned(values) then RaiseHelper.ArgumentNil(ExceptionArgument.values);
 
   Result := 0;
   enumerator := values.GetEnumerator;
@@ -2009,18 +1928,58 @@ end;
 {$ENDREGION}
 
 
+{$REGION 'THashTableEnumerator'}
+
+constructor THashTableEnumerator.Create(const source: TRefCountedObject;
+  hashTable: PHashTable);
+begin
+  fSource := source;
+  fSource._AddRef;
+  fHashTable := hashTable;
+  fVersion := fHashTable.Version;
+end;
+
+procedure THashTableEnumerator.BeforeDestruction;
+begin
+  fSource._Release;
+end;
+
+function THashTableEnumerator.MoveNext: Boolean;
+begin
+  if fVersion = fHashTable.Version then
+  begin
+    while True do
+    begin
+      if fIndex >= fHashTable.ItemCount then
+        Break;
+
+      fItem := fHashTable.Items + fIndex * fHashTable.ItemSize;
+      Inc(fIndex);
+      if PInteger(fItem)^ >= 0 then
+        Exit(True);
+    end;
+    Result := False;
+  end
+  else
+    Result := RaiseHelper.EnumFailedVersion;
+end;
+
+{$ENDREGION}
+
+
 {$REGION 'TInnerCollection<T>'}
 
-constructor TInnerCollection<T>.Create(const source: TRefCountedObject;
-  hashTable: PHashTable; elementType: PTypeInfo;
-  const comparer: IEqualityComparer<T>; offset: Integer);
+class function TInnerCollection<T>.Create(const source: TRefCountedObject;
+  hashTable: PHashTable; const comparer: IEqualityComparer<T>;
+  elementType: PTypeInfo; offset: Integer): TInnerCollection<T>;
 begin
-  fElementType := elementType;
-  inherited Create;
-  fSource := source;
-  fHashTable := hashTable;
-  fComparer := comparer;
-  fOffset := THashTable.KeyOffset + offset;
+  Result := TInnerCollection<T>(TInnerCollection<T>.NewInstance);
+  Result.fSource := source;
+  Result.fHashTable := hashTable;
+  Result.fElementType := elementType;
+  Result.fComparer := comparer;
+  Result.fOffset := THashTable.KeyOffset + offset;
+  Result.AfterConstruction;
 end;
 
 function TInnerCollection<T>.Contains(const value: T): Boolean;
@@ -2047,8 +2006,15 @@ begin
 end;
 
 function TInnerCollection<T>.GetEnumerator: IEnumerator<T>;
+var
+  enumerator: TEnumerator;
 begin
-  Result := TEnumerator.Create(Self);
+  _AddRef;
+  enumerator := TEnumerator.Create;
+  enumerator.fSource := Self;
+  enumerator.fHashTable := fHashTable;
+  enumerator.fVersion := enumerator.fHashTable.Version;
+  Result := enumerator;
 end;
 
 function TInnerCollection<T>.GetIsEmpty: Boolean;
@@ -2083,12 +2049,14 @@ end;
 
 function TInnerCollection<T>.TryGetElementAt(var value: T; index: Integer): Boolean;
 begin
-  Result := Cardinal(index) < Cardinal(fHashTable.Count);
-  if Result then
+  if Cardinal(index) < Cardinal(fHashTable.Count) then
   begin
     fHashTable.EnsureCompact;
     value := PT(PByte(fHashTable.Items) + fHashTable.ItemSize * index + fOffset)^;
-  end;
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 function TInnerCollection<T>._AddRef: Integer;
@@ -2106,17 +2074,9 @@ end;
 
 {$REGION 'TInnerCollection<T>.TEnumerator'}
 
-constructor TInnerCollection<T>.TEnumerator.Create(
-  const source: TInnerCollection<T>);
+procedure TInnerCollection<T>.TEnumerator.BeforeDestruction;
 begin
-  fSource := source;
-  fSource._AddRef;
-  fVersion := fSource.fHashTable.Version;
-end;
-
-destructor TInnerCollection<T>.TEnumerator.Destroy;
-begin
-  fSource._Release;
+  TInnerCollection<T>(fSource)._Release;
 end;
 
 function TInnerCollection<T>.TEnumerator.GetCurrent: T;
@@ -2125,72 +2085,13 @@ begin
 end;
 
 function TInnerCollection<T>.TEnumerator.MoveNext: Boolean;
-var
-  hashTable: PHashTable;
-  item: PByte;
 begin
-  hashTable := fSource.fHashTable;
-
-  if fVersion = hashTable.Version then
+  if inherited MoveNext then
   begin
-    while True do
-    begin
-      if fIndex >= hashTable.ItemCount then
-        Break;
-
-      item := PByte(hashTable.Items) + fIndex * hashTable.ItemSize;
-      Inc(fIndex);
-      if PInteger(item)^ < 0 then
-        Continue;
-
-      fCurrent := PT(item + fSource.fOffset)^;
-      Exit(True);
-    end;
-    Exit(False);
-  end
-  else
-    raise Error.EnumFailedVersion;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'THashTableEnumerator'}
-
-constructor THashTableEnumerator.Create(const source: TRefCountedObject;
-  hashTable: PHashTable);
-begin
-  fSource := source;
-  fSource._AddRef;
-  fHashTable := hashTable;
-  fVersion := fHashTable.Version;
-end;
-
-destructor THashTableEnumerator.Destroy;
-begin
-  fSource._Release;
-end;
-
-function THashTableEnumerator.MoveNext: Boolean;
-var
-  item: PByte;
-begin
-  if fVersion = fHashTable.Version then
-  begin
-    while True do
-    begin
-      if fIndex >= fHashTable.ItemCount then
-        Break;
-
-      item := fHashTable.Items + fIndex * fHashTable.ItemSize;
-      Inc(fIndex);
-      if PInteger(item)^ >= 0 then
-        Exit(True);
-    end;
-    Exit(False);
-  end
-  else
-    raise Error.EnumFailedVersion;
+    fCurrent := PT(fItem + TInnerCollection<T>(fSource).fOffset)^;
+    Exit(True);
+  end;
+  Result := False;
 end;
 
 {$ENDREGION}
@@ -2200,17 +2101,20 @@ end;
 
 constructor TCircularArrayBuffer<T>.Create(capacity: Integer; ownsObjects: Boolean);
 begin
-  inherited Create;
-  fOnChanged := TCollectionChangedEventImpl<T>.Create;
   SetCapacity(capacity);
   SetOwnsObjects(ownsObjects);
 end;
 
-destructor TCircularArrayBuffer<T>.Destroy;
+procedure TCircularArrayBuffer<T>.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  fOnChanged := TCollectionChangedEventImpl<T>.Create;
+end;
+
+procedure TCircularArrayBuffer<T>.BeforeDestruction;
 begin
   Clear;
   fOnChanged.Free;
-  inherited Destroy;
 end;
 
 procedure TCircularArrayBuffer<T>.Clear;
@@ -2219,13 +2123,6 @@ var
 begin
   for i := Count downto 1 do
     DeleteFromHead(caRemoved);
-end;
-
-procedure TCircularArrayBuffer<T>.DoNotify(const item: T;
-  action: TCollectionChangedAction);
-begin
-  if fOnChanged.CanInvoke then
-    fOnChanged.Invoke(Self, item, action);
 end;
 
 function TCircularArrayBuffer<T>.GetCapacity: Integer;
@@ -2240,7 +2137,14 @@ end;
 
 function TCircularArrayBuffer<T>.GetEnumerator: IEnumerator<T>;
 begin
-  Result := TEnumerator.Create(Self);
+  _AddRef;
+  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+  begin
+    fSource := Self;
+    fCount := Self.Count;
+    fVersion := Self.fVersion;
+  end;
 end;
 
 function TCircularArrayBuffer<T>.GetIsEmpty: Boolean;
@@ -2258,15 +2162,14 @@ begin
   Result := {$IFDEF DELPHIXE7_UP}(GetTypeKind(T) = tkClass) and {$ENDIF}(fCount < 0);
 end;
 
-function TCircularArrayBuffer<T>.GetTail: PT;
+function TCircularArrayBuffer<T>.GetTail: Integer;
 var
   index: Integer;
 begin
   index := fTail;
-  if index > 0 then
-    Result := @fItems[index - 1]
-  else
-    Result := @fItems[fCapacity - 1];
+  if index = 0 then
+    index := fCapacity;
+  Result := index - 1;
 end;
 
 procedure TCircularArrayBuffer<T>.AddToHead(const item: T);
@@ -2285,7 +2188,8 @@ begin
   fItems[index] := item;
   fHead := index;
 
-  DoNotify(item, caAdded);
+  if Assigned(fOnChanged) and fOnChanged.CanInvoke then
+    fOnChanged.Invoke(Self, item, caAdded);
 end;
 
 procedure TCircularArrayBuffer<T>.AddToTail(const item: T);
@@ -2303,7 +2207,9 @@ begin
   if index = fCapacity then
     index := 0;
   fTail := index;
-  DoNotify(item, caAdded);
+
+  if Assigned(fOnChanged) and fOnChanged.CanInvoke then
+    fOnChanged.Invoke(Self, item, caAdded);
 end;
 
 procedure TCircularArrayBuffer<T>.DeleteFromHead(action: TCollectionChangedAction);
@@ -2323,7 +2229,8 @@ begin
     index := 0;
   fHead := index;
 
-  DoNotify(item^, action);
+  if Assigned(fOnChanged) and fOnChanged.CanInvoke then
+    fOnChanged.Invoke(Self, item^, action);
   if OwnsObjects and (action = caRemoved) then
     FreeObject(item^);
   item^ := Default(T);
@@ -2346,7 +2253,8 @@ begin
   item := @fItems[index];
   fTail := index;
 
-  DoNotify(item^, action);
+  if Assigned(fOnChanged) and fOnChanged.CanInvoke then
+    fOnChanged.Invoke(Self, item^, action);
   if OwnsObjects and (action = caRemoved) then
     FreeObject(item^);
   item^ := Default(T);
@@ -2357,7 +2265,7 @@ begin
   if Count > 0 then
     Result := fItems[fHead]
   else
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 end;
 
 function TCircularArrayBuffer<T>.FirstOrDefault: T;
@@ -2371,10 +2279,10 @@ end;
 function TCircularArrayBuffer<T>.Single: T;
 begin
   case Count of
-    0: raise Error.NoElements;
+    0: RaiseHelper.NoElements;
     1: Result := fItems[fHead];
   else
-    raise Error.MoreThanOneElement;
+    RaiseHelper.MoreThanOneElement;
   end;
 end;
 
@@ -2384,7 +2292,7 @@ begin
     0: Result := defaultValue;
     1: Result := fItems[fHead];
   else
-    raise Error.MoreThanOneElement;
+    RaiseHelper.MoreThanOneElement;
   end;
 end;
 
@@ -2395,33 +2303,33 @@ end;
 
 function TCircularArrayBuffer<T>.TryGetFirst(var value: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
-    value := fItems[fHead]
-  else
-    value := Default(T);
+  if Count > 0 then
+  begin
+    value := fItems[fHead];
+    Exit(True);
+  end;
+  value := Default(T);
+  Result := False;
 end;
 
 function TCircularArrayBuffer<T>.TryGetLast(var value: T): Boolean;
 begin
-  Result := Count > 0;
-  if Result then
-    value := Tail^
-  else
-    value := Default(T);
+  if Count > 0 then
+  begin
+    value := fItems[Tail];
+    Exit(True);
+  end;
+  value := Default(T);
+  Result := False;
 end;
 
 procedure TCircularArrayBuffer<T>.SetCapacity(value: Integer);
 var
-  offset, oldCapacity, itemCount: Integer;
+  itemCount, oldCapacity, offset: Integer;
 begin
-  Guard.CheckRange(value >= Count, 'capacity');
-
-  offset := value - Length(fItems);
-  if offset = 0 then
-    Exit;
-
   itemCount := Count;
+  if value < itemCount then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.value, ExceptionResource.ArgumentOutOfRange_Capacity);
+
   if itemCount = 0 then
   begin
     fHead := 0;
@@ -2431,7 +2339,11 @@ begin
     Exit;
   end;
 
-  oldCapacity := Length(fItems);
+  oldCapacity := DynArrayLength(fItems);
+  offset := value - oldCapacity;
+  if offset = 0 then
+    Exit;
+
   if offset > 0 then
   begin
     fCapacity := value;
@@ -2439,19 +2351,36 @@ begin
   end;
   if fTail <= fHead then
   begin
-    ItemType.Move(fItems, fItems, fHead, fHead + offset, oldCapacity - fHead);
-    if offset > 0 then
-      ItemType.Finalize(fItems, fHead, offset)
+    if ItemType.HasWeakRef then
+      MoveManaged(@fItems[fHead], @fItems[fHead + offset], TypeInfo(T), oldCapacity - fHead)
     else
-      ItemType.Finalize(fItems, itemCount, -offset);
+      System.Move(fItems[fHead], fItems[fHead + offset], SizeOf(T) * (oldCapacity - fHead));
+    if offset > 0 then
+    begin
+      if ItemType.HasWeakRef then
+        System.Finalize(fItems[fHead], offset);
+      System.FillChar(fItems[fHead], SizeOf(T) * offset, 0);
+    end
+    else
+    begin
+      if ItemType.HasWeakRef then
+        System.Finalize(fItems[itemCount], -offset);
+      System.FillChar(fItems[itemCount], SizeOf(T) * -offset, 0)
+    end;
     Inc(fHead, offset);
   end
   else
   begin
     if fHead + itemCount > value then
     begin
-      ItemType.Move(fItems, fItems, fHead, 0, itemCount);
-      ItemType.Finalize(fItems, itemCount, fHead);
+      if ItemType.HasWeakRef then
+      begin
+        MoveManaged(@fItems[fHead], @fItems[0], TypeInfo(T), itemCount);
+        System.Finalize(fItems[itemCount], fHead);
+      end
+      else
+        System.Move(fItems[fHead], fItems[0], SizeOf(T) * itemCount);
+      System.FillChar(fItems[itemCount], SizeOf(T) * fHead, 0);
       fHead := 0;
     end;
     fTail := itemCount;
@@ -2473,59 +2402,59 @@ end;
 
 {$REGION 'TCircularArrayBuffer<T>.TEnumerator'}
 
-constructor TCircularArrayBuffer<T>.TEnumerator.Create(
-  const source: TCircularArrayBuffer<T>);
-begin
-  fSource := source;
-  fSource._AddRef;
-  fVersion := fSource.fVersion;
-end;
-
-destructor TCircularArrayBuffer<T>.TEnumerator.Destroy;
-begin
-  fSource._Release;
-end;
-
 function TCircularArrayBuffer<T>.TEnumerator.GetCurrent: T;
 begin
   Result := fCurrent;
 end;
 
 function TCircularArrayBuffer<T>.TEnumerator.MoveNext: Boolean;
+var
+  source: TCircularArrayBuffer<T>;
+  index: Integer;
 begin
-  if fVersion <> fSource.fVersion then
-    raise Error.EnumFailedVersion;
-
-  Result := fIndex < fSource.Count;
-  if Result then
+  source := fSource;
+  if fVersion = source.fVersion then
   begin
-    fCurrent := fSource.fItems[(fSource.fHead + fIndex) mod fSource.fCapacity];
-    Inc(fIndex);
-  end
-  else
+    index := fIndex;
+    if index < fCount then
+    begin
+      Inc(index, source.fHead);
+      if index >= source.fCapacity then
+        Dec(index, source.fCapacity);
+      fCurrent := source.fItems[index];
+      Inc(fIndex);
+      Exit(True);
+    end;
     fCurrent := Default(T);
+    Exit(False);
+  end;
+  Result := RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
 
 
-{$REGION 'TMapBase<TKey, T>'}
+{$REGION 'TMapBase<TKey, TValue>'}
 
-constructor TMapBase<TKey, T>.Create;
+procedure TMapBase<TKey, TValue>.AfterConstruction;
 begin
-  inherited Create;
+  TPairComparer.Create(@fComparer,
+    @TKeyValuePairComparer.Comparer_Vtable,
+    @TKeyValuePairComparer.Compare,
+    GetKeyType, GetValueType);
+  inherited AfterConstruction;
   fOnKeyChanged := TCollectionChangedEventImpl<TKey>.Create;
-  fOnValueChanged := TCollectionChangedEventImpl<T>.Create;
+  fOnValueChanged := TCollectionChangedEventImpl<TValue>.Create;
 end;
 
-destructor TMapBase<TKey, T>.Destroy;
+procedure TMapBase<TKey, TValue>.BeforeDestruction;
 begin
   fOnValueChanged.Free;
   fOnKeyChanged.Free;
-  inherited Destroy;
+  inherited BeforeDestruction;
 end;
 
-procedure TMapBase<TKey, T>.DoNotify(const key: TKey; const value: T;
+procedure TMapBase<TKey, TValue>.DoNotify(const key: TKey; const value: TValue;
   action: TCollectionChangedAction);
 var
   pair: TKeyValuePair;
@@ -2535,227 +2464,50 @@ begin
   Notify(Self, pair, action);
 end;
 
-function TMapBase<TKey, T>.Add(const item: TKeyValuePair): Boolean;
+function TMapBase<TKey, TValue>.Add(const item: TKeyValuePair): Boolean;
 begin
-  Result := IMap<TKey, T>(this).TryAdd(item.Key, item.Value);
+  Result := IMap<TKey, TValue>(this).TryAdd(item.Key, item.Value);
 end;
 
-procedure TMapBase<TKey, T>.Add(const key: TKey; const value: T);
+procedure TMapBase<TKey, TValue>.Add(const key: TKey; const value: TValue);
 begin
-  if not IMap<TKey, T>(this).TryAdd(key, value) then
-    raise Error.DuplicateKey;
+  if not IMap<TKey, TValue>(this).TryAdd(key, value) then
+    RaiseHelper.DuplicateKey;
 end;
 
-function TMapBase<TKey, T>.Contains(const item: TKeyValuePair): Boolean;
+function TMapBase<TKey, TValue>.Contains(const item: TKeyValuePair): Boolean;
 begin
-  Result := IMap<TKey, T>(this).Contains(item.Key, item.Value);
+  Result := IMap<TKey, TValue>(this).Contains(item.Key, item.Value);
 end;
 
-function TMapBase<TKey, T>.Extract(const item: TKeyValuePair): TKeyValuePair;
+function TMapBase<TKey, TValue>.Extract(const item: TKeyValuePair): TKeyValuePair;
 begin
-  Result := IMap<TKey, T>(this).Extract(item.Key, item.Value);
+  Result := IMap<TKey, TValue>(this).Extract(item.Key, item.Value);
 end;
 
-function TMapBase<TKey, T>.GetKeyType: PTypeInfo;
+function TMapBase<TKey, TValue>.GetKeyType: PTypeInfo;
 begin
   Result := TypeInfo(TKey);
 end;
 
-function TMapBase<TKey, T>.GetOnKeyChanged: ICollectionChangedEvent<TKey>;
+function TMapBase<TKey, TValue>.GetOnKeyChanged: ICollectionChangedEvent<TKey>;
 begin
   Result := fOnKeyChanged;
 end;
 
-function TMapBase<TKey, T>.GetOnValueChanged: ICollectionChangedEvent<T>;
+function TMapBase<TKey, TValue>.GetOnValueChanged: ICollectionChangedEvent<TValue>;
 begin
   Result := fOnValueChanged;
 end;
 
-function TMapBase<TKey, T>.GetValueType: PTypeInfo;
+function TMapBase<TKey, TValue>.GetValueType: PTypeInfo;
 begin
-  Result := TypeInfo(T);
+  Result := TypeInfo(TValue);
 end;
 
-procedure TMapBase<TKey, T>.KeyChanged(const item: TKey;
-  action: TCollectionChangedAction);
+function TMapBase<TKey, TValue>.Remove(const item: TKeyValuePair): Boolean;
 begin
-  if fOnKeyChanged.CanInvoke then
-    fOnKeyChanged.Invoke(Self, item, action);
-end;
-
-function TMapBase<TKey, T>.Remove(const item: TKeyValuePair): Boolean;
-begin
-  Result := IMap<TKey, T>(this).Remove(item.Key, item.Value);
-end;
-
-procedure TMapBase<TKey, T>.ValueChanged(const item: T;
-  action: TCollectionChangedAction);
-begin
-  if fOnValueChanged.CanInvoke then
-    fOnValueChanged.Invoke(Self, item, action);
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TListBase<T>'}
-
-function TListBase<T>.CreateList: IList<T>;
-begin
-  Result := TList<T>.Create;
-end;
-
-function TListBase<T>.QueryInterface(const IID: TGUID; out Obj): HResult;
-begin
-  case TType.Kind<T> of
-    tkClass:
-      if IID = IObjectList then
-        Exit(TRefCountedObject(Self).QueryInterface(IList<TObject>, Obj));
-    tkInterface:
-      if IID = IInterfaceList then
-        Exit(TRefCountedObject(Self).QueryInterface(IList<IInterface>, Obj));
-  end;
-  Result := inherited QueryInterface(IID, Obj);
-end;
-
-function TListBase<T>.Add(const item: T): Boolean;
-begin
-  IList<T>(this).Add(item);
-  Result := True;
-end;
-
-function TListBase<T>.IndexOf(const item: T): Integer;
-var
-  count: Integer;
-begin
-  count := IList<T>(this).Count;
-  if count > 0 then
-    Result := IList<T>(this).IndexOf(item, 0, count)
-  else
-    Result := -1;
-end;
-
-function TListBase<T>.IndexOf(const item: T; index: Integer): Integer;
-var
-  count: Integer;
-begin
-  count := IList<T>(this).Count;
-  if count > 0 then
-    Result := IList<T>(this).IndexOf(item, index, count - index)
-  else
-    Result := -1;
-end;
-
-function TListBase<T>.LastIndexOf(const item: T): Integer;
-var
-  count: Integer;
-begin
-  count := IList<T>(this).Count;
-  if count > 0 then
-    Result := IList<T>(this).LastIndexOf(item, count - 1, count)
-  else
-    Result := -1;
-end;
-
-function TListBase<T>.LastIndexOf(const item: T; index: Integer): Integer;
-var
-  count: Integer;
-begin
-  count := IList<T>(this).Count;
-  if count > 0 then
-    Result := IList<T>(this).LastIndexOf(item, index, index + 1)
-  else
-    Result := -1;
-end;
-
-function TListBase<T>.Remove(const item: T): Boolean;
-var
-  index: Integer;
-begin
-  index := IList<T>(this).IndexOf(item);
-  Result := index >= 0;
-  if Result then
-    IList<T>(this).Delete(index);
-end;
-
-procedure TListBase<T>.Reverse;
-begin
-  IList<T>(this).Reverse(0, IEnumerable<T>(this).Count);
-end;
-
-procedure TListBase<T>.Sort;
-begin
-  IList<T>(this).Sort(fComparer, 0, IList<T>(this).Count);
-end;
-
-procedure TListBase<T>.Sort(const comparer: IComparer<T>);
-begin
-  IList<T>(this).Sort(comparer, 0, IList<T>(this).Count);
-end;
-
-procedure TListBase<T>.Sort(const comparer: TComparison<T>);
-begin
-  IList<T>(this).Sort(IComparer<T>(PPointer(@comparer)^), 0, IList<T>(this).Count);
-end;
-
-procedure TListBase<T>.Sort(const comparer: TComparison<T>; index, count: Integer);
-begin
-  IList<T>(this).Sort(IComparer<T>(PPointer(@comparer)^), index, count);
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'Error'}
-
-class function Error.ArgumentOutOfRange(const s: string): Exception;
-begin
-  Result := EArgumentOutOfRangeException.CreateResFmt(@SArgument_ParamName, [s]);
-end;
-
-class function Error.DuplicateKey: Exception;
-begin
-  Result := EArgumentException.CreateRes(@SArgument_DuplicateKey);
-end;
-
-class function Error.EnumFailedVersion: Exception;
-begin
-  Result := EInvalidOperationException.CreateRes(@SEnumFailedVersion);
-end;
-
-class function Error.KeyNotFound: Exception;
-begin
-  Result := EKeyNotFoundException.CreateRes(@SArgument_KeyNotFound);
-end;
-
-class function Error.MoreThanOneElement: Exception;
-begin
-  Result := EInvalidOperationException.CreateRes(@SSequenceContainsMoreThanOneElement);
-end;
-
-class function Error.MoreThanOneMatch: Exception;
-begin
-  Result := EInvalidOperationException.CreateRes(@SSequenceContainsMoreThanOneMatchingElement);
-end;
-
-class function Error.NoClassType(t: PTypeInfo): Exception;
-begin
-  Result := EInvalidCast.CreateResFmt(@SNotClassType, [t.TypeName]);
-end;
-
-class function Error.NoElements: Exception;
-begin
-  Result := EInvalidOperationException.CreateRes(@SSequenceContainsNoElements);
-end;
-
-class function Error.NoMatch: Exception;
-begin
-  Result := EInvalidOperationException.CreateRes(@SSequenceContainsNoMatchingElement);
-end;
-
-class function Error.NotSupported: Exception;
-begin
-  Result := ENotSupportedException.Create('');
+  Result := IMap<TKey, TValue>(this).Remove(item.Key, item.Value);
 end;
 
 {$ENDREGION}
@@ -2771,7 +2523,6 @@ var
 begin
   fIterator.Source := source;
   fComparer := source.Comparer;
-  inherited Create;
   fIterator.TypeInfo := TypeInfo(TIteratorRec<T>);
   fIterator.Count := count;
   fIterator.Predicate := IInterface(predicate);
@@ -2821,7 +2572,7 @@ end;
 
 function TIteratorBase<T>.GetEnumerator: IEnumerator<T>;
 begin
-  Result := TEnumerator.Create(Self, @fIterator);
+  TIterator.Create(@Result, @TEnumerator.Enumerator_Vtable, Self, @fIterator, @TEnumerator.GetCurrent);
 end;
 
 function TIteratorBase<T>.ToArray: TArray<T>;
@@ -2835,12 +2586,12 @@ begin
     TIteratorKind.Reversed:
     begin
       Result := fIterator.Source.ToArray;
-      TArray.Reverse<T>(Result);
+      TArray.Reverse<T>(Result, DynArrayHigh(Result));
     end;
     TIteratorKind.Shuffled:
     begin
       Result := fIterator.Source.ToArray;
-      TArray.Shuffle<T>(Result);
+      TArray.Shuffle<T>(Result, DynArrayHigh(Result));
     end;
   else
     Result := inherited ToArray;
@@ -2863,44 +2614,42 @@ end;
 
 {$REGION 'TArrayIterator<T>'}
 
-constructor TArrayIterator<T>.Create(const source: TArray<T>);
+constructor TArrayIterator<T>.Create(const values: TArray<T>);
 begin
-  inherited Create;
   fIterator.MoveNext := @TIteratorRec<T>.Ordered;
   fIterator.TypeInfo := TypeInfo(TIteratorRec<T>);
-  fIterator.Items := source;
+  fIterator.Items := values;
 end;
 
-constructor TArrayIterator<T>.Create(const source: array of T);
+constructor TArrayIterator<T>.Create(const values: array of T);
 var
   count: Integer;
 begin
-  inherited Create;
   fIterator.MoveNext := @TIteratorRec<T>.Ordered;
   fIterator.TypeInfo := TypeInfo(TIteratorRec<T>);
-  count := Length(source);
+  count := Length(values);
   SetLength(fIterator.Items, count);
   if TType.IsManaged<T> then
-    System.CopyArray(@fIterator.Items[0], @source[0], TypeInfo(T), count)
+    MoveManaged(@values[0], @fIterator.Items[0], TypeInfo(T), count)
   else
-    System.Move(source[0], fIterator.Items[0], count * SizeOf(T));
+    System.Move(values[0], fIterator.Items[0], count * SizeOf(T));
 end;
 
 procedure TArrayIterator<T>.CopyTo(var values: TArray<T>; index: Integer);
 var
   count: Integer;
 begin
-  count := Length(fIterator.Items);
+  count := DynArrayLength(fIterator.Items);
   if count > 0 then
     if TType.IsManaged<T> then
-      System.CopyArray(@values[index], @fIterator.Items[0], TypeInfo(T), count)
+      MoveManaged(@fIterator.Items[0], @values[index], TypeInfo(T), count)
     else
       System.Move(fIterator.Items[0], values[index], SizeOf(T) * count);
 end;
 
 function TArrayIterator<T>.GetCount: Integer;
 begin
-  Result := Length(fIterator.Items);
+  Result := DynArrayLength(fIterator.Items);
 end;
 
 function TArrayIterator<T>.GetIsEmpty: Boolean;
@@ -2910,21 +2659,19 @@ end;
 
 function TArrayIterator<T>.GetItem(index: Integer): T;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckRange((index >= 0) and (index < Length(fIterator.Items)), 'index');
-{$ENDIF}
+  CheckIndex(index, DynArrayLength(fIterator.Items));
 
   Result := fIterator.Items[index];
 end;
 
 function TArrayIterator<T>.IndexOf(const item: T): Integer;
 begin
-  Result := IndexOf(item, 0, Length(fIterator.Items));
+  Result := IndexOf(item, 0, DynArrayLength(fIterator.Items));
 end;
 
 function TArrayIterator<T>.IndexOf(const item: T; index: Integer): Integer;
 begin
-  Result := IndexOf(item, index, Length(fIterator.Items) - index);
+  Result := IndexOf(item, index, DynArrayLength(fIterator.Items) - index);
 end;
 
 function TArrayIterator<T>.IndexOf(const item: T; index,
@@ -2944,7 +2691,7 @@ end;
 function TArrayIterator<T>.ToArray: TArray<T>;
 begin
   Result := fIterator.Items;
-  SetLength(Result, Length(Result));
+  SetLength(Result, DynArrayLength(Result));
 end;
 
 {$ENDREGION}
@@ -2952,37 +2699,57 @@ end;
 
 {$REGION 'TIterator'}
 
-constructor TIterator.Create(source: TRefCountedObject; iterator: PIteratorRec);
+class function TIterator.Create(enumerator: PPointer; vtable: PEnumeratorVtable;
+  parent: TRefCountedObject; iterator: PIteratorRec; getCurrent: Pointer): Pointer;
 begin
-  fSource := source;
-  fSource._AddRef;
-  fIterator := iterator.Clone;
+  IInterface(enumerator^) := nil;
+  parent._AddRef;
+  Result := AllocMem(SizeOf(TIterator));
+  PIterator(Result).Vtable := vtable;
+  PIterator(Result).RefCount := 1;
+  PIterator(Result).Parent := parent;
+  PIterator(Result).Iterator := iterator.Clone;
+  enumerator^ := Result;
+
+  if not Assigned(vtable[0]) then
+  begin
+    vtable[0] := @NopQueryInterface;
+    vtable[1] := @RecAddRef;
+    vtable[2] := @TIterator._Release;
+    vtable[3] := getCurrent;
+    vtable[4] := @TIterator.MoveNext;
+  end;
 end;
 
-destructor TIterator.Destroy;
+function TIterator._Release: Integer;
 begin
-  fIterator.Finalize;
-  FreeMem(fIterator);
-  fSource._Release;
+  Result := AtomicDecrement(RefCount);
+  if Result = 0 then
+  begin
+    Iterator.Finalize;
+    FreeMem(Iterator);
+    Parent._Release;
+    FreeMem(@Self);
+  end;
 end;
 
 function TIterator.MoveNext: Boolean;
 begin
   repeat
-    if fState = Started then
+    if State = Started then
     begin
-      if fIterator.MoveNext(fIterator) then
+      if Iterator.MoveNext(Iterator) then
         Exit(True);
-      fState := Finished;
+      State := Finished;
     end;
-    if fState = Initial then
-      begin
-        fState := Started;
+    if State = Initial then
+    begin
+      State := Started;
       Start;
-      end;
-  until fState = Finished;
+    end;
+  until State = Finished;
 
-  fIterator.Finalize;
+  Iterator.Finalize;
   Result := False;
 end;
 
@@ -2990,10 +2757,10 @@ procedure TIterator.Start;
 var
   startProc: TStartFunc;
 begin
-  startProc := fIterator.Start;
+  startProc := Iterator.Start;
   if Assigned(startProc) then
-    if not startProc(fIterator) then
-      fState := Finished;
+    if not startProc(Iterator) then
+      State := Finished;
 end;
 
 {$ENDREGION}
@@ -3002,11 +2769,8 @@ end;
 {$REGION 'TIteratorBase<T>.TEnumerator'}
 
 function TIteratorBase<T>.TEnumerator.GetCurrent: T;
-type
-  TIteratorRec = TIteratorRec<T>;
-  PIteratorRec = ^TIteratorRec;
 begin
-  Result := PIteratorRec(fIterator).Current;
+  Result := PIteratorRecT(fIterator).Current;
 end;
 
 {$ENDREGION}
@@ -3065,16 +2829,16 @@ end;
 {$REGION 'TIteratorRec<T>'}
 
 class function TIteratorRec<T>.GetCurrent(const enumerator: IEnumerator;
-  elementType: PTypeInfo): TValue;
+  elementType: PTypeInfo): Spring.TValue;
 var
   current: T;
 begin
   current := IEnumerator<T>(enumerator).Current;
-  TValue.Make(@current, elementType, Result);
+  Spring.TValue.Make(@current, elementType, Result);
 end;
 
 class function TIteratorRec<T>.Add(const collection: IInterface;
-  const value: TValue): Boolean;
+  const value: Spring.TValue): Boolean;
 var
   elementType: PTypeInfo;
   item: T;
@@ -3107,7 +2871,7 @@ end;
 
 function TIteratorRec<T>.Ordered: Boolean;
 begin
-  Result := Count < Length(Items);
+  Result := Count < DynArrayLength(Items);
   if Result then
   begin
     Current := Items[Count];
@@ -3210,9 +2974,9 @@ begin
     TIteratorKind.Ordered:
       TArray.Sort<T>(Items, IComparer<T>(Predicate));
     TIteratorKind.Reversed:
-      Count := Length(Items);
+      Count := DynArrayLength(Items);
     TIteratorKind.Shuffled:
-      TArray.Shuffle<T>(Items);
+      TArray.Shuffle<T>(Items, DynArrayHigh(Items));
   end;
   Result := True;
 end;
@@ -3236,22 +3000,21 @@ end;
 constructor TObjectArrayIterator.Create(const source: TArray<TObject>;
   elementType: PTypeInfo);
 begin
-  fElementType := elementType;
   inherited Create(source);
+  fElementType := elementType;
 end;
 
 constructor TObjectArrayIterator.CreateFromArray(source: PPointer;
   count: Integer; elementType: PTypeInfo);
 begin
   fElementType := elementType;
-  inherited Create;
   fIterator.MoveNext := @TIteratorRec<TObject>.Ordered;
   fIterator.TypeInfo := TypeInfo(TIteratorRec<TObject>);
   if count > 0 then
   begin
     SetLength(fIterator.Items, count);
 {$IFDEF AUTOREFCOUNT}
-    System.CopyArray(@fIterator.Items[0], source, TypeInfo(TObject), count)
+    MoveManaged(source, @fIterator.Items[0], TypeInfo(TObject), count)
 {$ELSE}
     System.Move(source^, fIterator.Items[0], count * SizeOf(TObject));
 {$ENDIF}
@@ -3271,21 +3034,20 @@ end;
 constructor TInterfaceArrayIterator.Create(const source: TArray<IInterface>;
   elementType: PTypeInfo);
 begin
-  fElementType := elementType;
   inherited Create(source);
+  fElementType := elementType;
 end;
 
 constructor TInterfaceArrayIterator.CreateFromArray(source: PPointer;
   count: Integer; elementType: PTypeInfo);
 begin
   fElementType := elementType;
-  inherited Create;
   fIterator.MoveNext := @TIteratorRec<IInterface>.Ordered;
   fIterator.TypeInfo := TypeInfo(TIteratorRec<IInterface>);
   if count > 0 then
   begin
     SetLength(fIterator.Items, count);
-    System.CopyArray(@fIterator.Items[0], source, TypeInfo(IInterface), count)
+    MoveManaged(source, @fIterator.Items[0], TypeInfo(IInterface), count)
   end;
 end;
 

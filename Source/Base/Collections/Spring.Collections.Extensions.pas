@@ -37,14 +37,13 @@ uses
   Spring.Collections.Base,
   Spring.Collections.Lists;
 
-{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}{$ENDIF}
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
 type
   TEmptyEnumerable<T> = class sealed(TEnumerableBase<T>, IEnumerator<T>,
     IEnumerable<T>, IReadOnlyCollection<T>, IReadOnlyList<T>)
   private
     class var fInstance: IReadOnlyList<T>;
-    constructor Create; reintroduce;
     function GetCurrent: T;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
@@ -229,15 +228,24 @@ type
   TRangeIterator = class(TEnumerableBase<Integer>,
     IEnumerable<Integer>, IReadOnlyCollection<Integer>, IReadOnlyList<Integer>)
   private type
-    TEnumerator = class(TRefCountedObject, IEnumerator<Integer>)
-    private
-      fCurrent, fCount: Integer;
-      fStarted: Boolean;
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      fCurrent, fMax: Integer;
       function GetCurrent: Integer;
-    public
-      constructor Create(start, count: Integer);
       function MoveNext: Boolean;
+      function _Release: Integer; stdcall;
+      class function Create(start, count: Integer): IEnumerator<Integer>; static;
     end;
+  const
+    Enumerator_Vtable: TEnumeratorVtable = (
+      @NopQueryInterface,
+      @RecAddRef,
+      @TEnumerator._Release,
+      @TEnumerator.GetCurrent,
+      @TEnumerator.MoveNext
+    );
   private
     fStart, fCount: Integer;
   {$REGION 'Property Accessors'}
@@ -756,7 +764,7 @@ type
   TExtremaByIterator<T, TKey> = class(TSourceIterator<T>)
   private
     fKeySelector: Func<T, TKey>;
-    fCompare: Func<TKey, TKey, Integer>;
+    fComparer: TComparison<TKey>;
     fResult: IList<T>;
     fEnumerator: IEnumerator<T>;
   protected
@@ -767,7 +775,7 @@ type
   public
     constructor Create(const source: IEnumerable<T>;
       const keySelector: Func<T, TKey>;
-      const compare: Func<TKey, TKey, Integer>);
+      const comparer: TComparison<TKey>);
   end;
 
   TCastIterator<T, TResult> = class(TIterator<TResult>, IEnumerable<TResult>)
@@ -838,11 +846,6 @@ uses
 
 {$REGION 'TEmptyEnumerable<T>'}
 
-constructor TEmptyEnumerable<T>.Create;
-begin
-  inherited Create;
-end;
-
 class constructor TEmptyEnumerable<T>.Create;
 begin
   fInstance := TEmptyEnumerable<T>.Create;
@@ -864,7 +867,7 @@ end;
 
 function TEmptyEnumerable<T>.GetCurrent: T;
 begin
-  raise EInvalidOperationException.CreateRes(@SEnumEmpty);
+  RaiseHelper.NoElements;
 end;
 
 function TEmptyEnumerable<T>.GetEnumerator: IEnumerator<T>;
@@ -879,7 +882,7 @@ end;
 
 function TEmptyEnumerable<T>.GetItem(index: Integer): T;
 begin
-  raise Error.ArgumentOutOfRange('index');
+  RaiseHelper.ArgumentOutOfRange_Index;
 end;
 
 function TEmptyEnumerable<T>.MoveNext: Boolean;
@@ -926,10 +929,8 @@ end;
 constructor TWhereIterator<T>.Create(const source: IEnumerable<T>;
   const predicate: Predicate<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   inherited Create(source);
   fPredicate := predicate;
@@ -969,10 +970,8 @@ end;
 constructor TWhereIndexIterator<T>.Create(const source: IEnumerable<T>;
   const predicate: Func<T, Integer, Boolean>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   inherited Create(source);
   fPredicate := predicate;
@@ -1014,9 +1013,7 @@ end;
 constructor TSkipIterator<T>.Create(const source: IEnumerable<T>;
   count: Integer);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
   inherited Create(source);
   fCount := count;
@@ -1055,10 +1052,8 @@ end;
 constructor TSkipWhileIterator<T>.Create(const source: IEnumerable<T>;
   const predicate: Predicate<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   inherited Create(source);
   fPredicate := predicate;
@@ -1067,10 +1062,8 @@ end;
 constructor TSkipWhileIterator<T>.Create(const source: IEnumerable<T>;
   const predicate: Func<T, Integer, Boolean>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   inherited Create(source);
   fPredicateIndex := predicate;
@@ -1125,9 +1118,7 @@ end;
 constructor TTakeIterator<T>.Create(const source: IEnumerable<T>;
   count: Integer);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
   inherited Create(source);
   fCount := count;
@@ -1166,10 +1157,8 @@ end;
 constructor TTakeWhileIterator<T>.Create(const source: IEnumerable<T>;
   const predicate: Predicate<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   inherited Create(source);
   fPredicate := predicate;
@@ -1179,10 +1168,8 @@ constructor TTakeWhileIterator<T>.Create(
   const source: IEnumerable<T>;
   const predicate: Func<T, Integer, Boolean>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(predicate), 'predicate');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
   inherited Create(source);
   fPredicateIndex := predicate;
@@ -1227,10 +1214,8 @@ end;
 
 constructor TConcatIterator<T>.Create(const first, second: IEnumerable<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(first), 'first');
-  Guard.CheckNotNull(Assigned(second), 'second');
-{$ENDIF}
+  if not Assigned(first) then RaiseHelper.ArgumentNil(ExceptionArgument.first);
+  if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
   inherited Create(first);
   fSecond := second;
@@ -1280,9 +1265,7 @@ end;
 
 constructor TReversedIterator<T>.Create(const source: IEnumerable<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
   inherited Create(source);
 end;
@@ -1310,7 +1293,7 @@ end;
 procedure TReversedIterator<T>.Start;
 begin
   fBuffer := Source.ToArray;
-  fIndex := Length(fBuffer);
+  fIndex := DynArrayLength(fBuffer);
 end;
 
 {$ENDREGION}
@@ -1321,9 +1304,7 @@ end;
 constructor TDistinctIterator<T>.Create(const source: IEnumerable<T>;
   const comparer: IEqualityComparer<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
   inherited Create(source);
   fComparer := comparer;
@@ -1365,9 +1346,7 @@ end;
 constructor TDistinctByIterator<T, TKey>.Create(const source: IEnumerable<T>;
   const keySelector: Func<T, TKey>; const comparer: IEqualityComparer<TKey>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
   inherited Create(source);
   fKeySelector := keySelector;
@@ -1409,12 +1388,8 @@ end;
 
 constructor TRangeIterator.Create(start, count: Integer);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckRange(count >= 0, 'count');
-  Guard.CheckRange(Int64(start) + Int64(count) - 1 <= Int64(MaxInt), 'count');
-{$ENDIF}
+  if (count < 0) or ((Int64(start) + count - 1) > MaxInt) then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count);
 
-  inherited Create;
   fStart := start;
   fCount := count;
 end;
@@ -1447,9 +1422,7 @@ end;
 
 function TRangeIterator.GetItem(index: Integer): Integer;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckRange((index >= 0) and (index < fCount), 'index');
-{$ENDIF}
+  CheckIndex(index, fCount);
 
   Result := fStart + index;
 end;
@@ -1473,10 +1446,7 @@ end;
 function TRangeIterator.IndexOf(const item: Integer; index,
   count: Integer): Integer;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckRange((index >= 0) and (index < fCount), 'index');
-  Guard.CheckRange((count >= 0) and (count <= fCount - index), 'count');
-{$ENDIF}
+  CheckRange(index, count, fCount);
 
   if (item >= fStart) and (item <= fStart + fCount) then
     Result := item - fStart
@@ -1532,11 +1502,19 @@ end;
 
 {$REGION 'TRangeIterator.TEnumerator'}
 
-constructor TRangeIterator.TEnumerator.Create(start, count: Integer);
+class function TRangeIterator.TEnumerator.Create(start, count: Integer): IEnumerator<Integer>;
 begin
-  inherited Create;
-  fCurrent := start;
-  fCount := count;
+  Result := nil;
+  GetMem(Pointer(Result), SizeOf(TEnumerator));
+  with PEnumerator(Result)^ do
+  begin
+    Vtable := @Enumerator_Vtable;
+    RefCount := 1;
+    {$Q-}
+    fCurrent := start - 1;
+    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    fMax := fCurrent + count;
+  end;
 end;
 
 function TRangeIterator.TEnumerator.GetCurrent: Integer;
@@ -1546,15 +1524,15 @@ end;
 
 function TRangeIterator.TEnumerator.MoveNext: Boolean;
 begin
-  Result := fCount > 0;
-  if Result then
-  begin
-    Dec(fCount);
-    if fStarted then
-      Inc(fCurrent)
-    else
-      fStarted := True;
-  end;
+  Result := fCurrent < fMax;
+  Inc(fCurrent, Byte(Result));
+end;
+
+function TRangeIterator.TEnumerator._Release: Integer;
+begin
+  Result := AtomicDecrement(RefCount);
+  if Result = 0 then
+    FreeMem(@Self);
 end;
 
 {$ENDREGION}
@@ -1570,10 +1548,8 @@ end;
 constructor TExceptIterator<T>.Create(const first, second: IEnumerable<T>;
   const comparer: IEqualityComparer<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(first), 'first');
-  Guard.CheckNotNull(Assigned(second), 'second');
-{$ENDIF}
+  if not Assigned(first) then RaiseHelper.ArgumentNil(ExceptionArgument.first);
+  if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
   inherited Create(first);
   fSecond := second;
@@ -1622,10 +1598,8 @@ end;
 constructor TIntersectIterator<T>.Create(const first, second: IEnumerable<T>;
   const comparer: IEqualityComparer<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(first), 'first');
-  Guard.CheckNotNull(Assigned(second), 'second');
-{$ENDIF}
+  if not Assigned(first) then RaiseHelper.ArgumentNil(ExceptionArgument.first);
+  if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
   inherited Create(first);
   fSecond := second;
@@ -1674,10 +1648,8 @@ end;
 constructor TUnionIterator<T>.Create(const first, second: IEnumerable<T>;
   const comparer: IEqualityComparer<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(first), 'first');
-  Guard.CheckNotNull(Assigned(second), 'second');
-{$ENDIF}
+  if not Assigned(first) then RaiseHelper.ArgumentNil(ExceptionArgument.first);
+  if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
   inherited Create(first);
   fSecond := second;
@@ -1734,12 +1706,9 @@ end;
 constructor TSelectIterator<TSource, TResult>.Create(
   const source: IEnumerable<TSource>; const selector: Func<TSource, TResult>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(selector), 'selector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
 
-  inherited Create;
   fSource := source;
   fSelector := selector;
 end;
@@ -1775,12 +1744,9 @@ constructor TSelectIndexIterator<TSource, TResult>.Create(
   const source: IEnumerable<TSource>;
   const selector: Func<TSource, Integer, TResult>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(selector), 'selector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
 
-  inherited Create;
   fSource := source;
   fSelector := selector;
 end;
@@ -1830,13 +1796,10 @@ constructor TGroupedEnumerable<TSource, TKey, TElement>.Create(
   const elementSelector: Func<TSource, TElement>;
   const comparer: IEqualityComparer<TKey>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(keySelector), 'keySelector');
-  Guard.CheckNotNull(Assigned(elementSelector), 'elementSelector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
+  if not Assigned(elementSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.elementSelector);
 
-  inherited Create;
   fSource := source;
   fKeySelector := keySelector;
   fElementSelector := elementSelector;
@@ -1910,14 +1873,11 @@ constructor TGroupedEnumerable<TSource, TKey, TElement, TResult>.Create(
   const resultSelector: Func<TKey, IEnumerable<TElement>, TResult>;
   const comparer: IEqualityComparer<TKey>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(keySelector), 'keySelector');
-  Guard.CheckNotNull(Assigned(elementSelector), 'elementSelector');
-  Guard.CheckNotNull(Assigned(resultSelector), 'resultSelector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
+  if not Assigned(elementSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.elementSelector);
+  if not Assigned(resultSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.resultSelector);
 
-  inherited Create;
   fSource := source;
   fKeySelector := keySelector;
   fElementSelector := elementSelector;
@@ -1977,7 +1937,6 @@ end;
 
 constructor TLookup<TKey, TElement>.Create(const comparer: IEqualityComparer<TKey>);
 begin
-  inherited Create;
   fComparer := comparer;
   if not Assigned(fComparer) then
     fComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, TypeInfo(TKey), SizeOf(TKey)));
@@ -2080,7 +2039,6 @@ end;
 
 constructor TLookup<TKey, TElement>.TGrouping.Create(const key: TKey);
 begin
-  inherited Create;
   fKey := key;
   fElements := TCollections.CreateList<TElement>;
 end;
@@ -2176,15 +2134,12 @@ constructor TJoinIterator<TOuter, TInner, TKey, TResult>.Create(
   const resultSelector: Func<TOuter, TInner, TResult>;
   const comparer: IEqualityComparer<TKey>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(outer), 'outer');
-  Guard.CheckNotNull(Assigned(inner), 'inner');
-  Guard.CheckNotNull(Assigned(outerKeySelector), 'outerKeySelector');
-  Guard.CheckNotNull(Assigned(innerKeySelector), 'innerKeySelector');
-  Guard.CheckNotNull(Assigned(resultSelector), 'resultSelector');
-{$ENDIF}
+  if not Assigned(outer) then RaiseHelper.ArgumentNil(ExceptionArgument.outer);
+  if not Assigned(inner) then RaiseHelper.ArgumentNil(ExceptionArgument.inner);
+  if not Assigned(outerKeySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.outerKeySelector);
+  if not Assigned(innerKeySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.innerKeySelector);
+  if not Assigned(resultSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.resultSelector);
 
-  inherited Create;
   fOuter := outer;
   fInner := inner;
   fOuterKeySelector := outerKeySelector;
@@ -2196,7 +2151,6 @@ end;
 destructor TJoinIterator<TOuter, TInner, TKey, TResult>.Destroy;
 begin
   fLookup.Free;
-  inherited Destroy;
 end;
 
 function TJoinIterator<TOuter, TInner, TKey, TResult>.Clone: TIterator<TResult>;
@@ -2266,15 +2220,12 @@ constructor TGroupJoinIterator<TOuter, TInner, TKey, TResult>.Create(
   const resultSelector: Func<TOuter, IEnumerable<TInner>, TResult>;
   const comparer: IEqualityComparer<TKey>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(outer), 'outer');
-  Guard.CheckNotNull(Assigned(inner), 'inner');
-  Guard.CheckNotNull(Assigned(outerKeySelector), 'outerKeySelector');
-  Guard.CheckNotNull(Assigned(innerKeySelector), 'innerKeySelector');
-  Guard.CheckNotNull(Assigned(resultSelector), 'resultSelector');
-{$ENDIF}
+  if not Assigned(outer) then RaiseHelper.ArgumentNil(ExceptionArgument.outer);
+  if not Assigned(inner) then RaiseHelper.ArgumentNil(ExceptionArgument.inner);
+  if not Assigned(outerKeySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.outerKeySelector);
+  if not Assigned(innerKeySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.innerKeySelector);
+  if not Assigned(resultSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.resultSelector);
 
-  inherited Create;
   fOuter := outer;
   fInner := inner;
   fOuterKeySelector := outerKeySelector;
@@ -2286,7 +2237,6 @@ end;
 destructor TGroupJoinIterator<TOuter, TInner, TKey, TResult>.Destroy;
 begin
   fLookup.Free;
-  inherited Destroy;
 end;
 
 function TGroupJoinIterator<TOuter, TInner, TKey, TResult>.Clone: TIterator<TResult>;
@@ -2327,12 +2277,9 @@ constructor TSelectManyIterator<TSource, TResult>.Create(
   const source: IEnumerable<TSource>;
   const selector: Func<TSource, IEnumerable<TResult>>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(selector), 'selector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
 
-  inherited Create;
   fSource := source;
   fSelector := selector;
 end;
@@ -2393,12 +2340,9 @@ constructor TSelectManyIndexIterator<TSource, TResult>.Create(
   const source: IEnumerable<TSource>;
   const selector: Func<TSource, Integer, IEnumerable<TResult>>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(selector), 'selector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
 
-  inherited Create;
   fSource := source;
   fSelector := selector;
 end;
@@ -2463,13 +2407,10 @@ constructor TSelectManyIterator<TSource, TCollection, TResult>.Create(
   const collectionSelector: Func<TSource, IEnumerable<TCollection>>;
   const resultSelector: Func<TSource, TCollection, TResult>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(collectionSelector), 'collectionSelector');
-  Guard.CheckNotNull(Assigned(resultSelector), 'resultSelector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(collectionSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.collectionSelector);
+  if not Assigned(resultSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.resultSelector);
 
-  inherited Create;
   fSource := source;
   fCollectionSelector := collectionSelector;
   fResultSelector := resultSelector;
@@ -2537,13 +2478,10 @@ constructor TSelectManyIndexIterator<TSource, TCollection, TResult>.Create(
   const collectionSelector: Func<TSource, Integer, IEnumerable<TCollection>>;
   const resultSelector: Func<TSource, TCollection, TResult>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(collectionSelector), 'collectionSelector');
-  Guard.CheckNotNull(Assigned(resultSelector), 'resultSelector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(collectionSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.collectionSelector);
+  if not Assigned(resultSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.resultSelector);
 
-  inherited Create;
   fSource := source;
   fCollectionSelector := collectionSelector;
   fResultSelector := resultSelector;
@@ -2635,11 +2573,8 @@ constructor TEnumerableSorter<TElement, TKey>.Create(
   const keySelector: Func<TElement, TKey>; const comparer: IComparer<TKey>;
   descending: Boolean; const next: IEnumerableSorter<TElement>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(keySelector), 'keySelector');
-{$ENDIF}
+  if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
 
-  inherited Create;
   fKeySelector := keySelector;
   fComparer := comparer;
   if not Assigned(fComparer) then
@@ -2713,13 +2648,11 @@ end;
 constructor TOrderedEnumerable<T>.TEnumerator.Create(
   const source: IEnumerable<T>; const sorter: IEnumerableSorter<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(sorter), 'sorter');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(sorter) then RaiseHelper.ArgumentNil(ExceptionArgument.sorter);
 
   fBuffer := source.ToArray;
-  fMap := sorter.Sort(fBuffer, Length(fBuffer));
+  fMap := sorter.Sort(fBuffer, DynArrayLength(fBuffer));
   fIndex := -1;
 end;
 
@@ -2730,7 +2663,7 @@ end;
 
 function TOrderedEnumerable<T>.TEnumerator.MoveNext: Boolean;
 begin
-  Result := fIndex < High(fBuffer);
+  Result := fIndex < DynArrayHigh(fBuffer);
   if Result then
     Inc(fIndex);
 end;
@@ -2753,10 +2686,8 @@ constructor TOrderedEnumerable<TElement, TKey>.Create(
 var
   obj: TObject;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(keySelector), 'keySelector');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
 
   obj := source.AsObject;
   if obj is TOrderedEnumerable<TElement> then
@@ -2766,7 +2697,6 @@ begin
   end
   else
     fSource := source;
-  inherited Create;
   fKeySelector := keySelector;
   fComparer := comparer;
   if not Assigned(fComparer) then
@@ -2791,9 +2721,7 @@ end;
 constructor TOrderedIterator<T>.Create(const source: IEnumerable<T>;
   const comparer: IComparer<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
   inherited Create(source);
   fComparer := comparer;
@@ -2813,7 +2741,7 @@ end;
 
 function TOrderedIterator<T>.TryMoveNext(var current: T): Boolean;
 begin
-  Result := fIndex < Length(fValues);
+  Result := fIndex < DynArrayLength(fValues);
   if Result then
   begin
     current := fValues[fIndex];
@@ -2836,13 +2764,10 @@ constructor TZipIterator<TFirst, TSecond, TResult>.Create(
   const first: IEnumerable<TFirst>; const second: IEnumerable<TSecond>;
   const resultSelector: Func<TFirst, TSecond, TResult>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(first), 'first');
-  Guard.CheckNotNull(Assigned(second), 'second');
-  Guard.CheckNotNull(Assigned(resultSelector), 'resultSelector');
-{$ENDIF}
+  if not Assigned(first) then RaiseHelper.ArgumentNil(ExceptionArgument.first);
+  if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
+  if not Assigned(resultSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.resultSelector);
 
-  inherited Create;
   fFirst := first;
   fSecond := second;
   fResultSelector := resultSelector;
@@ -2880,9 +2805,7 @@ end;
 constructor TDefaultIfEmptyIterator<T>.Create(const source: IEnumerable<T>;
   const defaultValue: T);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
   inherited Create(source);
   fDefaultValue := defaultValue;
@@ -2927,22 +2850,20 @@ end;
 {$REGION 'TExtremaByIterator<T, TKey>'}
 
 constructor TExtremaByIterator<T, TKey>.Create(const source: IEnumerable<T>;
-  const keySelector: Func<T, TKey>; const compare: Func<TKey, TKey, Integer>);
+  const keySelector: Func<T, TKey>; const comparer: TComparison<TKey>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-  Guard.CheckNotNull(Assigned(keySelector), 'keySelector');
-  Guard.CheckNotNull(Assigned(compare), 'compare');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
 
   inherited Create(source);
   fKeySelector := keySelector;
-  fCompare := compare;
+  fComparer := comparer;
 end;
 
 function TExtremaByIterator<T, TKey>.Clone: TIterator<T>;
 begin
-  Result := TExtremaByIterator<T, TKey>.Create(Source, fkeySelector, fCompare);
+  Result := TExtremaByIterator<T, TKey>.Create(Source, fkeySelector, fComparer);
 end;
 
 procedure TExtremaByIterator<T, TKey>.Dispose;
@@ -2968,7 +2889,7 @@ begin
   fResult := TCollections.CreateList<T>;
   fEnumerator := Source.GetEnumerator;
   if not fEnumerator.MoveNext then
-    raise Error.NoElements;
+    RaiseHelper.NoElements;
 
   current := fEnumerator.Current;
   resultKey := fKeySelector(current);
@@ -2978,7 +2899,7 @@ begin
   begin
     current := fEnumerator.Current;
     key := fKeySelector(current);
-    compareResult := fCompare(key, resultKey);
+    compareResult := fComparer(key, resultKey);
     if compareResult = 0 then
       fResult.Add(current)
     else if compareResult > 0 then
@@ -2999,11 +2920,8 @@ end;
 
 constructor TCastIterator<T, TResult>.Create(const source: IEnumerable<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
-  inherited Create;
   fSource := source;
 end;
 
@@ -3043,11 +2961,8 @@ end;
 
 constructor TOfTypeIterator<T, TResult>.Create(const source: IEnumerable<T>);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(source), 'source');
-{$ENDIF}
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
 
-  inherited Create;
   fSource := source;
 end;
 
@@ -3088,11 +3003,8 @@ end;
 
 constructor TRepeatIterator<T>.Create(const element: T; count: Integer);
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckRange(count >= 0, 'count');
-{$ENDIF}
+  if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
-  inherited Create;
   fElement := element;
   fCount := count;
 end;
@@ -3129,7 +3041,9 @@ end;
 constructor TAnonymousIterator<T>.Create(const count: Func<Integer>;
   const items: Func<Integer, T>);
 begin
-  inherited Create;
+  if not Assigned(count) then RaiseHelper.ArgumentNil(ExceptionArgument.count);
+  if not Assigned(items) then RaiseHelper.ArgumentNil(ExceptionArgument.items);
+
   fCount := count;
   fItems := items;
 end;

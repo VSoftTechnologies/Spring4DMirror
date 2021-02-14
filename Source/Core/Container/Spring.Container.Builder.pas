@@ -40,7 +40,7 @@ type
   private
     {$IFDEF AUTOREFCOUNT}[Unsafe]{$ENDIF}
     fKernel: TKernel;
-    fOnBuild: INotifyEvent<TComponentModel>;
+    fOnBuild: IInvokableNotifyEvent<TComponentModel>;
     fInspectors: IList<IBuilderInspector>;
     function GetOnBuild: INotifyEvent<TComponentModel>;
   public

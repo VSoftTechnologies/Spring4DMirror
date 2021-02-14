@@ -36,6 +36,8 @@ uses
   Spring.Collections.HashTable,
   Spring.Collections.Trees;
 
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
+
 type
   TAbstractMultiSet<T> = class abstract(TCollectionBase<T>)
   {$REGION 'Nested Types'}
@@ -141,12 +143,13 @@ type
     procedure SetItemCount(const item: T; count: Integer);
   {$ENDREGION}
     class function EqualsThunk(instance: Pointer; const left, right): Boolean; static;
-    procedure ClearInternal;
+    procedure ClearWithNotify;
   protected
     function CreateMultiSet: IMultiSet<T>; override;
   public
     constructor Create(const comparer: IEqualityComparer<T>);
-    destructor Destroy; override;
+    procedure AfterConstruction; override;
+    procedure BeforeDestruction; override;
 
   {$REGION 'Implements IEnumerable<T>'}
     function GetEnumerator: IEnumerator<T>;
@@ -283,7 +286,7 @@ type
     function CreateMultiSet: IMultiSet<T>; override;
   public
     constructor Create(const comparer: IComparer<T>);
-    destructor Destroy; override;
+    procedure BeforeDestruction; override;
 
   {$REGION 'Implements IEnumerable<T>'}
     function GetEnumerator: IEnumerator<T>;
@@ -331,8 +334,8 @@ var
   localSet: IMultiSet<T>;
 begin
   entries := IMultiSet<T>(this).Entries.ToArray;
-  SetLength(items, Length(entries));
-  for i := 0 to High(entries) do
+  SetLength(items, DynArrayLength(entries));
+  for i := 0 to DynArrayHigh(entries) do
   begin
     items[i].Key := i;
     items[i].Value := entries[i];
@@ -350,7 +353,7 @@ begin
         Result := 1;
     end);
   localSet := THashMultiSet<T>.Create(nil);
-  for i := 0 to High(items) do
+  for i := 0 to DynArrayHigh(items) do
     localSet.Add(items[i].Value.Item, items[i].Value.Count);
   Result := localSet as IReadOnlyMultiSet<T>;
 end;
@@ -360,9 +363,7 @@ var
   localSet: IMultiSet<T>;
   entry: TEntry;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(other), 'other');
-{$ENDIF}
+  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
   localSet := CreateMultiSet;
   localSet.AddRange(other);
@@ -382,23 +383,31 @@ end;
 
 constructor THashMultiSet<T>.Create(const comparer: IEqualityComparer<T>);
 begin
-  inherited Create;
-  if Assigned(comparer) then
-    fComparer := comparer
-  else
-    fComparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
+  fComparer := comparer;
+end;
 
-  fHashTable.Initialize(TypeInfo(TItems), @EqualsThunk, fComparer);
-  fItems := TItemCollection.Create(Self, @fHashTable, GetElementType, fComparer, 0);
+procedure THashMultiSet<T>.AfterConstruction;
+var
+  elementType: PTypeInfo;
+begin
+  inherited AfterConstruction;
+
+  elementType := GetElementType;
+  if not Assigned(fComparer) then
+    fComparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, elementType, SizeOf(T)));
+  fHashTable.ItemsInfo := TypeInfo(TItems);
+  fHashTable.Initialize(@EqualsThunk, fComparer);
+
+  fItems := TItemCollection.Create(Self, @fHashTable, fComparer, elementType, 0);
   fEntries := TEntryCollection.Create(Self);
 end;
 
-destructor THashMultiSet<T>.Destroy;
+procedure THashMultiSet<T>.BeforeDestruction;
 begin
   Clear;
   fEntries.Free;
   fItems.Free;
-  inherited Destroy;
+  inherited BeforeDestruction;
 end;
 
 function THashMultiSet<T>.CreateMultiSet: IMultiSet<T>;
@@ -415,15 +424,16 @@ end;
 function THashMultiSet<T>.Add(const item: T; count: Integer): Integer;
 var
   entry: ^TItem;
-  isExisting: Boolean;
+  overrideExisting: Boolean;
   i: Integer;
 begin
-  Guard.CheckRange(count >= 0, 'count');
+  if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
-  entry := fHashTable.AddOrSet(item, fComparer.GetHashCode(item), isExisting);
+  overrideExisting := True;
+  entry := fHashTable.AddOrSet(item, fComparer.GetHashCode(item), overrideExisting);
 
   entry.Item := item;
-  if isExisting then
+  if overrideExisting then
   begin
     Result := entry.Count;
     Inc(entry.Count, count);
@@ -445,12 +455,12 @@ begin
   if not Assigned(Notify) then
     fHashTable.Clear
   else
-    ClearInternal;
+    ClearWithNotify;
 end;
 
-procedure THashMultiSet<T>.ClearInternal;
+procedure THashMultiSet<T>.ClearWithNotify;
 var
-  oldItemIndex, oldItemCount, i: Integer;
+  oldItemCount, i, n: Integer;
   oldItems: TArray<TItem>;
 begin
   oldItemCount := fHashTable.ItemCount;
@@ -458,10 +468,10 @@ begin
 
   fHashTable.Clear;
 
-  for oldItemIndex := 0 to oldItemCount - 1 do
-    if oldItems[oldItemIndex].HashCode >= 0 then
-      for i := 1 to oldItems[oldItemIndex].Count do
-        Changed(oldItems[oldItemIndex].Item, caRemoved);
+  for i := 0 to oldItemCount - 1 do
+    if oldItems[i].HashCode >= 0 then
+      for n := 1 to oldItems[i].Count do
+        Notify(Self, oldItems[i].Item, caRemoved);
 end;
 
 class function THashMultiSet<T>.EqualsThunk(instance: Pointer; const left, right): Boolean;
@@ -522,7 +532,7 @@ var
   tableItem: ^TItem;
   i: Integer;
 begin
-  Guard.CheckRange(count >= 0, 'count');
+  if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
   entry.HashCode := fComparer.GetHashCode(item);
   if fHashTable.Find(item, entry) then
@@ -549,10 +559,10 @@ end;
 procedure THashMultiSet<T>.SetItemCount(const item: T; count: Integer);
 var
   entry: ^TItem;
-  isExisting: Boolean;
+  overrideExisting: Boolean;
   i: Integer;
 begin
-  Guard.CheckRange(count >= 0, 'count');
+  if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
   if count = 0 then
   begin
@@ -567,8 +577,9 @@ begin
   end
   else
   begin
-    entry := fHashTable.AddOrSet(item, fComparer.GetHashCode(item), isExisting);
-    if not isExisting then
+    overrideExisting := True;
+    entry := fHashTable.AddOrSet(item, fComparer.GetHashCode(item), overrideExisting);
+    if not overrideExisting then
     begin
       entry.Item := item;
       entry.Count := 0;
@@ -634,29 +645,31 @@ var
   entry: ^TItem;
 begin
   hashTable := @fSource.fHashTable;
-  if fVersion <> hashTable.Version then
-    raise Error.EnumFailedVersion;
-
-  if fRemainingCount = 0 then
-    while fItemIndex < hashTable.ItemCount do
-    begin
-      entry := @TItems(hashTable.Items)[fItemIndex];
-      Inc(fItemIndex);
-      if entry.HashCode >= 0 then
-      begin
-        fCurrent := entry.Item;
-        fRemainingCount := entry.Count - 1;
-        Exit(True);
-      end;
-    end
-  else
+  if fVersion = hashTable.Version then
   begin
-    Dec(fRemainingCount);
-    Exit(True);
-  end;
+    if fRemainingCount = 0 then
+      while fItemIndex < hashTable.ItemCount do
+      begin
+        entry := @TItems(hashTable.Items)[fItemIndex];
+        Inc(fItemIndex);
+        if entry.HashCode >= 0 then
+        begin
+          fCurrent := entry.Item;
+          fRemainingCount := entry.Count - 1;
+          Exit(True);
+        end;
+      end
+    else
+    begin
+      Dec(fRemainingCount);
+      Exit(True);
+    end;
 
-  fCurrent := Default(T);
-  Result := False;
+    fCurrent := Default(T);   // TODO: review
+    Result := False;
+  end
+  else
+    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -667,7 +680,6 @@ end;
 constructor THashMultiSet<T>.TEntryCollection.Create(
   const source: THashMultiSet<T>);
 begin
-  inherited Create;
   fSource := source;
 end;
 
@@ -754,23 +766,25 @@ var
   entry: ^TItem;
 begin
   hashTable := @fSource.fHashTable;
-  if fVersion <> hashTable.Version then
-    raise Error.EnumFailedVersion;
-
-  while fItemIndex < hashTable.ItemCount do
+  if fVersion = hashTable.Version then
   begin
-    entry := @TItems(hashTable.Items)[fItemIndex];
-    Inc(fItemIndex);
-    if entry.HashCode >= 0 then
+    while fItemIndex < hashTable.ItemCount do
     begin
-      fCurrent.Item := entry.Item;
-      fCurrent.Count := entry.Count;
-      Exit(True);
+      entry := @TItems(hashTable.Items)[fItemIndex];
+      Inc(fItemIndex);
+      if entry.HashCode >= 0 then
+      begin
+        fCurrent.Item := entry.Item;
+        fCurrent.Count := entry.Count;
+        Exit(True);
+      end;
     end;
-  end;
 
-  fCurrent := Default(TEntry);
-  Result := False;
+    fCurrent := Default(TEntry);
+    Result := False;
+  end
+  else
+    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -780,19 +794,18 @@ end;
 
 constructor TTreeMultiSet<T>.Create(const comparer: IComparer<T>);
 begin
-  inherited Create;
   fTree := TRedBlackTree<T, Integer>.Create(comparer);
   fItems := TItemCollection.Create(Self);
   fEntries := TEntryCollection.Create(Self);
 end;
 
-destructor TTreeMultiSet<T>.Destroy;
+procedure TTreeMultiSet<T>.BeforeDestruction;
 begin
   Clear;
   fEntries.Free;
   fItems.Free;
   fTree.Free;
-  inherited Destroy;
+  inherited BeforeDestruction;
 end;
 
 function TTreeMultiSet<T>.CreateMultiSet: IMultiSet<T>;
@@ -803,18 +816,20 @@ end;
 function TTreeMultiSet<T>.DoMoveNext(var currentNode: PNode;
   var finished: Boolean; iteratorVersion: Integer): Boolean;
 begin
-  if iteratorVersion <> fVersion then
-    raise Error.EnumFailedVersion;
+  if iteratorVersion = fVersion then
+  begin
+    if (fTree.Count = 0) or finished then
+      Exit(False);
 
-  if (fTree.Count = 0) or finished then
-    Exit(False);
-
-  if not Assigned(currentNode) then
-    currentNode := fTree.Root.LeftMost
+    if not Assigned(currentNode) then
+      currentNode := fTree.Root.LeftMost
+    else
+      currentNode := currentNode.Next;
+    Result := Assigned(currentNode);
+    finished := not Result;
+  end
   else
-    currentNode := currentNode.Next;
-  Result := Assigned(currentNode);
-  finished := not Result;
+    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 function TTreeMultiSet<T>.Add(const item: T): Boolean;
@@ -828,7 +843,7 @@ var
   node: PNode;
   i: Integer;
 begin
-  Guard.CheckTrue(count >= 0, 'count');
+  if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
   {$Q-}
   Inc(fVersion);
@@ -921,7 +936,7 @@ var
   node: PNode;
   i: Integer;
 begin
-  Guard.CheckTrue(count >= 0, 'count');
+  if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
   {$Q-}
   Inc(fVersion);
@@ -948,8 +963,7 @@ end;
 
 procedure TTreeMultiSet<T>.SetItemCount(const item: T; count: Integer);
 begin
-  if count < 0 then
-    raise Error.ArgumentOutOfRange('count');
+  if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
   {$Q-}
   Inc(fVersion);
@@ -1007,28 +1021,30 @@ function TTreeMultiSet<T>.TEnumerator.MoveNext: Boolean;
 var
   node: PNode;
 begin
-  if fVersion <> fSource.fVersion then
-    raise Error.EnumFailedVersion;
-
-  if fRemainingCount = 0 then
+  if fVersion = fSource.fVersion then
   begin
-    if not Assigned(fNode) then
-      node := fSource.fTree.Root.LeftMost
-    else
-      node := fNode.Next;
-
-    Result := Assigned(node);
-    if Result then
+    if fRemainingCount = 0 then
     begin
-      fNode := node;
-      fRemainingCount := node.Value - 1;
+      if not Assigned(fNode) then
+        node := fSource.fTree.Root.LeftMost
+      else
+        node := fNode.Next;
+
+      Result := Assigned(node);
+      if Result then
+      begin
+        fNode := node;
+        fRemainingCount := node.Value - 1;
+      end;
+    end
+    else
+    begin
+      Dec(fRemainingCount);
+      Result := True;
     end;
   end
   else
-  begin
-    Dec(fRemainingCount);
-    Result := True;
-  end;
+    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -1039,7 +1055,6 @@ end;
 constructor TTreeMultiSet<T>.TItemCollection.Create(
   const source: TTreeMultiSet<T>);
 begin
-  inherited Create;
   fSource := source;
 end;
 
@@ -1125,7 +1140,6 @@ end;
 constructor TTreeMultiSet<T>.TEntryCollection.Create(
   const source: TTreeMultiSet<T>);
 begin
-  inherited Create;
   fSource := source;
 end;
 
