@@ -1,7 +1,7 @@
 {
   "metadata": {
     "id": "Spring4D.Core",
-    "version": "2.0.0-dev5",
+    "version": "2.0.0-dev6",
     "description": "Spring4D Core",
     "authors": "Spring4D Team",
     "projectUrl": "https://bitbucket.org/sglienke/spring4d",
@@ -77,7 +77,7 @@
       "dependencies": [
         {
           "id": "Spring4D.Base",
-          "version": "[2.0.0-dev5,]"
+          "version": "[2.0.0-dev6,]"
         }
       ],
       "source": [
