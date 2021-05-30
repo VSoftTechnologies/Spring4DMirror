@@ -34,7 +34,6 @@ implementation
 
 uses
   TestFramework,
-  TestExtensions,
   Spring.TestUtils,
   Spring.Tests.Base,
   Spring.Tests.Collections,
@@ -78,7 +77,7 @@ begin
   if BaseCommon in TestKinds then
   begin
     RegisterTests('Spring.Base', [
-      TRepeatedTest.Create(TTestNullableInteger.Suite, 3),
+      TTestNullableInteger.Suite,
       TTestNullableBoolean.Suite,
       TTestNullableDateTime.Suite,
       TTestNullableInt64.Suite,
@@ -101,7 +100,8 @@ begin
       TTestVirtualClass.Suite,
       TTestEnum.Suite,
       TTestBaseRoutines.Suite,
-      TTestManagedObject.Suite
+      TTestManagedObject.Suite,
+      TSortTest.Suite
     ]);
   end;
 
@@ -141,7 +141,10 @@ begin
       TTestRedBlackTreeInteger.Suite,
       TTestRedBlackTreeIntegerString.Suite,
       TTestSet.Suite,
-      TTestSortedSet.Suite
+      TTestSortedSet.Suite,
+
+      TSkipTests.Suite,
+      TTakeTests.Suite
     ]);
 
     RegisterTests('Spring.Base.Collections.Dictionaries', [
@@ -280,9 +283,6 @@ begin
   if CoreContainer in TestKinds then
   begin
     RegisterTests('Spring.Core.Container', [
-  {$IFDEF AUTOREFCOUNT}
-      TTestGlobalContainer.Suite,
-  {$ENDIF}
       TTestEmptyContainer.Suite,
       TTestSimpleContainer.Suite,
       TTestDifferentServiceImplementations.Suite,
