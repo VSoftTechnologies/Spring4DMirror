@@ -29,6 +29,7 @@ unit Spring.Collections.Events;
 interface
 
 uses
+  Classes,
   Spring,
   Spring.Collections,
   Spring.Events.Base;
@@ -39,12 +40,11 @@ type
   TCollectionChangedEventImpl<T> = class(TEventBase, IEvent, ICollectionChangedEvent<T>)
   public
     procedure AfterConstruction; override;
-{$IFNDEF AUTOREFCOUNT}
     procedure Free;
-{$ENDIF}
     procedure Add(handler: TCollectionChangedEvent<T>); overload; inline;
     procedure Remove(handler: TCollectionChangedEvent<T>); overload; inline;
     procedure Invoke(Sender: TObject; const Item: T; Action: TCollectionChangedAction);
+    property OnChanged: TNotifyEvent write fOnChanged;
   end;
 
 implementation
@@ -59,18 +59,14 @@ procedure TCollectionChangedEventImpl<T>.AfterConstruction;
 begin
   inherited AfterConstruction;
   TCollectionChangedEvent<T>(fInvoke) := Invoke;
-{$IFNDEF AUTOREFCOUNT}
   _AddRef;
-{$ENDIF}
 end;
 
-{$IFNDEF AUTOREFCOUNT}
 procedure TCollectionChangedEventImpl<T>.Free;
 begin
   if Assigned(Self) then
     _Release;
 end;
-{$ENDIF}
 
 procedure TCollectionChangedEventImpl<T>.Add(
   handler: TCollectionChangedEvent<T>);
@@ -81,21 +77,19 @@ end;
 procedure TCollectionChangedEventImpl<T>.Invoke(Sender: TObject;
   const Item: T; Action: TCollectionChangedAction);
 var
+  guard: GuardedPointer;
   handlers: PMethodArray;
   i: Integer;
 begin
-  // If you get exception at this location on NextGen and the handler is nil
-  // it is highly possible that the owner of the collection already released
-  // its weak references. To fix this, free the collection prior to freeing
-  // the object owning it (even if you're using interfaces).
   if CanInvoke then
   begin
-    handlers := GetHandlers;
+    guard := GetHandlers;
+    handlers := guard;
     try
       for i := 0 to DynArrayHigh(handlers) do
         TCollectionChangedEvent<T>(handlers[i])(Sender, Item, Action);
     finally
-      ReleaseGuard;
+      guard.Release;
     end;
   end;
 end;

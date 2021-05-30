@@ -41,21 +41,13 @@ const
 {$IFEND}
 
 const
-  MinVirtualIndex = -11 - (CPP_ABI_ADJUST div SizeOf(Pointer)){$IFDEF AUTOREFCOUNT} - 2{$ENDIF};
+  MinVirtualIndex = -11 - (CPP_ABI_ADJUST div SizeOf(Pointer));
 
 type
 {$POINTERMATH ON}
   PVirtualMethodTable = ^Pointer;
 {$POINTERMATH OFF}
 
-{$IFDEF AUTOREFCOUNT}
-  // after looking at several functions in System.pas (like _AfterConstruction,
-  // etc.) we realized that Self (or Instance) is passed as const, this has
-  // some implication on NextGen regarding reference counting (most visible
-  // during FreeInstance)
-  TObjAddRef = function (const Self: TObject): Integer;
-  TObjRelease = function (const Self: TObject): Integer;
-{$ENDIF}
   TEquals = function (const Self: TObject; Obj: TObject): Boolean;
   TGetHashCode = function (const Self: TObject): Integer;
   TToString = function (const Self: TObject): string;
@@ -91,10 +83,6 @@ type
     InstanceSize: Integer;
     Parent: PClass;
 
-{$IFDEF AUTOREFCOUNT}
-    __ObjAddRef: TObjAddRef;
-    __ObjRelease: TObjRelease;
-{$ENDIF}
     Equals: TEquals;
     GetHashCode: TGetHashCode;
     ToString: TToString;
@@ -158,6 +146,9 @@ function GetVirtualMethodIndex(classType: TClass; method: Pointer): Integer;
 function IsVirtualMethodOverride(baseClass, classType: TClass; method: Pointer): Boolean;
 
 implementation
+
+uses
+  Spring;
 
 
 {$REGION 'Routines'}
@@ -288,7 +279,17 @@ var
   classType: Pointer;
 begin
   for classType in fClasses do
-    DestroyVirtualClass(classType);
+    
+	// when this code runs after finalization of this unit
+	// there might still be object instances being proxified
+	// with these classes - any deallocation here would cause
+	// issues such as access violations and alike during the 
+	// finalization/destruction of these objects
+	// to avoid such issues the deallocation is left to the
+	// operation system when the process ends and they are
+	// exluced from memory leak reporting
+    RegisterExpectedMemoryLeak(PByte(classType) + vmtSelfPtr);
+
   fLock.Free;
   fClasses.Free;
 end;

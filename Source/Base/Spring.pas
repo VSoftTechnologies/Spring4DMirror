@@ -455,7 +455,6 @@ type
 {$ELSE}
     InitTables: TDictionary<TClass,TInitTable>;
 {$ENDIF}
-    FormatSettings: TFormatSettings;
     procedure AddDefaultField(fieldType: PTypeInfo; const value: Variant; offset: Integer);
     procedure AddDefaultProperty(fieldType: PTypeInfo; const value: Variant; propInfo: PPropInfo);
     procedure AddManagedField(const field: TRttiField; const attribute: ManagedAttribute);
@@ -468,9 +467,7 @@ type
     destructor Destroy; override;
 
     procedure InitInstance(instance: Pointer);
-  {$IFNDEF AUTOREFCOUNT}
     procedure CleanupInstance(instance: Pointer);
-  {$ENDIF}
   end;
 
   {$ENDREGION}
@@ -480,18 +477,14 @@ type
 
   TManagedObject = class(TObject)
   public
-    class function NewInstance: TObject {$IFDEF AUTOREFCOUNT} unsafe {$ENDIF}; override;
-  {$IFNDEF AUTOREFCOUNT}
+    class function NewInstance: TObject; override;
     procedure FreeInstance; override;
-  {$ENDIF}
   end;
 
   TManagedInterfacedObject = class(TInterfacedObject)
   public
-    class function NewInstance: TObject {$IFDEF AUTOREFCOUNT} unsafe {$ENDIF}; override;
-  {$IFNDEF AUTOREFCOUNT}
+    class function NewInstance: TObject; override;
     procedure FreeInstance; override;
-  {$ENDIF}
   end;
 
   {$ENDREGION}
@@ -1302,31 +1295,25 @@ type
   ///   this space.
   /// </summary>
   TRefCountedObject = class abstract
-{$IFNDEF AUTOREFCOUNT}
   private const
     objDestroyingFlag = Integer($80000000);
     function GetRefCount: Integer; inline;
-{$ENDIF}
   protected
-{$IFNDEF AUTOREFCOUNT}
 {$IF Declared(VolatileAttribute)}
     [Volatile]
 {$IFEND}
     fRefCount: Integer;
     class procedure __MarkDestroying(const obj); static; inline;
-{$ENDIF}
     function AsObject: TObject;
   public
     function QueryInterface(const IID: TGUID; out obj): HResult; stdcall;
     function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
     function GetInterface(const IID: TGUID; out Obj): Boolean;
-{$IFNDEF AUTOREFCOUNT}
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
     class function NewInstance: TObject; override;
     property RefCount: Integer read GetRefCount;
-{$ENDIF}
   end;
 
   {$ENDREGION}
@@ -1487,6 +1474,8 @@ type
     items,
     keySelector,
     match,
+    max,
+    min,
     other,
     outer,
     outerKeySelector,
@@ -1520,12 +1509,12 @@ type
     class function GetArgumentOutOfRangeException(resource: ExceptionResource): EArgumentException; overload; static;
   public
     class procedure ArgumentNil(argument: ExceptionArgument); static;
-    class procedure ArgumentOutOfRange(argument: ExceptionArgument); overload; static;
-    class procedure ArgumentOutOfRange(argument: ExceptionArgument; resource: ExceptionResource); overload; static;
-    class procedure ArgumentOutOfRange(resource: ExceptionResource); overload; static;
+    class function ArgumentOutOfRange(argument: ExceptionArgument): Boolean; overload; static;
+    class function ArgumentOutOfRange(argument: ExceptionArgument; resource: ExceptionResource): Boolean; overload; static;
+    class function ArgumentOutOfRange(resource: ExceptionResource): Boolean; overload; static;
 
-    class procedure ArgumentOutOfRange_Count; static;
-    class procedure ArgumentOutOfRange_Index; static;
+    class function ArgumentOutOfRange_Count: Boolean; static;
+    class function ArgumentOutOfRange_Index: Boolean; static;
 
     class procedure DuplicateKey; static;
     class procedure KeyNotFound; static;
@@ -2786,8 +2775,8 @@ type
     ///   StableSort results in faster sorting.
     /// </summary>
     class var UnsafeStableSort: Boolean;
-    const ManagedPointerTypeKinds = [{$IFDEF AUTOREFCOUNT}tkClass, {$ENDIF}tkInterface, tkDynArray, tkUString];
-    const UnmanagedPointerTypeKinds = [{$IFNDEF AUTOREFCOUNT}tkClass, {$ENDIF}tkClassRef, tkPointer, tkProcedure];
+    const ManagedPointerTypeKinds = [tkInterface, tkDynArray, tkUString];
+    const UnmanagedPointerTypeKinds = [tkClass, tkClassRef, tkPointer, tkProcedure];
 
     /// <summary>
     ///   Sorts the elements in an array using the default comparer.
@@ -3110,6 +3099,7 @@ function AtomicIncrement(var target: Int64; increment: Int64 = 1): Int64; overlo
 function AtomicDecrement(var target: Integer): Integer; overload;
 function AtomicDecrement(var target: NativeInt; decrement: NativeInt): NativeInt; overload;
 function AtomicExchange(var target: Integer; value: Integer): Integer; overload;
+function AtomicExchange(var target: NativeInt; value: NativeInt): NativeInt; overload;
 function AtomicExchange(var target: Pointer; value: Pointer): Pointer; overload;
 function AtomicCmpExchange(var target: Integer; newValue, comparand: Integer): Integer; overload;
 function AtomicCmpExchange(var target: NativeInt; newValue, comparand: NativeInt): NativeInt; overload;
@@ -3155,6 +3145,10 @@ procedure BinarySwap(left, right: Pointer; size: Cardinal);
 
 function _LookupVtableInfo(intf: TDefaultGenericInterface; info: TypInfo.PTypeInfo; size: Integer): Pointer; {$IFDEF DELPHIX_SEATTLE_UP}inline;{$ENDIF}
 
+{$IFNDEF MSWINDOWS}
+function RegisterExpectedMemoryLeak(P: Pointer): Boolean;
+{$ENDIF}
+
   {$ENDREGION}
 
 
@@ -3179,6 +3173,19 @@ const
 {$MESSAGE Fatal 'Unrecognized pointer size'}
 {$IFEND OTHER_PTR_SIZE}
 {$ENDIF}
+
+const
+  ISO8601FormatSettings: TFormatSettings = (
+    DateSeparator: '-';
+    TimeSeparator: ':';
+    ShortDateFormat: 'YYYY-MM-DD';
+    LongDateFormat: 'YYYY-MM-DD';
+    TimeAMString: '';
+    TimePMString: '';
+    ShortTimeFormat: 'hh:nn:ss';
+    LongTimeFormat: 'hh:nn:ss';
+    DecimalSeparator: '.';
+  );
 
 implementation
 
@@ -3536,6 +3543,17 @@ end;
 
 // TODO: use typekind matrix for comparer functions
 function CompareValue(const left, right: TValue): Integer;
+
+  function CompareValueCurr(const A, B: Currency): TValueRelationship;
+  begin
+    if A = B then
+      Result := EqualsValue
+    else if A < B then
+      Result := LessThanValue
+    else
+      Result := GreaterThanValue;
+  end;
+
 const
   EmptyResults: array[Boolean, Boolean] of Integer = ((0, -1), (1, 0));
 var
@@ -3549,7 +3567,10 @@ begin
   else if left.IsOrdinal and right.IsOrdinal then
     Result := Math.CompareValue(left.AsOrdinal, right.AsOrdinal)
   else if left.IsFloat and right.IsFloat then
-    Result := Math.CompareValue(left.AsExtended, right.AsExtended)
+    if (left.TypeData.FloatType = ftCurr) and (right.TypeData.FloatType = ftCurr) then
+      Result := CompareValueCurr(left.AsCurrency, right.AsCurrency)
+    else
+      Result := Math.CompareValue(left.AsExtended, right.AsExtended)
   else if left.IsString and right.IsString then
     Result := SysUtils.AnsiCompareStr(left.AsString, right.AsString)
   else if left.IsObject and right.IsObject then
@@ -3989,6 +4010,18 @@ asm
 {$ENDIF}
 end;
 
+function AtomicExchange(var target: NativeInt; value: NativeInt): NativeInt;
+asm
+{$IFDEF CPUX86}
+  lock xchg [eax],edx
+  mov eax,edx
+{$ENDIF}
+{$IFDEF CPUX64}
+  lock xchg [rcx],rdx
+  mov rax,rdx
+{$ENDIF}
+end;
+
 function AtomicExchange(var target: Pointer; value: Pointer): Pointer;
 asm
 {$IFDEF CPUX86}
@@ -4144,14 +4177,19 @@ end;
 
 function DynArrayHigh(const A: Pointer): NativeInt;
 begin
-  Result := DynArrayLength(A) - 1;
+  Result := NativeInt(A);
+  if Result <> 0 then
+    {$POINTERMATH ON}
+    Result := PNativeInt(Result)[-1];
+    {$POINTERMATH OFF}
+  Dec(Result);
 end;
 {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
 
 procedure FreeObject(const item);
 begin
-  TObject(item).{$IFNDEF AUTOREFCOUNT}Free{$ELSE}DisposeOf{$ENDIF};
+  TObject(item).Free;
 end;
 
 function GetEqualsOperator(const typeInfo: PTypeInfo): TRttiMethod;
@@ -4401,6 +4439,16 @@ begin
   Result := Generics.Defaults._LookupVtableInfo(intf, info, size);
 {$ENDIF}
 end;
+
+{$IFNDEF MSWINDOWS}
+function RegisterExpectedMemoryLeak(P: Pointer): Boolean;
+var
+  MemoryManager: TMemoryManagerEx;
+begin
+  GetMemoryManager(MemoryManager);
+  Result := MemoryManager.RegisterExpectedMemoryLeak(P);
+end;
+{$ENDIF}
 
 {$ENDREGION}
 
@@ -4786,11 +4834,6 @@ begin
 {$ELSE}
   InitTables := TObjectDictionary<TClass,TInitTable>.Create([doOwnsValues]);
 {$ENDIF}
-  FormatSettings := TFormatSettings.Create;
-  FormatSettings.DateSeparator := '-';
-  FormatSettings.TimeSeparator := ':';
-  FormatSettings.ShortDateFormat := 'YYYY-MM-DD';
-  FormatSettings.ShortTimeFormat := 'hh:mm:ss';
 end;
 
 class destructor TInitTable.Destroy;
@@ -4891,11 +4934,11 @@ begin
     {$ENDIF}
     tkFloat:
       if (fieldType = TypeInfo(TDateTime)) and (VarType(value) = varUString) then
-        defaultField := TDefaultField<TDateTime>.Create(offset, StrToDateTime(value, FormatSettings))
+        defaultField := TDefaultField<TDateTime>.Create(offset, StrToDateTime(value, ISO8601FormatSettings))
       else if (fieldType = TypeInfo(TDate)) and (VarType(value) = varUString) then
-        defaultField := TDefaultField<TDate>.Create(offset, StrToDate(value, FormatSettings))
+        defaultField := TDefaultField<TDate>.Create(offset, StrToDate(value, ISO8601FormatSettings))
       else if (fieldType = TypeInfo(TTime)) and (VarType(value) = varUString) then
-        defaultField := TDefaultField<TTime>.Create(offset, StrToTime(value, FormatSettings))
+        defaultField := TDefaultField<TTime>.Create(offset, StrToTime(value, ISO8601FormatSettings))
       else
         case FieldType.TypeData.FloatType of
           ftSingle: defaultField := TDefaultField<Single>.Create(offset, value);
@@ -4952,11 +4995,11 @@ begin
     {$ENDIF}
     tkFloat:
       if (fieldType = TypeInfo(TDateTime)) and (VarType(value) = varUString) then
-        defaultField := TDefaultProperty<TDateTime>.Create(propInfo, StrToDateTime(value, FormatSettings))
+        defaultField := TDefaultProperty<TDateTime>.Create(propInfo, StrToDateTime(value, ISO8601FormatSettings))
       else if (fieldType = TypeInfo(TDate)) and (VarType(value) = varUString) then
-        defaultField := TDefaultProperty<TDate>.Create(propInfo, StrToDate(value, FormatSettings))
+        defaultField := TDefaultProperty<TDate>.Create(propInfo, StrToDate(value, ISO8601FormatSettings))
       else if (fieldType = TypeInfo(TTime)) and (VarType(value) = varUString) then
-        defaultField := TDefaultProperty<TTime>.Create(propInfo, StrToTime(value, FormatSettings))
+        defaultField := TDefaultProperty<TTime>.Create(propInfo, StrToTime(value, ISO8601FormatSettings))
       else
         case fieldType.TypeData.FloatType of
           ftSingle: defaultField := TDefaultProperty<Single>.Create(propInfo, value);
@@ -5121,7 +5164,6 @@ begin
   end;
 end;
 
-{$IFNDEF AUTOREFCOUNT}
 procedure TInitTable.CleanupInstance(instance: Pointer);
 var
   f: ^TFinalizableField;
@@ -5134,7 +5176,6 @@ begin
     Inc(f);
   end;
 end;
-{$ENDIF}
 {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 
 {$ENDREGION}
@@ -5339,13 +5380,11 @@ end;
 
 {$REGION 'TManagedObject'}
 
-{$IFNDEF AUTOREFCOUNT}
 procedure TManagedObject.FreeInstance;
 begin
   GetInitTable(ClassType).CleanupInstance(Self);
   inherited FreeInstance;
 end;
-{$ENDIF}
 
 class function TManagedObject.NewInstance: TObject;
 begin
@@ -5358,13 +5397,11 @@ end;
 
 {$REGION 'TManagedInterfacedObject'}
 
-{$IFNDEF AUTOREFCOUNT}
 procedure TManagedInterfacedObject.FreeInstance;
 begin
   GetInitTable(ClassType).CleanupInstance(Self);
   inherited FreeInstance;
 end;
-{$ENDIF}
 
 class function TManagedInterfacedObject.NewInstance: TObject;
 begin
@@ -5531,6 +5568,7 @@ begin
       case right.TypeData.FloatType of
         ftSingle: Result := Math.SameValue(TValueData(left).FAsSingle, TValueData(right).FAsSingle);
         ftDouble: Result := Math.SameValue(TValueData(left).FAsSingle, TValueData(right).FAsDouble);
+        ftCurr: Result := Math.SameValue(TValueData(left).FAsSingle, TValueData(right).FAsCurr);
       else
         Result := Math.SameValue(TValueData(left).FAsSingle, right.AsExtended);
       end;
@@ -5538,13 +5576,23 @@ begin
       case right.TypeData.FloatType of
         ftSingle: Result := Math.SameValue(TValueData(left).FAsDouble, TValueData(right).FAsSingle);
         ftDouble: Result := Math.SameValue(TValueData(left).FAsDouble, TValueData(right).FAsDouble);
+        ftCurr: Result := Math.SameValue(TValueData(left).FAsDouble, TValueData(right).FAsCurr);
       else
         Result := Math.SameValue(TValueData(left).FAsDouble, right.AsExtended);
+      end;
+    ftCurr:
+      case right.TypeData.FloatType of
+        ftSingle: Result := Math.SameValue(TValueData(left).FAsCurr, TValueData(right).FAsSingle);
+        ftDouble: Result := Math.SameValue(TValueData(left).FAsCurr, TValueData(right).FAsDouble);
+        ftCurr: Result := TValueData(left).FAsCurr = TValueData(right).FAsCurr;
+      else
+        Result := Math.SameValue(TValueData(left).FAsCurr, right.AsExtended);
       end;
   else
     case right.TypeData.FloatType of
       ftSingle: Result := Math.SameValue(left.AsExtended, TValueData(right).FAsSingle);
       ftDouble: Result := Math.SameValue(left.AsExtended, TValueData(right).FAsDouble);
+      ftCurr: Result := Math.SameValue(left.AsExtended, TValueData(right).FAsCurr);
     else
       Result := Math.SameValue(left.AsExtended, right.AsExtended);
     end;
@@ -6021,11 +6069,7 @@ end;
 procedure TValueHelper.Free;
 begin
   if IsObject then
-{$IFNDEF AUTOREFCOUNT}
     AsObject.Free;
-{$ELSE}
-    AsObject.DisposeOf;
-{$ENDIF}
 end;
 
 class function TValueHelper.From(buffer: Pointer; typeInfo: PTypeInfo): TValue;
@@ -6067,9 +6111,11 @@ class function TValueHelper.FromVariant(const value: Variant): TValue;
       (Name: 'FMTBcdVariantType'; VType: varInt64)
     );
   var
-    typeName: string;
+    typeName, tmpStr: string;
     i: Integer;
-    tmp: Int64;
+    tmpInt64: Int64;
+    tmpDouble: Double;
+    tmpCurrency: Currency;
     info: PCustomVariantTypeInfo;
   begin
     typeName := VarTypeAsText(TVarData(value).VType);
@@ -6081,10 +6127,21 @@ class function TValueHelper.FromVariant(const value: Variant): TValue;
         case info.VType of
           varDouble: result := Double(value);
           varInt64:
-            if TryStrToInt64(VarToStr(value), tmp) then
-              Result := tmp
+          begin
+            tmpStr := VarToStr(value);
+            if TryStrToInt64(tmpStr, tmpInt64) then
+              Result := tmpInt64
             else
-              Result := Double(value);
+            begin
+              tmpDouble := Double(value);
+              if FloatToStr(tmpDouble) = tmpStr then
+                Result := tmpDouble
+              else if TryStrToCurr(tmpStr, tmpCurrency) and (CurrToStr(tmpCurrency) = tmpStr) then
+                Result := tmpCurrency
+              else
+                Result := tmpStr;
+            end;
+          end;
         else
           raise EVariantTypeCastError.CreateRes(@SInvalidVarCast);
         end;
@@ -6548,11 +6605,7 @@ begin
   begin
     if Kind = tkClass then
     begin
-{$IFDEF AUTOREFCOUNT}
-      TValueData(Self).FValueData.ExtractRawData(@obj);
-{$ELSE}
       obj := TObject(TValueData(Self).FAsObject);
-{$ENDIF}
       typeData := typeInfo.TypeData;
       Exit(obj.GetInterface(typeData.Guid, Intf));
     end;
@@ -6605,6 +6658,8 @@ begin
         Exit(False);
       end;
   Result := TValueHack(Self).TryCast(ATypeInfo, AResult);
+  if Result then
+    TValueData(AResult).FTypeInfo := ATypeInfo;
 end;
 
 
@@ -7714,7 +7769,6 @@ begin
   Result := Pointer(Obj) <> nil;
 end;
 
-{$IFNDEF AUTOREFCOUNT}
 function TRefCountedObject.GetRefCount: Integer;
 begin
   Result := fRefCount and not objDestroyingFlag;
@@ -7745,7 +7799,6 @@ begin
   Result := inherited NewInstance;
   TRefCountedObject(Result).fRefCount := 1;
 end;
-{$ENDIF AUTOREFCOUNT}
 
 function TRefCountedObject.QueryInterface(const IID: TGUID; out Obj): HResult;
 begin
@@ -7757,25 +7810,17 @@ end;
 
 function TRefCountedObject._AddRef: Integer;
 begin
-{$IFNDEF AUTOREFCOUNT}
   Result := AtomicIncrement(fRefCount);
-{$ELSE}
-  Result := __ObjAddRef;
-{$ENDIF}
 end;
 
 function TRefCountedObject._Release: Integer;
 begin
-{$IFNDEF AUTOREFCOUNT}
   Result := AtomicDecrement(fRefCount);
   if Result = 0 then
   begin
     __MarkDestroying(Self);
     Destroy;
   end;
-{$ELSE}
-  Result := __ObjRelease;
-{$ENDIF}
 end;
 
 {$ENDREGION}
@@ -8078,7 +8123,6 @@ begin
     Guard.RaiseArgumentOutOfRangeException(ValueArgName);
 end;
 
-
 {$IFNDEF NEXTGEN}
 class procedure Guard.CheckRange(const s: WideString; index: Integer);
 begin
@@ -8141,28 +8185,28 @@ begin
   raise EArgumentNilException.Create(GetArgumentName(argument)) at ReturnAddress;
 end;
 
-class procedure RaiseHelper.ArgumentOutOfRange(argument: ExceptionArgument);
+class function RaiseHelper.ArgumentOutOfRange(argument: ExceptionArgument): Boolean;
 begin
   raise EArgumentOutOfRangeException.Create(GetArgumentName(argument)) at ReturnAddress;
 end;
 
-class procedure RaiseHelper.ArgumentOutOfRange(argument: ExceptionArgument; resource: ExceptionResource);
+class function RaiseHelper.ArgumentOutOfRange(argument: ExceptionArgument; resource: ExceptionResource): Boolean;
 begin
   raise GetArgumentOutOfRangeException(argument, resource) at ReturnAddress;
 end;
 
-class procedure RaiseHelper.ArgumentOutOfRange(resource: ExceptionResource);
+class function RaiseHelper.ArgumentOutOfRange(resource: ExceptionResource): Boolean;
 begin
   raise GetArgumentOutOfRangeException(resource) at ReturnAddress;
 end;
 
-class procedure RaiseHelper.ArgumentOutOfRange_Count;
+class function RaiseHelper.ArgumentOutOfRange_Count: Boolean;
 begin
   raise GetArgumentOutOfRangeException(ExceptionArgument.count,
     ExceptionResource.ArgumentOutOfRange_Count) at ReturnAddress;
 end;
 
-class procedure RaiseHelper.ArgumentOutOfRange_Index;
+class function RaiseHelper.ArgumentOutOfRange_Index: Boolean;
 begin
   raise GetArgumentOutOfRangeException(ExceptionArgument.index,
     ExceptionResource.ArgumentOutOfRange_Index) at ReturnAddress;
@@ -8246,6 +8290,8 @@ const
     'items',
     'keySelector',
     'match',
+    'max',
+    'min',
     'other',
     'outer',
     'outerKeySelector',
@@ -9063,9 +9109,7 @@ class operator Shared<T>.Implicit(const value: T): Shared<T>;
 begin
   Result.fValue := value;
   case TType.Kind<T> of
-{$IFNDEF AUTOREFCOUNT}
     tkClass: Shared.Make(PObject(@Result.fValue)^, Result.fFinalizer);
-{$ENDIF}
     tkPointer: Shared.Make(PPointer(@Result.fValue)^, TypeInfo(T), Result.fFinalizer);
   end;
 end;
@@ -9085,9 +9129,6 @@ begin
   begin
     GetMem(finalizer, SizeOf(TObjectFinalizer));
     finalizer.Vtable := @Shared.ObjectFinalizerVtable;
-  {$IFDEF AUTOREFCOUNT}
-    Pointer(finalizer.Value) := nil;
-  {$ENDIF}
   end;
   finalizer.RefCount := 1;
   finalizer.Value := value;
@@ -9237,8 +9278,8 @@ end;
 
 procedure TWeakReferences.Finalize;
 begin
-  fWeakReferences.Free;
-  fLock.Free;
+  FreeAndNil(fWeakReferences);
+  FreeAndNil(fLock);
 end;
 
 procedure TWeakReferences.RegisterWeakRef(address, instance: Pointer);
@@ -9262,6 +9303,8 @@ procedure TWeakReferences.UnregisterWeakRef(address, instance: Pointer);
 var
   addresses: TList;
 begin
+  if fLock = nil then Exit;
+
   fLock.Enter;
   try
     if fWeakReferences.TryGetValue(instance, addresses) then
@@ -9350,15 +9393,6 @@ begin
           Dec(count);
         until count = 0;
 {$ENDIF}
-{$IFDEF AUTOREFCOUNT}
-      tkClass:
-        repeat
-          PObject(target)^ := PObject(source)^;
-          Inc(PByte(target), SizeOf(Pointer));
-          Inc(PByte(source), SizeOf(Pointer));
-          Dec(count);
-        until count = 0;
-{$ENDIF}
       tkLString:
         repeat
           PAnsiString(target)^ := PAnsiString(source)^;
@@ -9437,20 +9471,6 @@ begin
           PMethodPointer(target)^ := PMethodPointer(source)^;
           Dec(PByte(target), SizeOf(TMethod));
           Dec(PByte(source), SizeOf(TMethod));
-          Dec(count);
-        until count = 0;
-      end;
-{$ENDIF}
-{$IFDEF AUTOREFCOUNT}
-      tkClass:
-      begin
-        n := (count - 1) * SizeOf(Pointer);
-        Inc(PByte(target), n);
-        Inc(PByte(source), n);
-        repeat
-          PObject(target)^ := PObject(source)^;
-          Dec(PByte(target), SizeOf(Pointer));
-          Dec(PByte(source), SizeOf(Pointer));
           Dec(count);
         until count = 0;
       end;
@@ -9962,22 +9982,14 @@ end;
 
 function TInterfacedCriticalSection._AddRef: Integer;
 begin
-{$IFNDEF AUTOREFCOUNT}
   Result := AtomicIncrement(fRefCount);
-{$ELSE}
-  Result := __ObjAddRef;
-{$ENDIF}
 end;
 
 function TInterfacedCriticalSection._Release: Integer;
 begin
-{$IFNDEF AUTOREFCOUNT}
   Result := AtomicDecrement(fRefCount);
   if Result = 0 then
     Destroy;
-{$ELSE}
-  Result := __ObjRelease;
-{$ENDIF}
 end;
 
 function TInterfacedCriticalSection.ScopedLock: IInterface;
@@ -12320,7 +12332,7 @@ class procedure TArray.Shuffle<T>(var values: array of T; index, count: Integer)
 begin
   CheckRange(index, count, Length(values));
 
-  {$R+}
+  {$R-}
   Shuffle<T>(@values[index], count - 1);
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
@@ -12552,43 +12564,12 @@ class procedure TArray.IntroSort<T>(var values: array of T;
   {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; depthLimit: Integer);
 var
   partitionSize, pivot: Integer;
-  arr: Pointer;
-  temp: T;
 begin
   partitionSize := Length(values);
   while partitionSize > 1 do
   begin
     if partitionSize <= IntrosortSizeThreshold then
     begin
-      if partitionSize <= 3 then
-      begin
-        arr := @values[0];
-        if compare(TSlice<T>(arr^)[0], TSlice<T>(arr^)[1]) > 0 then
-        begin
-          temp := TSlice<T>(arr^)[0];
-          TSlice<T>(arr^)[0] := TSlice<T>(arr^)[1];
-          TSlice<T>(arr^)[1] := temp;
-        end;
-
-        if partitionSize = 2 then Exit;
-
-        if compare(TSlice<T>(arr^)[0], TSlice<T>(arr^)[2]) > 0 then
-        begin
-          temp := TSlice<T>(arr^)[0];
-          TSlice<T>(arr^)[0] := TSlice<T>(arr^)[2];
-          TSlice<T>(arr^)[2] := temp;
-        end;
-
-        if compare(TSlice<T>(arr^)[1], TSlice<T>(arr^)[2]) > 0 then
-        begin
-          temp := TSlice<T>(arr^)[1];
-          TSlice<T>(arr^)[1] := TSlice<T>(arr^)[2];
-          TSlice<T>(arr^)[2] := temp;
-        end;
-
-        Exit;
-      end;
-
       InsertionSort<T>(Slice(values, partitionSize), compare);
       Exit;
     end
@@ -12717,21 +12698,6 @@ begin
   begin
     if partitionSize <= IntrosortSizeThreshold then
     begin
-      if partitionSize <= 3 then
-      begin
-        if compare(values[0], values[size]) > 0 then
-          BinarySwap(@values[0], @values[size], size);
-
-        if partitionSize = 2 then Exit;
-
-        if compare(values[0], values[2*size]) > 0 then
-          BinarySwap(@values[0], @values[2*size], size);
-
-        if compare(values[size], values[2*size]) > 0 then
-          BinarySwap(@values[size], @values[2*size], size);
-
-        Exit;
-      end;
       InsertionSort_Ref(values, partitionSize - 1, compare, size);
       Exit;
     end
@@ -12833,8 +12799,8 @@ begin
   else
   {$ENDIF}
   begin
-    compare.Data := nil;
-    IComparer<T>(compare.Data) := IComparer<T>(_LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T)));
+    compare.Data := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+    IInterface(compare.Data)._AddRef;
   end;
   compare.Code := PPVTable(compare.Data)^[3];
   try

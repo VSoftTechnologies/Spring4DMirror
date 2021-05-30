@@ -180,12 +180,9 @@ end;
 
 destructor TMock.Destroy;
 begin
+  fInterceptor.Reset;
   if fTypeInfo.Kind = tkClass then
-{$IFNDEF AUTOREFCOUNT}
     fProxy.AsObject.Free;
-{$ELSE}
-    fProxy := TValue.Empty;
-{$ENDIF}
   inherited Destroy;
 end;
 

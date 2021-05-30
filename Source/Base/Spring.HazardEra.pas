@@ -31,8 +31,17 @@ interface
 // implementation based on the paper by Pedro Ramalhete and Andreia Correia
 // https://github.com/pramalhe/ConcurrencyFreaks/blob/master/papers/hazarderas-2017.pdf
 
-function AcquireGuard(var p): Pointer;
-procedure ReleaseGuard;
+type
+  GuardedPointer = record
+  private
+    ptr: Pointer;
+    ThreadControlBlock: Pointer;
+  public
+    procedure Release;
+    class operator Implicit(const value: GuardedPointer): Pointer; inline;
+  end;
+
+function AcquireGuard(var p; isFirstAttempt: Boolean = True): GuardedPointer;
 
 procedure EraArraySetLength(var a; count: NativeInt; elemInfo: Pointer);
 procedure EraArrayCopy(var target; source: Pointer);
@@ -42,10 +51,12 @@ procedure EraArrayDelete(var target; index: NativeInt; count: NativeInt = 1);
 implementation
 
 uses
+  Classes,
 {$IFDEF POSIX}
   Posix.Pthread,
 {$ENDIF}
   SyncObjs,
+  SysUtils,
   Spring;
 
 
@@ -80,20 +91,19 @@ end;
 function GetMem_Aligned64(size: Integer): Pointer;
 const
   Alignment = 64;
-  Bits = 6;
-var
-  p: Pointer;
+  AlignmentMask = Alignment - 1;
 begin
-  GetMem(Result, size + Alignment);
-  p := Result;
-  UIntPtr(Result) := UIntPtr(Result) + Alignment;
-  UIntPtr(Result) := UIntPtr(Result) and -Alignment;
-  PPointer(UIntPtr(Result) - SizeOf(Pointer))^ := p;
-end;
+  GetMem(Result, size + AlignmentMask);
 
-procedure FreeMem_Aligned64(p: Pointer);
-begin
-  FreeMem(PPointer(UIntPtr(p) - SizeOf(Pointer))^);
+  // memory allocated via this function for instances of THazardEraThreadControlBlock
+  // must live until the end of the application because the hazard era mechanism
+  // needs to be working until the end as well as there might be objects using it
+  // outliving this unit - meaning the finalization of this unit might run earlier
+  // than the deallocation of those objects
+  RegisterExpectedMemoryLeak(Result);
+
+  // align to 64 byte
+  UIntPtr(Result) := (UIntPtr(Result) + AlignmentMask) and not AlignmentMask;
 end;
 
 {$ENDREGION}
@@ -101,18 +111,25 @@ end;
 
 {$REGION 'TThreadBlockList'}
 
+const
+  // size of used data in THazardEraThreadControlBlock
+  DataSize =
+    SizeOf(Pointer) +     // Next
+    SizeOf(NativeInt) +   // Active
+    SizeOf(TEra);         // Era
+  CacheLineSize = 64;
+
 type
   {$HINTS OFF}
   PHazardEraThreadControlBlock = ^THazardEraThreadControlBlock;
   THazardEraThreadControlBlock = record
   private
-    Next: PHazardEraThreadControlBlock; {$IFNDEF CPU64BITS}strict private Padding1: Cardinal;private{$ENDIF}
-    ThreadID: TThreadID;                {$IFNDEF POSIX}strict private Padding2: Cardinal;private{$ENDIF}
-    Active: Integer;
-    RefCount: Integer;
+    Next: PHazardEraThreadControlBlock;
+    Active: NativeInt;
     Era: TEra;
   strict private
-    Padding4: array[0..31] of Byte;
+    // ensure that each block aligns to its own cache line
+    Padding: array[1..CacheLineSize - DataSize] of Byte;
   public
     procedure Store(
       {$IFDEF CPUX86}{$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}{$ENDIF}
@@ -126,10 +143,7 @@ type
   class threadvar
     activeBlock: PHazardEraThreadControlBlock;
   public
-    class destructor Destroy;
-
-    class function Acquire: PHazardEraThreadControlBlock; static;
-    class procedure Release; static;
+    class function Acquire(isFirstAttempt: Boolean): PHazardEraThreadControlBlock; static;
   end;
 
 function THazardEraThreadControlBlock.Load: TEra;
@@ -164,33 +178,13 @@ begin
 end;
 {$ENDIF}
 
-class destructor TThreadBlockList.Destroy;
-var
-  p, q: PHazardEraThreadControlBlock;
-  i: Integer;
-begin
-  for i := 0 to High(blocks) do
-  begin
-    p := blocks[i];
-    blocks[i] := nil;
-    while Assigned(p) do
-    begin
-      q := p;
-      p := p.Next;
-      FreeMem_Aligned64(q);
-    end;
-  end;
-end;
-
-class function TThreadBlockList.Acquire: PHazardEraThreadControlBlock;
+class function TThreadBlockList.Acquire(isFirstAttempt: Boolean): PHazardEraThreadControlBlock;
 
   function New(var era: PHazardEraThreadControlBlock; currentThreadId: TThreadID): PHazardEraThreadControlBlock;
   begin
     Result := GetMem_Aligned64(SizeOf(THazardEraThreadControlBlock));
-    Result.ThreadID := currentThreadId;
     Result.Active := Active;
-    Result.RefCount := 1;
-    Result.Era := 1;
+    Result.Era := Inactive;
 
     Result.Next := PHazardEraThreadControlBlock(AtomicExchange(Pointer(era), Pointer(Result)));
     activeBlock := Result;
@@ -200,50 +194,30 @@ var
   currentThreadId: TThreadID;
   index: Integer;
 begin
-  currentThreadId := GetCurrentThreadID;
-
   Result := activeBlock;
   if Assigned(Result) then
   begin
-    if AtomicExchange(Result.Active, Active) = Inactive then
-    begin
-      Result.ThreadID := currentThreadID;
-      Result.RefCount := 1;
+    if not isFirstAttempt then
       Exit;
-    end;
-    if Result.ThreadID = currentThreadId then Exit;
+    if AtomicExchange(Result.Active, Active) = Inactive then
+      Exit;
   end;
 
+  currentThreadId := GetCurrentThreadID;
   index := (currentThreadId xor (currentThreadId shr 8)) and High(blocks);
 
   Result := blocks[index];
   if Assigned(Result) then
   repeat
-    if AtomicExchange(Result.Active, Active) = 0 then
+    if AtomicExchange(Result.Active, Active) = Inactive then
     begin
       activeBlock := Result;
-      Result.ThreadID := currentThreadId;
-      Result.RefCount := 1;
       Exit;
     end;
     Result := Result.Next;
   until Result = nil;
 
   Result := New(blocks[index], currentThreadId);
-end;
-
-class procedure TThreadBlockList.Release;
-var
-  era: PHazardEraThreadControlBlock;
-begin
-  era := activeBlock;
-  Dec(era.RefCount);
-  if era.RefCount = 0 then
-  begin
-    era.Store(0);
-    era.ThreadID := 0;
-    era.Active := 0;
-  end;
 end;
 
 {$ENDREGION}
@@ -254,17 +228,20 @@ end;
 var
   lock: TCriticalSection;
   eraClock: TEra;
-  retiredList: Vector<PEraEntity>;
+  retiredList: TList;
 
-function AcquireGuard(var p): Pointer;
+
+function AcquireGuard(var p; isFirstAttempt: Boolean): GuardedPointer;
 var
   current: PHazardEraThreadControlBlock;
   prevEra, era: TEra;
 begin
-  current := TThreadBlockList.Acquire;
+  current := TThreadBlockList.Acquire(isFirstAttempt);
   prevEra := current.Load;
   repeat
-    Result := Pointer(p);
+    Result.ptr := Pointer(p);
+    Result.ThreadControlBlock := current;
+
     era := AtomicLoad(eraClock);
     if era = prevEra then Break;
     current.Store(era);
@@ -272,9 +249,18 @@ begin
   until False;
 end;
 
-procedure ReleaseGuard;
+procedure GuardedPointer.Release;
 begin
-  TThreadBlockList.Release;
+  with PHazardEraThreadControlBlock(ThreadControlBlock)^ do
+  begin
+    Store(0);
+    Active := 0;
+  end;
+end;
+
+class operator GuardedPointer.Implicit(const value: GuardedPointer): Pointer;
+begin
+  Result := value.ptr;
 end;
 
 function Delete_Ptr(const obj: PEraEntity): Boolean;
@@ -311,28 +297,33 @@ var
   i: Integer;
   info: PHazardEraThreadControlBlock;
 begin
-  currEra := AtomicLoad(eraClock);
+  if Assigned(lock) then
+  begin
+    currEra := AtomicLoad(eraClock);
+    
+   	lock.Acquire;
+    try
+      if Assigned(p) then
+      begin
+        p.delEra := currEra;
+        retiredList.Add(p);
+      end;
 
-  lock.Acquire;
-  try
-    if Assigned(p) then
-    begin
-      p.delEra := currEra;
-      retiredList.Add(p);
+      if AtomicLoad(eraClock) = currEra then
+        AtomicIncrement(eraClock);
+
+      i := 0;
+      while i < retiredList.Count do
+        if Delete_Ptr(retiredList.List[i]) then
+          retiredList.Delete(i)
+        else
+          Inc(i);
+    finally
+      lock.Release;
     end;
-
-    if AtomicLoad(eraClock) = currEra then
-      AtomicIncrement(eraClock);
-
-    i := 0;
-    while i < retiredList.Count do
-      if Delete_Ptr(retiredList[i]) then
-        retiredList.Delete(i)
-      else
-        Inc(i);
-  finally
-    lock.Release;
-  end;
+  end
+  else
+    FreeMem(p);
 end;
 
 {$ENDREGION}
@@ -369,10 +360,7 @@ begin
   end;
 
   newSize := SizeOf(TEraArray) + count * PTypeInfo(elemInfo).TypeSize;
-  if Assigned(p) then
-    ReallocMem(p, newSize)
-  else
-    GetMem(p, newSize);
+  ReallocMem(p, newSize);
   if newSize > oldSize then
     FillChar((PByte(p) + oldSize)^, newSize - oldSize, 0);
   p.newEra := AtomicLoad(eraClock);
@@ -426,9 +414,12 @@ end;
 initialization
   lock := TCriticalSection.Create;
   eraClock := 1;
+  retiredList := TList.Create;
 
 finalization
   Retire(nil);
+  retiredList.Free;
   lock.Free;
+  lock := nil;
 
 end.

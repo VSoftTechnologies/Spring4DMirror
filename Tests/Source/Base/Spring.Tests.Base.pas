@@ -436,6 +436,9 @@ type
     procedure Test_AsPointer_Interface;
     procedure Test_AsPointer_OtherWillRaise;
 
+    procedure Test_CurrencyToCurrency_Compare;
+    procedure Test_CurrencyToCurrency_Equals;
+
     procedure Test_Equals_ByteToInt_ValuesAreNotEqual_ReturnsFalse;
     procedure Test_Equals_ShortIntToInt_ValuesAreEqual_ReturnsTrue;
     procedure Test_Equals_IntToInt_ValuesAreEqual_ReturnsTrue;
@@ -2566,9 +2569,6 @@ begin
   p := Shared<TTestClass>.Make;
   t := p;
   t.DestroyCalled := @destroyCalled;
-{$IFDEF AUTOREFCOUNT}
-  t := nil;
-{$ENDIF}
   destroyCalled := False;
   p := nil;
   CheckTrue(destroyCalled);
@@ -2583,9 +2583,6 @@ begin
   t := TTestClass.Create;
   t.DestroyCalled := @destroyCalled;
   p := Shared.Make<TTestClass>(t);
-{$IFDEF AUTOREFCOUNT}
-  t := nil;
-{$ENDIF}
   destroyCalled := False;
   p := nil;
   CheckTrue(destroyCalled);
@@ -2621,9 +2618,6 @@ begin
   t := TTestClass.Create;
   t.DestroyCalled := @destroyCalled;
   p := t;
-{$IFDEF AUTOREFCOUNT}
-  t := nil;
-{$ENDIF}
   destroyCalled := False;
   p := Default(Shared<TTestClass>);
   CheckTrue(destroyCalled);
@@ -3119,6 +3113,7 @@ end;
 procedure TTestValueHelper.FromCustomVariantFmtBcd;
 var
   v: Variant;
+  fmt: TFormatSettings;
 begin
   v := VarFMTBcdCreate('999999999999999999', 19, 0);
   fSUT := TValue.FromVariant(v);
@@ -3129,6 +3124,19 @@ begin
   fSUT := TValue.FromVariant(v);
   Check(fSUT.Kind = tkFloat);
   CheckEquals(12.5, fSUT.AsType<Double>);
+
+  fmt.DecimalSeparator := '.';
+  v := VarFMTBcdCreate(StrToBcd('12.3456789', fmt));
+  fSUT := TValue.FromVariant(v);
+  CheckEquals(string(v), fSUT.ToString);
+
+  v := VarFMTBcdCreate(StrToBcd('12345678901234.56', fmt));
+  fSUT := TValue.FromVariant(v);
+  CheckEquals(string(v), fSUT.ToString);
+
+  v := VarFMTBcdCreate(StrToBcd('12345678901234.12345', fmt));
+  fSUT := TValue.FromVariant(v);
+  CheckEquals(string(v), fSUT.ToString);
 end;
 
 procedure TTestValueHelper.FromVariantProperlyHandlesVariantArrays;
@@ -3236,6 +3244,28 @@ begin
   fSUT := '42';
   fValue := '42';
   DoCheckCompare;
+end;
+
+procedure TTestValueHelper.Test_CurrencyToCurrency_Equals;
+var
+  value: Currency;
+begin
+  value := 12345678901234.56;
+  fSUT := value;
+  value := 12345678901234.5606;
+  fValue := value;
+  DoCheckEquals(False);
+end;
+
+procedure TTestValueHelper.Test_CurrencyToCurrency_Compare;
+var
+  value: Currency;
+begin
+  value := 12345678901234.56;
+  fSUT := value;
+  value := 12345678901234.5606;
+  fValue := value;
+  DoCheckCompare(-1);
 end;
 
 procedure TTestValueHelper.Test_Equals_ByteToInt_ValuesAreNotEqual_ReturnsFalse;
@@ -4448,8 +4478,5 @@ end;
 
 {$ENDREGION}
 
-
-initialization
-  RegisterTest(TSortTest.Suite);
 
 end.
