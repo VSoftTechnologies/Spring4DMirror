@@ -42,3 +42,6 @@ Tests/Bin/
 
 # TestInsight files
 TestInsightSettings.ini
+*.fbl8
+*.fbpbrk
+*.fbpInf
