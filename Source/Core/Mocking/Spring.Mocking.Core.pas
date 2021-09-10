@@ -95,6 +95,7 @@ type
   {$ENDREGION}
 
     property Instance: TValue read GetInstance;
+    property Interceptor: TMockInterceptor read fInterceptor;
     property TypeInfo: PTypeInfo read GetTypeInfo;
   end;
 
@@ -145,6 +146,24 @@ type
     procedure MoveNext;
   end;
 
+  TResultMockAction = class(TInterfacedObject, TMockAction)
+  private
+    fValue: TValue;
+    function Invoke(const callInfo: TCallInfo): TValue;
+  public
+    property Value: TValue read fValue write fValue;
+  end;
+
+  TExceptMockAction = class(TInterfacedObject, TMockAction)
+  private
+    fExceptionClass: ExceptClass;
+    fMessage: string;
+    function Invoke(const callInfo: TCallInfo): TValue;
+  public
+    property ExceptionClass: ExceptClass read fExceptionClass write fExceptionClass;
+    property Message: string read fMessage write fMessage;
+  end;
+
 implementation
 
 uses
@@ -180,7 +199,6 @@ end;
 
 destructor TMock.Destroy;
 begin
-  fInterceptor.Reset;
   if fTypeInfo.Kind = tkClass then
     fProxy.AsObject.Free;
   inherited Destroy;
@@ -228,11 +246,11 @@ begin
 end;
 
 function TMock.Executes: IWhen;
+var
+  action: TResultMockAction;
 begin
-  fInterceptor.Executes(
-    function(const callInfo: TCallInfo): TValue
-    begin
-    end);
+  action := TResultMockAction.Create;
+  fInterceptor.Executes(action);
   Result := Self;
 end;
 
@@ -244,39 +262,35 @@ end;
 
 function TMock.Raises(const exceptionClass: ExceptClass;
   const msg: string): IWhen;
+var
+  action: TExceptMockAction;
 begin
-  fInterceptor.Executes(
-    function(const callInfo: TCallInfo): TValue
-    begin
-      raise exceptionClass.Create(msg);
-    end);
+  action := TExceptMockAction.Create;
+  action.ExceptionClass := exceptionClass;
+  action.Message := msg;
+  fInterceptor.Executes(action);
   Result := Self;
 end;
 
 function TMock.Raises(const exceptionClass: ExceptClass;
   const msg: string; const args: array of const): IWhen;
 var
-  s: string;
+  action: TExceptMockAction;
 begin
-  s := Format(msg, args);
-  fInterceptor.Executes(
-    function(const callInfo: TCallInfo): TValue
-    begin
-      raise exceptionClass.Create(s);
-    end);
+  action := TExceptMockAction.Create;
+  action.ExceptionClass := exceptionClass;
+  action.Message := Format(msg, args);;
+  fInterceptor.Executes(action);
   Result := Self;
 end;
 
 function TMock.Returns(const value: TValue): IWhen;
 var
-  capturedValue: TValue;
+  action: TResultMockAction;
 begin
-  capturedValue := value;
-  fInterceptor.Executes(
-    function(const callInfo: TCallInfo): TValue
-    begin
-      Result := capturedValue;
-    end);
+  action := TResultMockAction.Create;
+  action.Value := value;
+  fInterceptor.Executes(action);
   Result := Self;
 end;
 
@@ -469,6 +483,26 @@ end;
 procedure TMockSequence.MoveNext;
 begin
   Inc(fCurrent);
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TResultMockAction'}
+
+function TResultMockAction.Invoke(const callInfo: TCallInfo): TValue;
+begin
+  Result := fValue;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TExceptMockAction'}
+
+function TExceptMockAction.Invoke(const callInfo: TCallInfo): TValue;
+begin
+  raise fExceptionClass.Create(fMessage);
 end;
 
 {$ENDREGION}

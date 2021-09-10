@@ -72,7 +72,7 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer; inline;
-    function GetIsEmpty: Boolean; inline;
+    function GetCountFast: Integer;
     function GetOnChanged: ICollectionChangedEvent<T>;
     function GetOwnsObjects: Boolean; inline;
     procedure SetCapacity(value: Integer);
@@ -172,6 +172,21 @@ end;
 
 function TAbstractStack<T>.GetCount: Integer;
 begin
+  {$IFDEF DELPHIXE7_UP}
+  if GetTypeKind(T) <> tkClass then
+    Result := fCount
+  else
+  {$ENDIF}
+  Result := fCount and CountMask;
+end;
+
+function TAbstractStack<T>.GetCountFast: Integer;
+begin
+  {$IFDEF DELPHIXE7_UP}
+  if GetTypeKind(T) <> tkClass then
+    Result := fCount
+  else
+  {$ENDIF}
   Result := fCount and CountMask;
 end;
 
@@ -185,11 +200,6 @@ begin
     fCount := Self.Count;
     fVersion := Self.fVersion;
   end;
-end;
-
-function TAbstractStack<T>.GetIsEmpty: Boolean;
-begin
-  Result := Count = 0;
 end;
 
 function TAbstractStack<T>.GetOnChanged: ICollectionChangedEvent<T>;
@@ -313,7 +323,11 @@ end;
 
 procedure TAbstractStack<T>.SetOwnsObjects(const value: Boolean);
 begin
-  if GetElementType.Kind = tkClass then
+  {$IFDEF DELPHIXE7_UP}
+  if GetTypeKind(T) = tkClass then
+  {$ELSE}
+  if TType.Kind<T> = tkClass then
+  {$ENDIF}
     fCount := (fCount and CountMask) or (Ord(value) shl OwnsObjectsBitIndex);
 end;
 

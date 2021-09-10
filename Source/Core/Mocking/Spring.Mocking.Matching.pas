@@ -453,17 +453,11 @@ begin
 end;
 
 class function TArg.IsEqual<T>(const value: T): T;
-var
-  comparer: IEqualityComparer<T>;
 begin
-  comparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
   Result := TMatcherFactory.CreateMatcher<T>(
     function(const arg: TValue): Boolean
-    var
-      argValue: T;
     begin
-      arg.AsType(TypeInfo(T), argValue);
-      Result := comparer.Equals(argValue, value);
+      Result := arg.Convert<T>.Equals(TValue.From<T>(value));
     end);
 end;
 
@@ -509,9 +503,9 @@ end;
 class function TArg.IsInRange<T>(const lowValue, highValue: T;
   rangeKind: TRangeKind): T;
 var
-  comparer: IComparer<T>;
+  comparer: Pointer;
 begin
-  comparer := IComparer<T>(_LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T)));
+  comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
   Result := TMatcherFactory.CreateMatcher<T>(
     function(const arg: TValue): Boolean
     var
@@ -519,11 +513,11 @@ begin
     begin
       arg.AsType(TypeInfo(T), argValue);
       if rangeKind = TRangeKind.Exclusive then
-        Result := (comparer.Compare(argValue, lowValue) > 0)
-          and (comparer.Compare(argValue, highValue) < 0)
+        Result := (IComparer<T>(comparer).Compare(argValue, lowValue) > 0)
+          and (IComparer<T>(comparer).Compare(argValue, highValue) < 0)
       else
-        Result := (comparer.Compare(argValue, lowValue) >= 0)
-          and (comparer.Compare(argValue, highValue) <= 0);
+        Result := (IComparer<T>(comparer).Compare(argValue, lowValue) >= 0)
+          and (IComparer<T>(comparer).Compare(argValue, highValue) <= 0);
     end);
 end;
 
@@ -598,7 +592,7 @@ end;
 
 class function TArg.&&op_Equality<T>(const left: TArg; const right: T): T;
 var
-  comparer: IEqualityComparer<T>;
+  comparer: Pointer;
 begin
   if (TType.Kind<T> = tkPointer) and (PPointer(@right)^ = nil) then
     Result := TMatcherFactory.CreateMatcher<T>(
@@ -608,18 +602,18 @@ begin
       end)
   else
   begin
-    comparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
+    comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
     Result := TMatcherFactory.CreateMatcher<T>(
       function(const arg: TValue): Boolean
       begin
-        Result := comparer.Equals(arg.AsType<T>, right);
+        Result := IEqualityComparer<T>(comparer).Equals(arg.AsType<T>, right);
       end);
   end;
 end;
 
 class function TArg.&&op_Inequality<T>(const left: TArg; const right: T): T;
 var
-  comparer: IEqualityComparer<T>;
+  comparer: Pointer;
 begin
   if (TType.Kind<T> = tkPointer) and (PPointer(@right)^ = nil) then
     Result := TMatcherFactory.CreateMatcher<T>(
@@ -629,11 +623,11 @@ begin
       end)
   else
   begin
-    comparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
+    comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
     Result := TMatcherFactory.CreateMatcher<T>(
       function(const arg: TValue): Boolean
       begin
-        Result := not comparer.Equals(arg.AsType<T>, right);
+        Result := not IEqualityComparer<T>(comparer).Equals(arg.AsType<T>, right);
       end);
   end;
 end;

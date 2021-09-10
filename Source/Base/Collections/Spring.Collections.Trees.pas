@@ -77,7 +77,7 @@ type
       function MoveNextPostOrder: Boolean;
     public
       constructor Create(const root: PNode; mode: TTraverseMode);
-      function MoveNext: Boolean; inline;
+      function MoveNext: Boolean;
       property Current: PNode read fCurrent;
     end;
 
@@ -408,14 +408,18 @@ type
 
   TRedBlackTree<T> = class(TRedBlackTree, IInterface, IBinaryTree<T>, IRedBlackTree<T>)
   private type
-    TEnumerator = class(TRefCountedObject, IEnumerator<T>)
-    private
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      Parent: TRefCountedObject;
       fEnumerator: TBinaryTree.TEnumerator;
       function GetCurrent: T;
-    public
-      constructor Create(const tree: TBinaryTree);
       function MoveNext: Boolean;
+      class var Enumerator_Vtable: TEnumeratorVtable;
     end;
+
     TNode = TNodes<T>.TRedBlackTreeNode;
     PNode = TNodes<T>.PRedBlackTreeNode;
   private
@@ -456,14 +460,18 @@ type
   TRedBlackTree<TKey, TValue> = class(TRedBlackTree, IInterface,
     IBinaryTree<TKey, TValue>, IRedBlackTree<TKey, TValue>)
   private type
-    TEnumerator = class(TRefCountedObject, IEnumerator<TPair<TKey,TValue>>)
-    private
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      Parent: TRefCountedObject;
       fEnumerator: TBinaryTree.TEnumerator;
       function GetCurrent: TPair<TKey,TValue>;
-    public
-      constructor Create(const tree: TBinaryTree);
       function MoveNext: Boolean;
+      class var Enumerator_Vtable: TEnumeratorVtable;
     end;
+
     TNode = TNodes<TKey, TValue>.TRedBlackTreeNode;
     PNode = TNodes<TKey, TValue>.PRedBlackTreeNode;
   private
@@ -507,7 +515,9 @@ type
 implementation
 
 uses
-  Math;
+  Math,
+  Spring.Comparers;
+
 
 {$REGION 'TBlockAllocatedArray<T>'}
 
@@ -642,13 +652,12 @@ end;
 
 function TBinaryTree.TEnumerator.MoveNext: Boolean;
 begin
-  case fMode of
-    tmInOrder: Result := MoveNextInOrder;
-    tmPreOrder: Result := MoveNextPreOrder;
-    tmPostOrder: Result := MoveNextPostOrder;
+  if fMode = tmInOrder then
+    Result := MoveNextInOrder
+  else if fMode = tmPreOrder then
+    Result := MoveNextPreOrder
   else
-    Result := False;
-  end;
+    Result := MoveNextPostOrder;
 end;
 
 function TBinaryTree.TEnumerator.MoveNextInOrder: Boolean;
@@ -1492,8 +1501,11 @@ begin
 end;
 
 function TRedBlackTree<T>.Exists(const key: T): Boolean;
+var
+  node: PNode;
 begin
-  Result := (fCount > 0) and Assigned(FindNode(key));
+  node := FindNode(key);
+  Result := Assigned(node);
 end;
 
 function TRedBlackTree<T>.Find(const key: T; var value: T): Boolean;
@@ -1535,7 +1547,9 @@ end;
 
 function TRedBlackTree<T>.GetEnumerator: IEnumerator<T>;
 begin
-  Result := TEnumerator.Create(Self);
+  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+    fEnumerator := TBinaryTree.TEnumerator.Create(fRoot, tmInOrder);
 end;
 
 function TRedBlackTree<T>.GetRoot: TNodes<T>.PRedBlackTreeNode;
@@ -1574,12 +1588,6 @@ end;
 
 
 {$REGION 'TRedBlackTree<T>.TEnumerator'}
-
-constructor TRedBlackTree<T>.TEnumerator.Create(
-  const tree: TBinaryTree);
-begin
-  fEnumerator := TBinaryTree.TEnumerator.Create(tree.fRoot, tmInOrder);
-end;
 
 function TRedBlackTree<T>.TEnumerator.GetCurrent: T;
 begin
@@ -1706,8 +1714,11 @@ begin
 end;
 
 function TRedBlackTree<TKey, TValue>.Exists(const key: TKey): Boolean;
+var
+  node: PNode;
 begin
-  Result := (fCount > 0) and Assigned(FindNode(key));
+  node := FindNode(key);
+  Result := Assigned(node);
 end;
 
 function TRedBlackTree<TKey, TValue>.Find(const key: TKey;
@@ -1750,7 +1761,9 @@ end;
 
 function TRedBlackTree<TKey, TValue>.GetEnumerator: IEnumerator<TPair<TKey, TValue>>;
 begin
-  Result := TEnumerator.Create(Self);
+  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+    fEnumerator := TBinaryTree.TEnumerator.Create(fRoot, tmInOrder);
 end;
 
 function TRedBlackTree<TKey, TValue>.GetRoot: PNode;
@@ -1834,12 +1847,6 @@ end;
 
 
 {$REGION 'TRedBlackTree<TKey, TValue>.TEnumerator'}
-
-constructor TRedBlackTree<TKey, TValue>.TEnumerator.Create(
-  const tree: TBinaryTree);
-begin
-  fEnumerator := TBinaryTree.TEnumerator.Create(tree.fRoot, tmInOrder);
-end;
 
 function TRedBlackTree<TKey, TValue>.TEnumerator.GetCurrent: TPair<TKey, TValue>;
 begin

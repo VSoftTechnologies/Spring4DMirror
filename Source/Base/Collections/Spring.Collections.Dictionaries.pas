@@ -33,9 +33,9 @@ uses
   Spring,
   Spring.Collections,
   Spring.Collections.Base,
-  Spring.Collections.HashTable,
   Spring.Collections.Trees,
-  Spring.Events.Base;
+  Spring.Events.Base,
+  Spring.HashTable;
 
 {$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
@@ -47,50 +47,52 @@ type
     Value: TValue;
   end;
 
-  TInsertionBehavior = (None, OverwriteExisting, RaiseOnExisting);
-
   TDictionary<TKey, TValue> = class(TMapBase<TKey, TValue>, IInterface,
     IEnumerable<TPair<TKey, TValue>>, IReadOnlyCollection<TPair<TKey, TValue>>,
     IReadOnlyMap<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>,
     ICollection<TPair<TKey, TValue>>, IMap<TKey, TValue>, IDictionary<TKey, TValue>)
-  protected
+  private type
   {$REGION 'Nested Types'}
-    type
-      TKeyValuePair = TPair<TKey, TValue>;
-      PKeyValuePair = ^TKeyValuePair;
-      TItem = TDictionaryItem<TKey, TValue>;
-      TItems = TArray<TItem>;
-      PItem = ^TItem;
+    TKeyValuePair = TPair<TKey, TValue>;
+    PKeyValuePair = ^TKeyValuePair;
+    TItem = TDictionaryItem<TKey, TValue>;
+    TItems = TArray<TItem>;
+    PItem = ^TItem;
 
-      TEnumerator = class(THashTableEnumerator, IEnumerator<TKeyValuePair>)
-      private
-        fCurrent: TKeyValuePair;
-        function GetCurrent: TKeyValuePair;
-        function MoveNext: Boolean;
-      end;
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      fSource: TDictionary<TKey, TValue>;
+      fIndex: Integer;
+      fVersion: Integer;
+      fCurrent: TKeyValuePair;
+      function GetCurrent: TKeyValuePair;
+      function MoveNext: Boolean;
+      class var Enumerator_Vtable: TEnumeratorVtable;
+    end;
 
-      TKeyCollection = TInnerCollection<TKey>;
-      TValueCollection = TInnerCollection<TValue>;
+    TKeyCollection = TInnerCollection<TKey>;
+    TValueCollection = TInnerCollection<TValue>;
   {$ENDREGION}
   private
     fHashTable: THashTable;
-    fKeyComparer: IEqualityComparer<TKey>;
     fValueComparer: IEqualityComparer<TValue>;
     fKeys: TKeyCollection;
     fValues: TValueCollection;
-    fOwnerships: TDictionaryOwnerships;
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
-    function GetIsEmpty: Boolean;
+    function GetCountFast: Integer;
     function GetItem(const key: TKey): TValue;
     function GetKeys: IReadOnlyCollection<TKey>;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
     procedure SetItem(const key: TKey; const value: TValue);
   {$ENDREGION}
-    function TryInsert(const key: TKey; const value: TValue; behavior: TInsertionBehavior): Boolean;
-    procedure DoRemove(const entry: THashTableEntry; action: TCollectionChangedAction);
+    function TryInsert(const key: TKey; const value: TValue; behavior: Cardinal): Boolean;
+    function DoRemove(const entry: THashTableEntry; action: TCollectionChangedAction): Boolean;
   public
     constructor Create(capacity: Integer;
       const keyComparer: IEqualityComparer<TKey>;
@@ -119,9 +121,8 @@ type
     function Extract(const key: TKey; const value: TValue): TKeyValuePair; overload;
     function Contains(const key: TKey; const value: TValue): Boolean; overload;
     function ContainsKey(const key: TKey): Boolean;
+
     function ContainsValue(const value: TValue): Boolean;
-    property Keys: IReadOnlyCollection<TKey> read GetKeys;
-    property Values: IReadOnlyCollection<TValue> read GetValues;
   {$ENDREGION}
 
   {$REGION 'Implements IDictionary<TKey, TValue>'}
@@ -151,158 +152,159 @@ type
     IReadOnlyMap<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>,
     ICollection<TPair<TKey, TValue>>, IMap<TKey, TValue>,
     IDictionary<TKey, TValue>, IBidiDictionary<TKey, TValue>)
-  protected
+  protected type
   {$REGION 'Nested Types'}
-    type
-      TKeyValuePair = TPair<TKey, TValue>;
-      TValueKeyPair = TPair<TValue, TKey>;
-      TValueKeyPairComparer = TPairComparer<TValue, TKey>;
-      TItem = TBidiDictionaryItem<TKey, TValue>;
-      {$POINTERMATH ON}
-      PItem = ^TItem;
-      {$POINTERMATH OFF}
+    TKeyValuePair = TPair<TKey, TValue>;
+    TValueKeyPair = TPair<TValue, TKey>;
+    TValueKeyPairComparer = TPairComparer<TValue, TKey>;
+    TItem = TBidiDictionaryItem<TKey, TValue>;
+    {$POINTERMATH ON}
+    PItem = ^TItem;
+    {$POINTERMATH OFF}
 
-      TInverse = class(TCollectionBase<TValueKeyPair>,
-        IEnumerable<TValueKeyPair>, IReadOnlyCollection<TValueKeyPair>,
-        IReadOnlyMap<TValue, TKey>, IReadOnlyDictionary<TValue, TKey>,
-        ICollection<TValueKeyPair>, IMap<TValue, TKey>,
-        IDictionary<TValue, TKey>, IBidiDictionary<TValue, TKey>)
-      private
-        fSource: TBidiDictionary<TKey, TValue>;
-      {$REGION 'Property Accessors'}
-        function GetCapacity: Integer;
-        function GetCount: Integer;
-        function GetInverse: IBidiDictionary<TKey, TValue>;
-        function GetIsEmpty: Boolean;
-        function GetItem(const value: TValue): TKey;
-        function GetKeys: IReadOnlyCollection<TValue>;
-        function GetKeyType: PTypeInfo;
-        function GetOnKeyChanged: ICollectionChangedEvent<TValue>;
-        function GetOnValueChanged: ICollectionChangedEvent<TKey>;
-        function GetValues: IReadOnlyCollection<TKey>;
-        function GetValueType: PTypeInfo;
-        procedure SetCapacity(value: Integer);
-        procedure SetItem(const value: TValue; const key: TKey);
-      {$ENDREGION}
-      protected
-        procedure Changed(const item: TValueKeyPair; action: TCollectionChangedAction); override;
-      public
-      {$REGION 'Implements IInterface'}
-        function _AddRef: Integer; stdcall;
-        function _Release: Integer; stdcall;
-      {$ENDREGION}
+    TInverse = class(TCollectionBase<TValueKeyPair>,
+      IEnumerable<TValueKeyPair>, IReadOnlyCollection<TValueKeyPair>,
+      IReadOnlyMap<TValue, TKey>, IReadOnlyDictionary<TValue, TKey>,
+      ICollection<TValueKeyPair>, IMap<TValue, TKey>,
+      IDictionary<TValue, TKey>, IBidiDictionary<TValue, TKey>)
+    private
+      fSource: TBidiDictionary<TKey, TValue>;
+    {$REGION 'Property Accessors'}
+      function GetCapacity: Integer;
+      function GetCount: Integer;
+      function GetCountFast: Integer;
+      function GetInverse: IBidiDictionary<TKey, TValue>;
+      function GetItem(const value: TValue): TKey;
+      function GetKeys: IReadOnlyCollection<TValue>;
+      function GetKeyType: PTypeInfo;
+      function GetOnKeyChanged: ICollectionChangedEvent<TValue>;
+      function GetOnValueChanged: ICollectionChangedEvent<TKey>;
+      function GetValues: IReadOnlyCollection<TKey>;
+      function GetValueType: PTypeInfo;
+      procedure SetCapacity(value: Integer);
+      procedure SetItem(const value: TValue; const key: TKey);
+    {$ENDREGION}
+    protected
+      procedure Changed(const item: TValueKeyPair; action: TCollectionChangedAction); override;
+    public
+    {$REGION 'Implements IInterface'}
+      function _AddRef: Integer; stdcall;
+      function _Release: Integer; stdcall;
+    {$ENDREGION}
 
-      {$REGION 'Implements IEnumerable<TPair<TKey, TValue>>'}
-        function GetEnumerator: IEnumerator<TValueKeyPair>;
-        function Contains(const value: TValueKeyPair): Boolean; overload;
-        function Contains(const value: TValueKeyPair;
-          const comparer: IEqualityComparer<TValueKeyPair>): Boolean; overload;
-        function ToArray: TArray<TValueKeyPair>;
-        function TryGetElementAt(var item: TValueKeyPair; index: Integer): Boolean;
-      {$ENDREGION}
+    {$REGION 'Implements IEnumerable<TPair<TKey, TValue>>'}
+      function GetEnumerator: IEnumerator<TValueKeyPair>;
+      function Contains(const value: TValueKeyPair): Boolean; overload;
+      function Contains(const value: TValueKeyPair;
+        const comparer: IEqualityComparer<TValueKeyPair>): Boolean; overload;
+      function ToArray: TArray<TValueKeyPair>;
+      function TryGetElementAt(var item: TValueKeyPair; index: Integer): Boolean;
+    {$ENDREGION}
 
-      {$REGION 'Implements ICollection<TPair<TKey, TValue>>'}
-        function Add(const item: TValueKeyPair): Boolean; overload;
-        function Remove(const item: TValueKeyPair): Boolean; overload;
-        function Extract(const item: TValueKeyPair): TValueKeyPair; overload;
-        procedure Clear;
-      {$ENDREGION}
+    {$REGION 'Implements ICollection<TPair<TKey, TValue>>'}
+      function Add(const item: TValueKeyPair): Boolean; overload;
+      function Remove(const item: TValueKeyPair): Boolean; overload;
+      function Extract(const item: TValueKeyPair): TValueKeyPair; overload;
+      procedure Clear;
+    {$ENDREGION}
 
-      {$REGION 'Implements IMap<TValue, TKey>'}
-        procedure Add(const value: TValue; const key: TKey); overload;
-        function TryAdd(const value: TValue; const key: TKey): Boolean;
-        function Remove(const value: TValue): Boolean; overload;
-        function Remove(const value: TValue; const key: TKey): Boolean; overload;
-        function Extract(const value: TValue; const key: TKey): TValueKeyPair; overload;
-        function Contains(const value: TValue; const key: TKey): Boolean; overload;
-        function ContainsKey(const value: TValue): Boolean;
-        function ContainsValue(const key: TKey): Boolean;
-        property Keys: IReadOnlyCollection<TValue> read GetKeys;
-        property Values: IReadOnlyCollection<TKey> read GetValues;
-      {$ENDREGION}
+    {$REGION 'Implements IMap<TValue, TKey>'}
+      procedure Add(const value: TValue; const key: TKey); overload;
+      function TryAdd(const value: TValue; const key: TKey): Boolean;
+      function Remove(const value: TValue): Boolean; overload;
+      function Remove(const value: TValue; const key: TKey): Boolean; overload;
+      function RemoveRange(const values: array of TValue): Integer; overload;
+      function RemoveRange(const values: IEnumerable<TValue>): Integer; overload;
+      function Extract(const value: TValue; const key: TKey): TValueKeyPair; overload;
+      function Contains(const value: TValue; const key: TKey): Boolean; overload;
+      function ContainsKey(const value: TValue): Boolean;
+      function ContainsValue(const key: TKey): Boolean;
+      property Keys: IReadOnlyCollection<TValue> read GetKeys;
+      property Values: IReadOnlyCollection<TKey> read GetValues;
+    {$ENDREGION}
 
-      {$REGION 'Implements IDictionary<TValue, TKey>'}
-        procedure AddOrSetValue(const value: TValue; const key: TKey);
-        function Extract(const value: TValue): TKey; overload;
-        function GetValueOrDefault(const value: TValue): TKey; overload;
-        function GetValueOrDefault(const value: TValue; const defaultKey: TKey): TKey; overload;
-        function TryExtract(const value: TValue; var key: TKey): Boolean;
-        function TryGetValue(const value: TValue; var key: TKey): Boolean;
-        function TryUpdateValue(const value: TValue; const newKey: TKey; var oldKey: TKey): Boolean;
-        procedure TrimExcess;
-        function AsReadOnly: IReadOnlyDictionary<TValue, TKey>;
-      {$ENDREGION}
-      end;
+    {$REGION 'Implements IDictionary<TValue, TKey>'}
+      procedure AddOrSetValue(const value: TValue; const key: TKey);
+      function Extract(const value: TValue): TKey; overload;
+      function GetValueOrDefault(const value: TValue): TKey; overload;
+      function GetValueOrDefault(const value: TValue; const defaultKey: TKey): TKey; overload;
+      function TryExtract(const value: TValue; var key: TKey): Boolean;
+      function TryGetValue(const value: TValue; var key: TKey): Boolean;
+      function TryUpdateValue(const value: TValue; const newKey: TKey; var oldKey: TKey): Boolean;
+      procedure TrimExcess;
+      function AsReadOnly: IReadOnlyDictionary<TValue, TKey>;
+    {$ENDREGION}
+    end;
 
-      TEnumerator = class(TRefCountedObject,
-        IEnumerator<TKeyValuePair>, IEnumerator<TKey>, IEnumerator<TValue>)
-      private
-        fSource: TBidiDictionary<TKey, TValue>;
-        fItemIndex: Integer;
-        fVersion: Integer;
-        function GetCurrent: TKeyValuePair;
-        function GetCurrentKey: TKey;
-        function GetCurrentValue: TValue;
-        function IEnumerator<TKey>.GetCurrent = GetCurrentKey;
-        function IEnumerator<TValue>.GetCurrent = GetCurrentValue;
-      public
-        constructor Create(const source: TBidiDictionary<TKey, TValue>);
-        destructor Destroy; override;
-        function MoveNext: Boolean;
-      end;
+    TEnumerator = class(TRefCountedObject,
+      IEnumerator<TKeyValuePair>, IEnumerator<TKey>, IEnumerator<TValue>)
+    private
+      fSource: TBidiDictionary<TKey, TValue>;
+      fItemIndex: Integer;
+      fVersion: Integer;
+      function GetCurrent: TKeyValuePair;
+      function GetCurrentKey: TKey;
+      function GetCurrentValue: TValue;
+      function IEnumerator<TKey>.GetCurrent = GetCurrentKey;
+      function IEnumerator<TValue>.GetCurrent = GetCurrentValue;
+    public
+      constructor Create(const source: TBidiDictionary<TKey, TValue>);
+      destructor Destroy; override;
+      function MoveNext: Boolean;
+    end;
 
-      TInverseEnumerator = class(TEnumerator, IEnumerator<TValueKeyPair>)
-      private
-        function GetCurrent: TValueKeyPair;
-      end;
+    TInverseEnumerator = class(TEnumerator, IEnumerator<TValueKeyPair>)
+    private
+      function GetCurrent: TValueKeyPair;
+    end;
 
-      TKeyCollection = class(TEnumerableBase<TKey>,
-        IEnumerable<TKey>, IReadOnlyCollection<TKey>)
-      private
-        fSource: TBidiDictionary<TKey, TValue>;
-      {$REGION 'Property Accessors'}
-        function GetCount: Integer;
-        function GetIsEmpty: Boolean;
-      {$ENDREGION}
-      public
-        constructor Create(const source: TBidiDictionary<TKey, TValue>);
+    TKeyCollection = class(TEnumerableBase<TKey>,
+      IEnumerable<TKey>, IReadOnlyCollection<TKey>)
+    private
+      fSource: TBidiDictionary<TKey, TValue>;
+    {$REGION 'Property Accessors'}
+      function GetCount: Integer;
+      function GetCountFast: Integer;
+    {$ENDREGION}
+    public
+      constructor Create(const source: TBidiDictionary<TKey, TValue>);
 
-      {$REGION 'Implements IInterface'}
-        function _AddRef: Integer; stdcall;
-        function _Release: Integer; stdcall;
-      {$ENDREGION}
+    {$REGION 'Implements IInterface'}
+      function _AddRef: Integer; stdcall;
+      function _Release: Integer; stdcall;
+    {$ENDREGION}
 
-      {$REGION 'Implements IEnumerable<TKey>'}
-        function GetEnumerator: IEnumerator<TKey>;
-        function Contains(const value: TKey): Boolean; overload;
-        function ToArray: TArray<TKey>;
-        function TryGetElementAt(var key: TKey; index: Integer): Boolean;
-      {$ENDREGION}
-      end;
+    {$REGION 'Implements IEnumerable<TKey>'}
+      function GetEnumerator: IEnumerator<TKey>;
+      function Contains(const value: TKey): Boolean; overload;
+      function ToArray: TArray<TKey>;
+      function TryGetElementAt(var key: TKey; index: Integer): Boolean;
+    {$ENDREGION}
+    end;
 
-      TValueCollection = class(TEnumerableBase<TValue>,
-        IEnumerable<TValue>, IReadOnlyCollection<TValue>)
-      private
-        fSource: TBidiDictionary<TKey, TValue>;
-      {$REGION 'Property Accessors'}
-        function GetCount: Integer;
-        function GetIsEmpty: Boolean;
-      {$ENDREGION}
-      public
-        constructor Create(const source: TBidiDictionary<TKey, TValue>);
+    TValueCollection = class(TEnumerableBase<TValue>,
+      IEnumerable<TValue>, IReadOnlyCollection<TValue>)
+    private
+      fSource: TBidiDictionary<TKey, TValue>;
+    {$REGION 'Property Accessors'}
+      function GetCount: Integer;
+      function GetCountFast: Integer;
+    {$ENDREGION}
+    public
+      constructor Create(const source: TBidiDictionary<TKey, TValue>);
 
-      {$REGION 'Implements IInterface'}
-        function _AddRef: Integer; stdcall;
-        function _Release: Integer; stdcall;
-      {$ENDREGION}
+    {$REGION 'Implements IInterface'}
+      function _AddRef: Integer; stdcall;
+      function _Release: Integer; stdcall;
+    {$ENDREGION}
 
-      {$REGION 'Implements IEnumerable<TValue>'}
-        function GetEnumerator: IEnumerator<TValue>;
-        function Contains(const value: TValue): Boolean; overload;
-        function ToArray: TArray<TValue>;
-        function TryGetElementAt(var value: TValue; index: Integer): Boolean;
-      {$ENDREGION}
-      end;
+    {$REGION 'Implements IEnumerable<TValue>'}
+      function GetEnumerator: IEnumerator<TValue>;
+      function Contains(const value: TValue): Boolean; overload;
+      function ToArray: TArray<TValue>;
+      function TryGetElementAt(var value: TValue; index: Integer): Boolean;
+    {$ENDREGION}
+    end;
   {$ENDREGION}
   private
     fKeyBuckets: TArray<Integer>;
@@ -311,8 +313,6 @@ type
     fCount: Integer;
     fItemCount: Integer;
     fVersion: Integer;
-    fBucketIndexMask: Integer;
-    fBucketHashCodeMask: Integer;
     fKeyComparer: IEqualityComparer<TKey>;
     fValueComparer: IEqualityComparer<TValue>;
     fKeys: TKeyCollection;
@@ -322,8 +322,8 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
+    function GetCountFast: Integer;
     function GetInverse: IBidiDictionary<TValue, TKey>;
-    function GetIsEmpty: Boolean;
     function GetItem(const key: TKey): TValue;
     function GetKeys: IReadOnlyCollection<TKey>;
     function GetValues: IReadOnlyCollection<TValue>;
@@ -407,76 +407,75 @@ type
     IEnumerable<TPair<TKey, TValue>>, IReadOnlyCollection<TPair<TKey, TValue>>,
     IReadOnlyMap<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>,
     ICollection<TPair<TKey, TValue>>, IMap<TKey, TValue>, IDictionary<TKey, TValue>)
-  private
+  private type
   {$REGION 'Nested Types'}
-    type
-      TKeyValuePair = TPair<TKey, TValue>;
-      PKeyValuePair = ^TKeyValuePair;
-      PNode = TNodes<TKey, TValue>.PRedBlackTreeNode;
+    TKeyValuePair = TPair<TKey, TValue>;
+    PKeyValuePair = ^TKeyValuePair;
+    PNode = TNodes<TKey, TValue>.PRedBlackTreeNode;
 
-      TEnumerator = class(TRefCountedObject,
-        IEnumerator<TKeyValuePair>, IEnumerator<TKey>, IEnumerator<TValue>)
-      private
-        fSource: TSortedDictionary<TKey, TValue>;
-        fCurrentNode: PNode;
-        fFinished: Boolean;
-        fVersion: Integer;
-        function GetCurrent: TKeyValuePair;
-        function GetCurrentKey: TKey;
-        function GetCurrentValue: TValue;
-        function IEnumerator<TKey>.GetCurrent = GetCurrentKey;
-        function IEnumerator<TValue>.GetCurrent = GetCurrentValue;
-      public
-        constructor Create(const source: TSortedDictionary<TKey, TValue>);
-        destructor Destroy; override;
-        function MoveNext: Boolean;
-      end;
+    TEnumerator = class(TRefCountedObject,
+      IEnumerator<TKeyValuePair>, IEnumerator<TKey>, IEnumerator<TValue>)
+    private
+      fSource: TSortedDictionary<TKey, TValue>;
+      fCurrentNode: PNode;
+      fFinished: Boolean;
+      fVersion: Integer;
+      function GetCurrent: TKeyValuePair;
+      function GetCurrentKey: TKey;
+      function GetCurrentValue: TValue;
+      function IEnumerator<TKey>.GetCurrent = GetCurrentKey;
+      function IEnumerator<TValue>.GetCurrent = GetCurrentValue;
+    public
+      constructor Create(const source: TSortedDictionary<TKey, TValue>);
+      destructor Destroy; override;
+      function MoveNext: Boolean;
+    end;
 
-      TKeyCollection = class(TEnumerableBase<TKey>,
-        IEnumerable<TKey>, IReadOnlyCollection<TKey>)
-      private
-        fSource: TSortedDictionary<TKey, TValue>;
-      {$REGION 'Property Accessors'}
-        function GetCount: Integer;
-        function GetIsEmpty: Boolean;
-      {$ENDREGION}
-      public
-        constructor Create(const source: TSortedDictionary<TKey, TValue>);
+    TKeyCollection = class(TEnumerableBase<TKey>,
+      IEnumerable<TKey>, IReadOnlyCollection<TKey>)
+    private
+      fSource: TSortedDictionary<TKey, TValue>;
+    {$REGION 'Property Accessors'}
+      function GetCount: Integer;
+      function GetCountFast: Integer;
+    {$ENDREGION}
+    public
+      constructor Create(const source: TSortedDictionary<TKey, TValue>);
 
-      {$REGION 'Implements IInterface'}
-        function _AddRef: Integer; stdcall;
-        function _Release: Integer; stdcall;
-      {$ENDREGION}
+    {$REGION 'Implements IInterface'}
+      function _AddRef: Integer; stdcall;
+      function _Release: Integer; stdcall;
+    {$ENDREGION}
 
-      {$REGION 'Implements IEnumerable<TKey>'}
-        function GetEnumerator: IEnumerator<TKey>;
-        function Contains(const value: TKey): Boolean; overload;
-        function ToArray: TArray<TKey>;
-      {$ENDREGION}
-      end;
+    {$REGION 'Implements IEnumerable<TKey>'}
+      function GetEnumerator: IEnumerator<TKey>;
+      function Contains(const value: TKey): Boolean; overload;
+      function ToArray: TArray<TKey>;
+    {$ENDREGION}
+    end;
 
-      TValueCollection = class(TEnumerableBase<TValue>,
-        IEnumerable<TValue>, IReadOnlyCollection<TValue>)
-      private
-        fSource: TSortedDictionary<TKey, TValue>;
-      {$REGION 'Property Accessors'}
-        function GetCount: Integer;
-        function GetIsEmpty: Boolean;
-      {$ENDREGION}
-      public
-        constructor Create(const source: TSortedDictionary<TKey, TValue>);
+    TValueCollection = class(TEnumerableBase<TValue>,
+      IEnumerable<TValue>, IReadOnlyCollection<TValue>)
+    private
+      fSource: TSortedDictionary<TKey, TValue>;
+    {$REGION 'Property Accessors'}
+      function GetCount: Integer;
+      function GetCountFast: Integer;
+    {$ENDREGION}
+    public
+      constructor Create(const source: TSortedDictionary<TKey, TValue>);
 
-      {$REGION 'Implements IInterface'}
-        function _AddRef: Integer; stdcall;
-        function _Release: Integer; stdcall;
-      {$ENDREGION}
+    {$REGION 'Implements IInterface'}
+      function _AddRef: Integer; stdcall;
+      function _Release: Integer; stdcall;
+    {$ENDREGION}
 
-      {$REGION 'Implements IEnumerable<TValue>'}
-        function GetEnumerator: IEnumerator<TValue>;
-        function Contains(const value: TValue): Boolean; overload;
-        function ToArray: TArray<TValue>;
-      {$ENDREGION}
-      end;
+    {$REGION 'Implements IEnumerable<TValue>'}
+      function GetEnumerator: IEnumerator<TValue>;
+      function Contains(const value: TValue): Boolean; overload;
+      function ToArray: TArray<TValue>;
+    {$ENDREGION}
+    end;
   {$ENDREGION}
   private
     fTree: TRedBlackTree<TKey,TValue>;
@@ -488,7 +487,7 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
     function GetCount: Integer;
-    function GetIsEmpty: Boolean;
+    function GetCountFast: Integer;
     function GetItem(const key: TKey): TValue;
     function GetKeys: IReadOnlyCollection<TKey>;
     function GetValues: IReadOnlyCollection<TValue>;
@@ -581,13 +580,30 @@ type
       ownerships: TDictionaryOwnerships);
   end;
 
+procedure ValidateParams(keyType, valueType: PTypeInfo; capacity: Integer; ownerships: TDictionaryOwnerships);
+
 implementation
 
 uses
   SysUtils,
   Types,
   TypInfo,
+  Spring.Comparers,
+  Spring.Hash,
   Spring.ResourceStrings;
+
+procedure ValidateParams(keyType, valueType: PTypeInfo; capacity: Integer; ownerships: TDictionaryOwnerships);
+begin
+  if capacity < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.capacity, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
+  if keyType.Kind <> tkClass then
+    if doOwnsKeys in ownerships then
+      RaiseHelper.NoClassType(keyType);
+
+  if valueType.Kind <> tkClass then
+    if doOwnsValues in ownerships then
+      RaiseHelper.NoClassType(valueType);
+end;
 
 
 {$REGION 'TDictionary<TKey, TValue>'}
@@ -597,21 +613,13 @@ constructor TDictionary<TKey, TValue>.Create(capacity: Integer;
   const valueComparer: IEqualityComparer<TValue>;
   ownerships: TDictionaryOwnerships);
 begin
-  if capacity < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.capacity, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+  ValidateParams(TypeInfo(TKey), TypeInfo(TValue), capacity, ownerships);
 
-  if TType.Kind<TKey> <> tkClass then
-    if doOwnsKeys in ownerships then
-      RaiseHelper.NoClassType(TypeInfo(TKey));
-
-  if TType.Kind<TValue> <> tkClass then
-    if doOwnsValues in ownerships then
-      RaiseHelper.NoClassType(TypeInfo(TValue));
-
-  fOwnerships := ownerships;
-  fKeyComparer := keyComparer;
+  fHashTable.Comparer := keyComparer;
+  fHashTable.Ownerships := ownerships;
   fValueComparer := valueComparer;
 
-  fHashTable.ItemsInfo := TypeInfo(TItems);
+  THashTable(fHashTable).ItemsInfo := TypeInfo(TItems);
   SetCapacity(capacity);
 end;
 
@@ -623,13 +631,17 @@ begin
 
   keyType := GetKeyType;
   valueType := GetValueType;
-  if not Assigned(fKeyComparer) then
-    fKeyComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, keyType, SizeOf(TKey)));
   if not Assigned(fValueComparer) then
     fValueComparer := IEqualityComparer<TValue>(_LookupVtableInfo(giEqualityComparer, valueType, SizeOf(TValue)));
-  fHashTable.Initialize(@TComparerThunks<TKey>.Equals, @TComparerThunks<TKey>.GetHashCode, fKeyComparer);
+  fHashTable.Initialize(@TComparerThunks<TKey>.Equals, @TComparerThunks<TKey>.GetHashCode, keyType);
+  {$IFDEF DELPHIXE7_UP}
+  if fHashTable.DefaultComparer then
+    fHashTable.Find := @THashTable<TKey>.FindWithoutComparer
+  else
+  {$ENDIF}
+    fHashTable.Find := @THashTable<TKey>.FindWithComparer;
 
-  fKeys := TKeyCollection.Create(Self, @fHashTable, fKeyComparer, keyType, 0);
+  fKeys := TKeyCollection.Create(Self, @fHashTable, IEqualityComparer<TKey>(fHashTable.Comparer), keyType, 0);
   fValues := TValueCollection.Create(Self, @fHashTable, fValueComparer, valueType, SizeOf(TKey));
 end;
 
@@ -643,20 +655,20 @@ end;
 
 function TDictionary<TKey, TValue>.GetCapacity: Integer;
 begin
-  Result := fHashTable.Capacity;
+  Result := THashTable(fHashTable).Capacity;
 end;
 
 procedure TDictionary<TKey, TValue>.SetCapacity(value: Integer);
 begin
-  fHashTable.Capacity := value;
+  THashTable(fHashTable).Capacity := value;
 end;
 
-procedure TDictionary<TKey, TValue>.DoRemove(const entry: THashTableEntry;
-  action: TCollectionChangedAction);
+function TDictionary<TKey, TValue>.DoRemove(const entry: THashTableEntry;
+  action: TCollectionChangedAction): Boolean;
 var
   item: PItem;
 begin
-  item := fHashTable.Delete(entry);
+  item := THashTable(fHashTable).DeleteEntry(entry);
 
   if Assigned(Notify) then
     Notify(Self, PKeyValuePair(@item.Key)^, action);
@@ -665,23 +677,30 @@ begin
 {$IFDEF DELPHIXE7_UP}
   if GetTypeKind(TKey) = tkClass then
 {$ENDIF}
-  if (action = caRemoved) and (doOwnsKeys in fOwnerships) then
+  if (action = caRemoved) and (doOwnsKeys in fHashTable.Ownerships) then
     FreeObject(item.Key);
   with fOnValueChanged do if CanInvoke then
     Invoke(Self, item.Value, action);
 {$IFDEF DELPHIXE7_UP}
   if GetTypeKind(TValue) = tkClass then
 {$ENDIF}
-  if (action = caRemoved) and (doOwnsValues in fOwnerships) then
+  if (action = caRemoved) and (doOwnsValues in fHashTable.Ownerships) then
     FreeObject(item.Value);
 
   item.Key := Default(TKey);
   item.Value := Default(TValue);
+  Result := True;
 end;
 
 function TDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>;
 begin
-  Result := TEnumerator.Create(Self, @fHashTable);
+  _AddRef;
+  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+  begin
+    fSource := Self;
+    fVersion := Self.fHashTable.Version;
+  end;
 end;
 
 procedure TDictionary<TKey, TValue>.Clear;
@@ -689,10 +708,10 @@ var
   item: PItem;
   i: Integer;
 begin
-  fHashTable.ClearCount;
+  THashTable(fHashTable).ClearCount;
 
-  item := PItem(fHashTable.Items);
-  for i := 1 to fHashTable.ItemCount do
+  item := PItem(THashTable(fHashTable).Items);
+  for i := 1 to THashTable(fHashTable).ItemCount do
   begin
     if item.HashCode >= 0 then
     begin
@@ -703,20 +722,20 @@ begin
     {$IFDEF DELPHIXE7_UP}
       if GetTypeKind(TKey) = tkClass then
     {$ENDIF}
-      if doOwnsKeys in fOwnerships then
+      if doOwnsKeys in fHashTable.Ownerships then
         FreeObject(item.Key);
       with fOnValueChanged do if CanInvoke then
         Invoke(Self, item.Value, caRemoved);
     {$IFDEF DELPHIXE7_UP}
       if GetTypeKind(TValue) = tkClass then
     {$ENDIF}
-      if doOwnsValues in fOwnerships then
+      if doOwnsValues in fHashTable.Ownerships then
         FreeObject(item.Value);
     end;
     Inc(item);
   end;
 
-  fHashTable.Clear;
+  THashTable(fHashTable).Clear;
 end;
 
 function TDictionary<TKey, TValue>.Contains(const value: TKeyValuePair;
@@ -724,10 +743,9 @@ function TDictionary<TKey, TValue>.Contains(const value: TKeyValuePair;
 var
   item: PItem;
 begin
-  item := fHashTable.Find(value.Key);
-  if Assigned(item) and comparer.Equals(PKeyValuePair(@item.Key)^, value) then
-    Exit(True);
-  Result := False;
+  item := IHashTable<TKey>(@fHashTable).Find(value.Key);
+  if not Assigned(item) then Exit(Boolean(Pointer(item)));
+  Result := comparer.Equals(PKeyValuePair(@item.Key)^, value);
 end;
 
 function TDictionary<TKey, TValue>.ToArray: TArray<TKeyValuePair>;
@@ -736,10 +754,10 @@ var
   source: PItem;
   i: Integer;
 begin
-  SetLength(Result, fHashTable.Count);
+  SetLength(Result, THashTable(fHashTable).Count);
   target := Pointer(Result);
-  source := PItem(fHashTable.Items);
-  for i := 1 to fHashTable.ItemCount do
+  source := PItem(THashTable(fHashTable).Items);
+  for i := 1 to THashTable(fHashTable).ItemCount do
   begin
     if source.HashCode >= 0 then
     begin
@@ -753,61 +771,56 @@ end;
 
 function TDictionary<TKey, TValue>.GetCount: Integer;
 begin
-  Result := fHashTable.Count;
+  Result := THashTable(fHashTable).Count;
 end;
 
-function TDictionary<TKey, TValue>.GetIsEmpty: Boolean;
+function TDictionary<TKey, TValue>.GetCountFast: Integer;
 begin
-  Result := fHashTable.Count = 0;
+  Result := THashTable(fHashTable).Count;
 end;
 
 procedure TDictionary<TKey, TValue>.Add(const key: TKey; const value: TValue);
 begin
-  TryInsert(key, value, RaiseOnExisting);
+  TryInsert(key, value, RaiseOnExisting or InsertNonExisting);
 end;
 
 function TDictionary<TKey, TValue>.TryInsert(
-  const key: TKey; const value: TValue; behavior: TInsertionBehavior): Boolean;
+  const key: TKey; const value: TValue; behavior: Cardinal): Boolean;
 var
-  overwriteExisting: Boolean;
+  temp: Pointer;
   item: PItem;
 begin
-  overwriteExisting := behavior = TInsertionBehavior.OverwriteExisting;
-  item := fHashTable.AddOrSet(key, overwriteExisting);
-  if Assigned(item) then
+  temp := IHashTable<TKey>(@fHashTable).Find(key, behavior);
+  if not Assigned(temp) then Exit(Boolean(temp));
+
+  item := temp;
+  if item.HashCode < 0 then
   begin
-    if overwriteExisting then
-    begin
-      if Assigned(Notify) then
-        Notify(Self, PKeyValuePair(@item.Key)^, caRemoved);
-      with fOnValueChanged do if CanInvoke then
-        Invoke(Self, item.Value, caRemoved);
-    {$IFDEF DELPHIXE7_UP}
-      if GetTypeKind(TValue) = tkClass then
-    {$ENDIF}
-      if doOwnsValues in fOwnerships then
-        FreeObject(item.Value);
-    end;
-
-    item.Key := key;
-    item.Value := value;
-
     if Assigned(Notify) then
-      Notify(Self, PKeyValuePair(@item.Key)^, caAdded);
-    if not overwriteExisting then
-      with fOnKeyChanged do if CanInvoke then
-        Invoke(Self, item.Key, caAdded);
+      Notify(Self, PKeyValuePair(@item.Key)^, caRemoved);
     with fOnValueChanged do if CanInvoke then
-      Invoke(Self, item.Value, caAdded);
-
-    Result := True;
-  end
-  else
-  begin
-    if behavior = RaiseOnExisting then
-      RaiseHelper.DuplicateKey;
-    Result := False;
+      Invoke(Self, item.Value, caRemoved);
+  {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(TValue) = tkClass then
+  {$ENDIF}
+    if doOwnsValues in fHashTable.Ownerships then
+      FreeObject(item.Value);
   end;
+
+  item.Key := key;
+  item.Value := value;
+
+  if Assigned(Notify) then
+    Notify(Self, PKeyValuePair(@item.Key)^, caAdded);
+  if item.HashCode >= 0 then
+    with fOnKeyChanged do if CanInvoke then
+      Invoke(Self, item.Key, caAdded);
+  with fOnValueChanged do if CanInvoke then
+    Invoke(Self, item.Value, caAdded);
+
+  item.HashCode := item.HashCode and not RemovedFlag;
+
+  Result := True;
 end;
 
 procedure TDictionary<TKey, TValue>.AddOrSetValue(const key: TKey; const value: TValue);
@@ -821,8 +834,11 @@ begin
 end;
 
 function TDictionary<TKey, TValue>.ContainsKey(const key: TKey): Boolean;
+var
+  item: Pointer;
 begin
-  Result := fHashTable.Find(key) <> nil;
+  item := IHashTable<TKey>(@fHashTable).Find(key);
+  Result := Assigned(item);
 end;
 
 function TDictionary<TKey, TValue>.Contains(const key: TKey;
@@ -830,25 +846,14 @@ function TDictionary<TKey, TValue>.Contains(const key: TKey;
 var
   item: PItem;
 begin
-  item := fHashTable.Find(key);
-  if Assigned(item) and fValueComparer.Equals(item.Value, value) then
-    Exit(True);
-  Result := False;
+  item := IHashTable<TKey>(@fHashTable).Find(key);
+  if not Assigned(item) then Exit(Boolean(Pointer(item)));
+  Result := fValueComparer.Equals(item.Value, value);
 end;
 
 function TDictionary<TKey, TValue>.ContainsValue(const value: TValue): Boolean;
-var
-  item: PItem;
-  i: Integer;
 begin
-  item := PItem(fHashTable.Items);
-  for i := 1 to fHashTable.ItemCount do
-  begin
-    if (item.HashCode >= 0) and fValueComparer.Equals(item.Value, value) then
-      Exit(True);
-    Inc(item);
-  end;
-  Result := False;
+  Result := fValues.Contains(value);
 end;
 
 function TDictionary<TKey, TValue>.Extract(const key: TKey): TValue;
@@ -862,10 +867,10 @@ var
   entry: THashTableEntry;
   item: PItem;
 begin
-  entry.HashCode := fKeyComparer.GetHashCode(key);
-  if fHashTable.Find(key, entry) then
+  entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
+  if THashTable(fHashTable).FindEntry(key, entry) then
   begin
-    item := @TItems(fHashTable.Items)[entry.ItemIndex];
+    item := @TItems(THashTable(fHashTable).Items)[entry.ItemIndex];
     if fValueComparer.Equals(item.Value, value) then
     begin
       Result.Key := item.Key;
@@ -880,24 +885,24 @@ end;
 
 procedure TDictionary<TKey, TValue>.TrimExcess;
 begin
-  SetCapacity(fHashTable.Count);
+  THashTable(fHashTable).Capacity := fHashTable.Count;
 end;
 
 function TDictionary<TKey, TValue>.TryAdd(const key: TKey; const value: TValue): Boolean;
 begin
-  Result := TryInsert(key, value, None);
+  Result := TryInsert(key, value, IgnoreExisting or InsertNonExisting);
 end;
 
 function TDictionary<TKey, TValue>.TryExtract(const key: TKey; var value: TValue): Boolean;
 var
   entry: THashTableEntry;
 begin
-  entry.HashCode := fKeyComparer.GetHashCode(key);
-  if fHashTable.Find(key, entry) then
+  entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
+  if THashTable(fHashTable).FindEntry(key, entry) then
   begin
-    value := TItems(fHashTable.Items)[entry.ItemIndex].Value;
-    DoRemove(entry, caExtracted);
-    Exit(True);
+    value := TItems(THashTable(fHashTable).Items)[entry.ItemIndex].Value;
+    Result := DoRemove(entry, caExtracted);
+    Exit;
   end;
   value := Default(TValue);
   Result := False;
@@ -905,10 +910,10 @@ end;
 
 function TDictionary<TKey, TValue>.TryGetElementAt(var item: TKeyValuePair; index: Integer): Boolean;
 begin
-  if Cardinal(index) < Cardinal(fHashTable.Count) then
+  if Cardinal(index) < Cardinal(THashTable(fHashTable).Count) then
   begin
-    fHashTable.EnsureCompact;
-    with TItems(fHashTable.Items)[index] do
+    THashTable(fHashTable).EnsureCompact;
+    with TItems(THashTable(fHashTable).Items)[index] do
     begin
       item.Key := Key;
       item.Value := Value;
@@ -924,7 +929,7 @@ function TDictionary<TKey, TValue>.TryGetValue(const key: TKey; var value: TValu
 var
   item: PItem;
 begin
-  item := fHashTable.Find(key);
+  item := IHashTable<TKey>(@fHashTable).Find(key);
   if Assigned(item) then
   begin
     value := item.Value;
@@ -939,11 +944,11 @@ function TDictionary<TKey, TValue>.TryUpdateValue(const key: TKey;
 var
   item: PItem;
 begin
-  item := fHashTable.Find(key);
+  item := IHashTable<TKey>(@fHashTable).Find(key);
   if Assigned(item) then
   begin
     {$Q-}
-    Inc(PInteger(@fHashTable.Version)^);
+    Inc(PInteger(@THashTable(fHashTable).Version)^);
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
 
     if Assigned(Notify) then
@@ -969,27 +974,22 @@ function TDictionary<TKey, TValue>.Remove(const key: TKey): Boolean;
 var
   entry: THashTableEntry;
 begin
-  entry.HashCode := fKeyComparer.GetHashCode(key);
-  if fHashTable.Find(key, entry) then
-  begin
-    DoRemove(entry, caRemoved);
-    Exit(True);
-  end;
-  Result := False;
+  entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
+  Result := THashTable(fHashTable).FindEntry(key, entry);
+  if not Result then Exit;
+  Result := DoRemove(entry, caRemoved);
 end;
 
 function TDictionary<TKey, TValue>.Remove(const key: TKey; const value: TValue): Boolean;
 var
   entry: THashTableEntry;
 begin
-  entry.HashCode := fKeyComparer.GetHashCode(key);
-  if fHashTable.Find(key, entry)
-    and fValueComparer.Equals(TItems(fHashTable.Items)[entry.ItemIndex].Value, value) then
-  begin
-    DoRemove(entry, caRemoved);
-    Exit(True);
-  end;
-  Result := False;
+  entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
+  Result := THashTable(fHashTable).FindEntry(key, entry);
+  if not Result then Exit;
+  Result := fValueComparer.Equals(TItems(THashTable(fHashTable).Items)[entry.ItemIndex].Value, value);
+  if not Result then Exit;
+  Result := DoRemove(entry, caRemoved);
 end;
 
 function TDictionary<TKey, TValue>.GetKeys: IReadOnlyCollection<TKey>;
@@ -1001,7 +1001,7 @@ function TDictionary<TKey, TValue>.GetValueOrDefault(const key: TKey): TValue;
 var
   item: PItem;
 begin
-  item := fHashTable.Find(key);
+  item := IHashTable<TKey>(@fHashTable).Find(key);
   if Assigned(item) then
     Result := item.Value
   else
@@ -1013,7 +1013,7 @@ function TDictionary<TKey, TValue>.GetValueOrDefault(const key: TKey;
 var
   item: PItem;
 begin
-  item := fHashTable.Find(key);
+  item := IHashTable<TKey>(@fHashTable).Find(key);
   if Assigned(item) then
     Result := item.Value
   else
@@ -1029,16 +1029,13 @@ function TDictionary<TKey, TValue>.GetItem(const key: TKey): TValue;
 var
   item: PItem;
 begin
-  item := fHashTable.Find(key);
-  if Assigned(item) then
-    Result := item.Value
-  else
-    RaiseHelper.KeyNotFound;
+  item := IHashTable<TKey>(@fHashTable).Find(key, RaiseOnNonExisting);
+  Result := item.Value;
 end;
 
 procedure TDictionary<TKey, TValue>.SetItem(const key: TKey; const value: TValue);
 begin
-  TryInsert(key, value, OverwriteExisting);
+  TryInsert(key, value, OverwriteExisting or InsertNonExisting);
 end;
 
 {$ENDREGION}
@@ -1052,14 +1049,31 @@ begin
 end;
 
 function TDictionary<TKey, TValue>.TEnumerator.MoveNext: Boolean;
+var
+  hashTable: PHashTable;
+  item: PItem;
 begin
-  if inherited MoveNext then
+  hashTable := @fSource.fHashTable;
+  if fVersion = hashTable.Version then
   begin
-    fCurrent.Key := PItem(fItem).Key;
-    fCurrent.Value := PItem(fItem).Value;
-    Exit(True);
-  end;
-  Result := False;
+    repeat
+      if fIndex >= hashTable.ItemCount then
+        Break;
+
+      item := @TItems(hashTable.Items)[fIndex];
+      Inc(fIndex);
+      if item.HashCode >= 0 then
+      begin
+        fCurrent := PKeyValuePair(@item.Key)^;
+        Exit(True);
+      end;
+    until False;
+    fCurrent.Key := Default(TKey);
+    fCurrent.Value := Default(TValue);
+    Result := False;
+  end
+  else
+    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -1082,15 +1096,7 @@ constructor TBidiDictionary<TKey, TValue>.Create(capacity: Integer;
   const valueComparer: IEqualityComparer<TValue>;
   ownerships: TDictionaryOwnerships);
 begin
-  if capacity < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.capacity, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-
-  if TType.Kind<TKey> <> tkClass then
-    if doOwnsKeys in ownerships then
-      RaiseHelper.NoClassType(TypeInfo(TKey));
-
-  if TType.Kind<TValue> <> tkClass then
-    if doOwnsValues in ownerships then
-      RaiseHelper.NoClassType(TypeInfo(TValue));
+  ValidateParams(TypeInfo(TKey), TypeInfo(TValue), capacity, ownerships);
 
   fOwnerships := ownerships;
   fKeyComparer := keyComparer;
@@ -1229,8 +1235,6 @@ begin
 
   // repopulate the bucket array
   Assert(IsPowerOf2(newBucketCount));
-  fBucketIndexMask := newBucketCount - 1;
-  fBucketHashCodeMask := not fBucketIndexMask and not BucketSentinelFlag;
   SetLength(fKeyBuckets, newBucketCount);
   for bucketIndex := 0 to newBucketCount - 1 do
     fKeyBuckets[bucketIndex] := EmptyBucket;
@@ -1242,11 +1246,11 @@ begin
   begin
     FindKey(fItems[fItemCount].Key, fItems[fItemCount].KeyHashCode, bucketIndex, itemIndex);
     Assert(itemIndex = fItemCount);
-    fKeyBuckets[bucketIndex] := itemIndex or (fItems[itemIndex].KeyHashCode and fBucketHashCodeMask);
+    fKeyBuckets[bucketIndex] := itemIndex;
 
     FindValue(fItems[fItemCount].Value, fItems[fItemCount].ValueHashCode, bucketIndex, itemIndex);
     Assert(itemIndex = fItemCount);
-    fValueBuckets[bucketIndex] := itemIndex or (fItems[itemIndex].ValueHashCode and fBucketHashCodeMask);
+    fValueBuckets[bucketIndex] := itemIndex;
 
     Inc(fItemCount);
   end;
@@ -1268,7 +1272,7 @@ end;
 function TBidiDictionary<TKey, TValue>.FindKey(const key: TKey; hashCode: Integer;
   out bucketIndex, itemIndex: Integer): Boolean;
 var
-  bucketValue: Integer;
+  bucketValue, mask, perturb: Integer;
 begin
   if fItems = nil then
   begin
@@ -1277,33 +1281,33 @@ begin
     Exit(False);
   end;
 
-  bucketIndex := hashCode and fBucketIndexMask;
+  mask := DynArrayLength(fKeyBuckets) - 1;
+  perturb := hashCode;
+  bucketIndex := hashCode and mask;
   while True do
   begin
     bucketValue := fKeyBuckets[bucketIndex];
 
-    if bucketValue = EmptyBucket then
+    if bucketValue >= 0 then
+    begin
+      itemIndex := bucketValue;
+      if fKeyComparer.Equals(fItems[itemIndex].Key, key) then
+        Exit(True);
+    end else if bucketValue = EmptyBucket then
     begin
       itemIndex := fItemCount;
       Exit(False);
     end;
 
-    if (bucketValue <> UsedBucket)
-      and (bucketValue and fBucketHashCodeMask = hashCode and fBucketHashCodeMask) then
-    begin
-      itemIndex := bucketValue and fBucketIndexMask;
-      if fKeyComparer.Equals(fItems[itemIndex].Key, key) then
-        Exit(True);
-    end;
-
-    bucketIndex := (bucketIndex + 1) and fBucketIndexMask;
+    perturb := perturb shr PerturbShift;
+    bucketIndex := (5 * bucketIndex + 1 + Integer(perturb)) and mask;
   end;
 end;
 
 function TBidiDictionary<TKey, TValue>.FindValue(const value: TValue; hashCode: Integer;
   out bucketIndex, itemIndex: Integer): Boolean;
 var
-  bucketValue: Integer;
+  bucketValue, mask, perturb: Integer;
 begin
   if fItems = nil then
   begin
@@ -1312,7 +1316,9 @@ begin
     Exit(False);
   end;
 
-  bucketIndex := hashCode and fBucketIndexMask;
+  mask := DynArrayLength(fValueBuckets) - 1;
+  perturb := hashCode;
+  bucketIndex := hashCode and mask;
   while True do
   begin
     bucketValue := fValueBuckets[bucketIndex];
@@ -1323,15 +1329,20 @@ begin
       Exit(False);
     end;
 
-    if (bucketValue <> UsedBucket)
-      and (bucketValue and fBucketHashCodeMask = hashCode and fBucketHashCodeMask) then
+    if bucketValue >= 0 then
     begin
-      itemIndex := bucketValue and fBucketIndexMask;
+      itemIndex := bucketValue;
       if fValueComparer.Equals(fItems[itemIndex].Value, value) then
         Exit(True);
+    end
+    else if bucketValue = EmptyBucket then
+    begin
+      itemIndex := fItemCount;
+      Exit(False);
     end;
 
-    bucketIndex := (bucketIndex + 1) and fBucketIndexMask;
+    perturb := perturb shr PerturbShift;
+    bucketIndex := (5 * bucketIndex + 1 + Integer(perturb)) and mask;
   end;
 end;
 
@@ -1349,8 +1360,8 @@ procedure TBidiDictionary<TKey, TValue>.DoAdd(keyhashCode, keyBucketIndex, value
   valueBucketIndex, itemIndex: Integer; const key: TKey; const value: TValue);
 begin
   IncUnchecked(fVersion);
-  fKeyBuckets[keyBucketIndex] := itemIndex or (keyHashCode and fBucketHashCodeMask);
-  fValueBuckets[valueBucketIndex] := itemIndex or (valueHashCode and fBucketHashCodeMask);
+  fKeyBuckets[keyBucketIndex] := itemIndex;
+  fValueBuckets[valueBucketIndex] := itemIndex;
   fItems[itemIndex].KeyHashCode := keyHashCode;
   fItems[itemIndex].ValueHashCode := valueHashCode;
   fItems[itemIndex].Key := key;
@@ -1412,8 +1423,8 @@ begin
   FindKey(key, keyHashCode, keyBucketIndex, itemIndex);
   Assert(itemIndex = fItemCount);
 
-  fKeyBuckets[keyBucketIndex] := oldKeyItemIndex or (keyHashCode and fBucketHashCodeMask);
-  fValueBuckets[valueBucketIndex] := oldKeyItemIndex or (valueHashCode and fBucketHashCodeMask);
+  fKeyBuckets[keyBucketIndex] := oldKeyItemIndex;
+  fValueBuckets[valueBucketIndex] := oldKeyItemIndex;
 
   fItems[itemIndex].Key := Default(TKey);
   fItems[itemIndex].Value := Default(TValue);
@@ -1459,8 +1470,8 @@ begin
   FindValue(value, valueHashCode, valueBucketIndex, itemIndex);
   Assert(itemIndex = fItemCount);
 
-  fKeyBuckets[keyBucketIndex] := oldValueItemIndex or (keyHashCode and fBucketHashCodeMask);
-  fValueBuckets[valueBucketIndex] := oldValueItemIndex or (valueHashCode and fBucketHashCodeMask);
+  fKeyBuckets[keyBucketIndex] := oldValueItemIndex;
+  fValueBuckets[valueBucketIndex] := oldValueItemIndex;
 
   fItems[itemIndex].Key := Default(TKey);
   fItems[itemIndex].Value := Default(TValue);
@@ -1555,6 +1566,11 @@ begin
 end;
 
 function TBidiDictionary<TKey, TValue>.GetCount: Integer;
+begin
+  Result := fCount;
+end;
+
+function TBidiDictionary<TKey, TValue>.GetCountFast: Integer;
 begin
   Result := fCount;
 end;
@@ -1768,11 +1784,6 @@ begin
   Result := fInverse;
 end;
 
-function TBidiDictionary<TKey, TValue>.GetIsEmpty: Boolean;
-begin
-  Result := fCount = 0;
-end;
-
 function TBidiDictionary<TKey, TValue>.GetKeys: IReadOnlyCollection<TKey>;
 begin
   Result := fKeys;
@@ -1944,6 +1955,11 @@ begin
   Result := fSource.fCount;
 end;
 
+function TBidiDictionary<TKey, TValue>.TInverse.GetCountFast: Integer;
+begin
+  Result := fSource.fCount;
+end;
+
 function TBidiDictionary<TKey, TValue>.TInverse.GetEnumerator: IEnumerator<TValueKeyPair>;
 begin
   Result := TInverseEnumerator.Create(fSource);
@@ -1954,13 +1970,7 @@ begin
   Result := fSource;
 end;
 
-function TBidiDictionary<TKey, TValue>.TInverse.GetIsEmpty: Boolean;
-begin
-  Result := fSource.fCount = 0;
-end;
-
-function TBidiDictionary<TKey, TValue>.TInverse.GetItem(
-  const value: TValue): TKey;
+function TBidiDictionary<TKey, TValue>.TInverse.GetItem(const value: TValue): TKey;
 var
   valueBucketIndex, valueItemIndex: Integer;
 begin
@@ -2046,6 +2056,26 @@ function TBidiDictionary<TKey, TValue>.TInverse.Remove(
   const item: TValueKeyPair): Boolean;
 begin
   Result := Remove(item.Key, item.Value);
+end;
+
+function TBidiDictionary<TKey, TValue>.TInverse.RemoveRange(
+  const values: array of TValue): Integer;
+var
+  i: Integer;
+begin
+  Result := 0;
+  for i := 0 to High(values) do
+    Inc(Result, Integer(Remove(values[i])));
+end;
+
+function TBidiDictionary<TKey, TValue>.TInverse.RemoveRange(
+  const values: IEnumerable<TValue>): Integer;
+var
+  value: TValue;
+begin
+  Result := 0;
+  for value in values do
+    Inc(Result, Integer(Remove(value)));
 end;
 
 procedure TBidiDictionary<TKey, TValue>.TInverse.SetCapacity(value: Integer);
@@ -2217,14 +2247,14 @@ begin
   Result := fSource.fCount;
 end;
 
+function TBidiDictionary<TKey, TValue>.TKeyCollection.GetCountFast: Integer;
+begin
+  Result := fSource.fCount;
+end;
+
 function TBidiDictionary<TKey, TValue>.TKeyCollection.GetEnumerator: IEnumerator<TKey>;
 begin
   Result := TEnumerator.Create(fSource);
-end;
-
-function TBidiDictionary<TKey, TValue>.TKeyCollection.GetIsEmpty: Boolean;
-begin
-  Result := fSource.fCount = 0;
 end;
 
 function TBidiDictionary<TKey, TValue>.TKeyCollection.ToArray: TArray<TKey>;
@@ -2283,14 +2313,14 @@ begin
   Result := fSource.fCount;
 end;
 
+function TBidiDictionary<TKey, TValue>.TValueCollection.GetCountFast: Integer;
+begin
+  Result := fSource.fCount;
+end;
+
 function TBidiDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>;
 begin
   Result := TEnumerator.Create(fSource);
-end;
-
-function TBidiDictionary<TKey, TValue>.TValueCollection.GetIsEmpty: Boolean;
-begin
-  Result := fSource.fCount = 0;
 end;
 
 function TBidiDictionary<TKey, TValue>.TValueCollection.ToArray: TArray<TValue>;
@@ -2447,8 +2477,11 @@ begin
 end;
 
 function TSortedDictionary<TKey, TValue>.ContainsKey(const key: TKey): Boolean;
+var
+  node: PNode;
 begin
-  Result := fTree.Exists(key);
+  node := fTree.FindNode(key);
+  Result := Assigned(node);
 end;
 
 function TSortedDictionary<TKey, TValue>.ContainsValue(const value: TValue): Boolean;
@@ -2516,14 +2549,14 @@ begin
   Result := fTree.Count;
 end;
 
+function TSortedDictionary<TKey, TValue>.GetCountFast: Integer;
+begin
+  Result := fTree.Count;
+end;
+
 function TSortedDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>;
 begin
   Result := TEnumerator.Create(Self);
-end;
-
-function TSortedDictionary<TKey, TValue>.GetIsEmpty: Boolean;
-begin
-  Result := fTree.Count = 0;
 end;
 
 function TSortedDictionary<TKey, TValue>.GetItem(const key: TKey): TValue;
@@ -2776,14 +2809,14 @@ begin
   Result := fSource.fTree.Count;
 end;
 
+function TSortedDictionary<TKey, TValue>.TKeyCollection.GetCountFast: Integer;
+begin
+  Result := fSource.fTree.Count;
+end;
+
 function TSortedDictionary<TKey, TValue>.TKeyCollection.GetEnumerator: IEnumerator<TKey>;
 begin
   Result := TEnumerator.Create(fSource);
-end;
-
-function TSortedDictionary<TKey, TValue>.TKeyCollection.GetIsEmpty: Boolean;
-begin
-  Result := fSource.fTree.Count = 0;
 end;
 
 function TSortedDictionary<TKey, TValue>.TKeyCollection.ToArray: TArray<TKey>;
@@ -2834,14 +2867,14 @@ begin
   Result := fSource.fTree.Count;
 end;
 
+function TSortedDictionary<TKey, TValue>.TValueCollection.GetCountFast: Integer;
+begin
+  Result := fSource.fTree.Count;
+end;
+
 function TSortedDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>;
 begin
   Result := TEnumerator.Create(fSource);
-end;
-
-function TSortedDictionary<TKey, TValue>.TValueCollection.GetIsEmpty: Boolean;
-begin
-  Result := fSource.fTree.Count = 0;
 end;
 
 function TSortedDictionary<TKey, TValue>.TValueCollection.ToArray: TArray<TValue>;
@@ -2881,22 +2914,14 @@ constructor TFoldedDictionary<TKey, TValue>.Create(keyType,
   const valueComparer: IEqualityComparer<TValue>;
   ownerships: TDictionaryOwnerships);
 begin
-  if capacity < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.capacity, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+  ValidateParams(keyType, valueType, capacity, ownerships);
 
-  if TType.Kind<TKey> <> tkClass then
-    if doOwnsKeys in ownerships then
-      RaiseHelper.NoClassType(keyType);
-
-  if TType.Kind<TValue> <> tkClass then
-    if doOwnsValues in ownerships then
-      RaiseHelper.NoClassType(valueType);
-
-  fOwnerships := ownerships;
-  fKeyComparer := keyComparer;
+  fHashTable.Comparer := keyComparer;
+  fHashTable.Ownerships := ownerships;
   fValueComparer := valueComparer;
 
-  fHashTable.ItemsInfo := TypeInfo(TItems);
-  SetCapacity(capacity);
+  THashTable(fHashTable).ItemsInfo := TypeInfo(TItems);
+  THashTable(fHashTable).Capacity := capacity;
 
   fElementType := elementType;
   fKeyType := keyType;
@@ -2929,15 +2954,7 @@ constructor TFoldedBidiDictionary<TKey, TValue>.Create(keyType, valueType,
   const valueComparer: IEqualityComparer<TValue>;
   ownerships: TDictionaryOwnerships);
 begin
-  if capacity < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.capacity, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-
-  if TType.Kind<TKey> <> tkClass then
-    if doOwnsKeys in ownerships then
-      RaiseHelper.NoClassType(keyType);
-
-  if TType.Kind<TValue> <> tkClass then
-    if doOwnsValues in ownerships then
-      RaiseHelper.NoClassType(valueType);
+  ValidateParams(TypeInfo(TKey), TypeInfo(TValue), capacity, ownerships);
 
   fOwnerships := ownerships;
   fKeyComparer := keyComparer;

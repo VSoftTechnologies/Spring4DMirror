@@ -40,6 +40,9 @@ uses
   Spring;
 
 const
+  doOwnsKeys = Spring.doOwnsKeys;
+  doOwnsValues = Spring.doOwnsValues;
+
   caAdded = Spring.caAdded;
   caRemoved = Spring.caRemoved;
   caExtracted = Spring.caExtracted;
@@ -50,7 +53,7 @@ const
   caReseted = Spring.caReset deprecated 'Use caReset instead';
 
 type
-  TDictionaryOwnerships = set of (doOwnsKeys, doOwnsValues);
+  TDictionaryOwnerships = Spring.TDictionaryOwnerships;
 
   TCollectionChangedAction = Spring.TCollectionChangedAction;
 
@@ -1715,6 +1718,30 @@ type
     /// </returns>
     function Remove(const key: TKey; const value: TValue): Boolean; overload;
 
+    /// <summary>
+    ///   Removes the specified range of keys from the IMap&lt;TKey,
+    ///   TValue&gt;.
+    /// </summary>
+    /// <param name="keys">
+    ///   The keys of the elements to remove.
+    /// </param>
+    /// <returns>
+    ///   The number of elements that were actually removed.
+    /// </returns>
+    function RemoveRange(const keys: array of TKey): Integer; overload;
+
+    /// <summary>
+    ///   Removes the specified range of keys from the IMap&lt;TKey,
+    ///   TValue&gt;.
+    /// </summary>
+    /// <param name="keys">
+    ///   The keys of the elements to remove.
+    /// </param>
+    /// <returns>
+    ///   The number of elements that were actually removed.
+    /// </returns>
+    function RemoveRange(const keys: IEnumerable<TKey>): Integer; overload;
+
     function Extract(const key: TKey; const value: TValue): TPair<TKey, TValue>;
 
     /// <summary>
@@ -2693,7 +2720,7 @@ type
   ///    .
   /// </summary>
   TCollections = class
-  strict protected
+  protected
     const FoldedTypeKinds = [tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64, tkUString, tkClass, tkClassRef, tkPointer, tkProcedure, tkInterface];
 
     class procedure CreateDictionary_Int8_Int8(capacity: Integer;
@@ -3456,6 +3483,14 @@ type
     class function Union<T>(const first, second: IEnumerable<T>): IEnumerable<T>; overload; static;
     class function Union<T>(const first, second: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
+
+    class function Zip<TFirst, TSecond>(
+      const first: IEnumerable<TFirst>;
+      const second: IEnumerable<TSecond>): IEnumerable<Tuple<TFirst,TSecond>>; overload; static;
+    class function Zip<TFirst, TSecond, TResult>(
+      const first: IEnumerable<TFirst>;
+      const second: IEnumerable<TSecond>;
+      const resultSelector: Func<TFirst, TSecond, TResult>): IEnumerable<TResult>; overload; static;
   end;
 
   TStringComparer = class(TCustomComparer<string>)
@@ -3498,7 +3533,6 @@ type
   end;
 
 function GetElementType(typeInfo: PTypeInfo): PTypeInfo;
-function _LookupVtableInfo(intf: TDefaultGenericInterface; info: PTypeInfo; size: Integer): Pointer;
 
 const
   IEnumerableGuid: TGUID = '{6BC97F33-C0A8-4770-8E1C-C2017527B7E7}';
@@ -3558,44 +3592,6 @@ begin
     Result := nil;
   end;
 end;
-
-
-{$REGION 'Instance comparer'}
-
-function Compare_Instance(Inst: Pointer; const Left, Right: TObject): Integer; //FI:O804
-var
-  comparable: IComparable;
-begin
-  if Supports(Left, IComparable, comparable) then
-    Result := comparable.CompareTo(Right)
-  else
-    if NativeUInt(Left) < NativeUInt(Right) then
-      Result := -1
-    else if NativeUInt(Left) > NativeUInt(Right) then
-      Result := 1
-    else
-      Result := 0;
-end;
-
-const
-  InstanceComparer_VTable: TComparerVtable =
-  (
-    @NopQueryInterface,
-    @NopAddRef,
-    @NopRelease,
-    @Compare_Instance
-  );
-  InstanceComparer: Pointer = @InstanceComparer_VTable;
-
-function _LookupVtableInfo(intf: TDefaultGenericInterface; info: PTypeInfo; size: Integer): Pointer;
-begin
-  if (info <> nil) and (info.Kind = tkClass) and (intf = giComparer) then
-    Result := @InstanceComparer
-  else
-    Result := Generics.Defaults._LookupVtableInfo(intf, info, size);
-end;
-
-{$ENDREGION}
 
 
 {$REGION 'TPair<TKey, TValue>'}
@@ -7530,14 +7526,34 @@ begin
     source, keySelector, elementSelector, comparer);
 end;
 
-class function TEnumerable.Union<T>(const first, second: IEnumerable<T>; const comparer: IEqualityComparer<T>): IEnumerable<T>;
+class function TEnumerable.Union<T>(const first, second: IEnumerable<T>): IEnumerable<T>;
+begin
+  Result := TUnionIterator<T>.Create(first, second);
+end;
+
+class function TEnumerable.Union<T>(const first, second: IEnumerable<T>;
+  const comparer: IEqualityComparer<T>): IEnumerable<T>;
 begin
   Result := TUnionIterator<T>.Create(first, second, comparer);
 end;
 
-class function TEnumerable.Union<T>(const first, second: IEnumerable<T>): IEnumerable<T>;
+class function TEnumerable.Zip<TFirst, TSecond>(
+  const first: IEnumerable<TFirst>;
+  const second: IEnumerable<TSecond>): IEnumerable<Tuple<TFirst, TSecond>>;
 begin
-  Result := TUnionIterator<T>.Create(first, second);
+  Result := TZipIterator<TFirst, TSecond, Tuple<TFirst, TSecond>>.Create(
+    first, second,
+    function(const first: TFirst; const second: TSecond): Tuple<TFirst, TSecond>
+    begin
+      Result := Tuple<TFirst, TSecond>.Create(first, second);
+    end);
+end;
+
+class function TEnumerable.Zip<TFirst, TSecond, TResult>(
+  const first: IEnumerable<TFirst>; const second: IEnumerable<TSecond>;
+  const resultSelector: Func<TFirst, TSecond, TResult>): IEnumerable<TResult>;
+begin
+  Result := TZipIterator<TFirst, TSecond, TResult>.Create(first, second, resultSelector);
 end;
 
 {$ENDREGION}

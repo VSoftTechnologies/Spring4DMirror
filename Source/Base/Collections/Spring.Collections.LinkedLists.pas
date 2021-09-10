@@ -76,6 +76,7 @@ type
     fHead: TLinkedListNode<T>;
   {$REGION 'Property Accessors'}
     function GetCount: Integer; 
+    function GetCountFast: Integer;
     function GetFirst: TLinkedListNode<T>;
     function GetLast: TLinkedListNode<T>;
   {$ENDREGION}
@@ -113,6 +114,7 @@ implementation
 
 uses
   Spring.Collections.Events,
+  Spring.Comparers,
   Spring.ResourceStrings;
 
 
@@ -269,14 +271,14 @@ end;
 function TLinkedList<T>.Find(const value: T): TLinkedListNode<T>;
 var
   node: TLinkedListNode<T>;
-  comparer: IEqualityComparer<T>;
+  comparer: Pointer;
 begin
   Result := nil;
   node := fHead;
   if Assigned(node) then
   begin
-    comparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
-    while not comparer.Equals(node.fItem, value) do
+    comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
+    while not IEqualityComparer<T>(comparer).Equals(node.fItem, value) do
     begin
       node := node.fNext;
       if node = fHead then
@@ -289,7 +291,7 @@ end;
 function TLinkedList<T>.FindLast(const value: T): TLinkedListNode<T>;
 var
   node1, node2: TLinkedListNode<T>;
-  comparer: IEqualityComparer<T>;
+  comparer: Pointer;
 begin
   if not Assigned(fHead) then
     Exit(nil);
@@ -297,8 +299,8 @@ begin
   node2 := node1;
   if Assigned(node2) then
   begin
-    comparer := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
-    while not comparer.Equals(node2.fItem, value) do
+    comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
+    while not IEqualityComparer<T>(comparer).Equals(node2.fItem, value) do
     begin
       node2 := node2.fPrev;
       if node2 = node1 then
@@ -309,6 +311,11 @@ begin
 end;
 
 function TLinkedList<T>.GetCount: Integer;
+begin
+  Result := fCount;
+end;
+
+function TLinkedList<T>.GetCountFast: Integer;
 begin
   Result := fCount;
 end;
