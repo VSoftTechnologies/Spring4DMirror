@@ -1,7 +1,7 @@
 {
   "metadata": {
     "id": "Spring4D.Persistence",
-    "version": "2.0.0-dev6",
+    "version": "2.0.0-dev7",
     "description": "Spring4D Persistence",
     "authors": "Spring4D Team",
     "projectUrl": "https://bitbucket.org/sglienke/spring4d",
@@ -69,6 +69,11 @@
       "compiler": "10.4",
       "platforms": "Win32, Win64, OSX64, iOS32, AndroidArm32, LinuxIntel64",
       "template": "default"
+    },
+    {
+      "compiler": "11",
+      "platforms": "Win32, Win64, OSX64, OSXARM64, iOS64, AndroidArm32, LinuxIntel64",
+      "template": "default"
     }
   ],
   "templates": [
@@ -77,7 +82,7 @@
       "dependencies": [
         {
           "id": "Spring4D.Base",
-          "version": "[2.0.0-dev6,]"
+          "version": "[2.0.0-dev7,]"
         }
       ],
       "source": [
