@@ -3278,7 +3278,7 @@ begin
     {$IFDEF MSWINDOWS}
     IEnumerableInternal(Predicate).GetEnumerator(IEnumerator(Enumerator));
     {$ELSE}
-    Enumerator := IEnumerable(Predicate).GetEnumerator;
+    Enumerator := IEnumerable<T>(Predicate).GetEnumerator;
     {$ENDIF}
     Predicate := nil;
   until False;
