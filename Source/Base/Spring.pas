@@ -1140,6 +1140,11 @@ type
   INotifyEvent<T> = interface(IEvent<TNotifyEvent<T>>)
   end;
 
+  IInvokableNotifyEvent = interface(INotifyEvent)
+    function GetInvoke: TNotifyEvent;
+    property Invoke: TNotifyEvent read GetInvoke;
+  end;
+
   IInvokableNotifyEvent<T> = interface(INotifyEvent<T>)
     function GetInvoke: TNotifyEvent<T>;
     property Invoke: TNotifyEvent<T> read GetInvoke;
@@ -2500,18 +2505,18 @@ type
     const IntrosortSizeThreshold = 16;
     class function GetDepthLimit(count: Integer): Integer; static;
 
-    class procedure DownHeap<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; i: Integer); static;
+    class procedure DownHeap<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; i: NativeInt); static;
     class procedure HeapSort<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>); static;
 
     class procedure InsertionSort<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>); static;
-    class function QuickSortPartition<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>): Integer; static;
+    class function QuickSortPartition<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>): NativeInt; static;
     class procedure IntroSort<T>(var values: array of T; const comparer: IComparer<T>; depthLimit: Integer = -1); static;
 
-    class procedure DownHeap_Ref(values: PByte; hi: Integer; const comparer: IComparerRef; i: Integer; size: Integer); static;
-    class procedure HeapSort_Ref(values: PByte; hi: Integer; const comparer: IComparerRef; size: Integer); static;
-    class procedure InsertionSort_Ref(values: PByte; hi: Integer; const comparer: IComparerRef; size: Integer); static;
-    class function QuickSortPartition_Ref(values: PByte; hi: Integer; const comparer: IComparerRef; size: Integer): Integer; static;
-    class procedure IntroSort_Ref(values: PByte; hi: Integer; const comparer: IComparerRef; size: Integer; depthLimit: Integer = -1); static;
+    class procedure DownHeap_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; i: NativeInt; size: Integer); static;
+    class procedure HeapSort_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; size: Integer); static;
+    class procedure InsertionSort_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; size: Integer); static;
+    class function QuickSortPartition_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; size: Integer): NativeInt; static;
+    class procedure IntroSort_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; size: Integer; depthLimit: Integer = -1); static;
 
     class procedure IntroSort_Int8(var values: array of Int8; const comparer: IComparer<Int8>); static;
     class procedure IntroSort_Int16(var values: array of Int16; const comparer: IComparer<Int16>); static;
@@ -2523,28 +2528,28 @@ type
     class procedure IntroSort_Extended(var values: array of Extended; const comparer: IComparer<Extended>); static;
     class procedure IntroSort_Method(var values: array of TMethodPointer; const comparer: IComparer<TMethodPointer>); static;
 
-    class procedure Reverse_Int8(const values: PInt8; right: Integer); static;
-    class procedure Reverse_Int16(const values: PInt16; right: Integer); static;
-    class procedure Reverse_Int24(const values: PInt24; right: Integer); static;
-    class procedure Reverse_Int32(const values: PInt32; right: Integer); static;
-    class procedure Reverse_Int64(const values: PInt64; right: Integer); static;
-    class procedure Reverse_Single(const values: PSingle; right: Integer); static;
-    class procedure Reverse_Double(const values: PDouble; right: Integer); static;
-    class procedure Reverse_Extended(const values: PExtended; right: Integer); static;
-    class procedure Reverse_Method(const values: PMethodPointer; right: Integer); static;
-    class procedure Reverse_Ref(const values: PByte; right: Integer; size: Integer); static;
+    class procedure Reverse_Int8(const values: PInt8; right: NativeInt); static;
+    class procedure Reverse_Int16(const values: PInt16; right: NativeInt); static;
+    class procedure Reverse_Int24(const values: PInt24; right: NativeInt); static;
+    class procedure Reverse_Int32(const values: PInt32; right: NativeInt); static;
+    class procedure Reverse_Int64(const values: PInt64; right: NativeInt); static;
+    class procedure Reverse_Single(const values: PSingle; right: NativeInt); static;
+    class procedure Reverse_Double(const values: PDouble; right: NativeInt); static;
+    class procedure Reverse_Extended(const values: PExtended; right: NativeInt); static;
+    class procedure Reverse_Method(const values: PMethodPointer; right: NativeInt); static;
+    class procedure Reverse_Ref(const values: PByte; right: NativeInt; size: Integer); static;
     class procedure Reverse_Generic<T>(var values: array of T); static;
 
-    class procedure Shuffle_Int8(const values: PInt8; right: Integer); static;
-    class procedure Shuffle_Int16(const values: PInt16; right: Integer); static;
-    class procedure Shuffle_Int24(const values: PInt24; right: Integer); static;
-    class procedure Shuffle_Int32(const values: PInt32; right: Integer); static;
-    class procedure Shuffle_Int64(const values: PInt64; right: Integer); static;
-    class procedure Shuffle_Single(const values: PSingle; right: Integer); static;
-    class procedure Shuffle_Double(const values: PDouble; right: Integer); static;
-    class procedure Shuffle_Extended(const values: PExtended; right: Integer); static;
-    class procedure Shuffle_Method(const values: PMethodPointer; right: Integer); static;
-    class procedure Shuffle_Ref(const values: PByte; hi: Integer; size: Integer); static;
+    class procedure Shuffle_Int8(const values: PInt8; right: NativeInt); static;
+    class procedure Shuffle_Int16(const values: PInt16; right: NativeInt); static;
+    class procedure Shuffle_Int24(const values: PInt24; right: NativeInt); static;
+    class procedure Shuffle_Int32(const values: PInt32; right: NativeInt); static;
+    class procedure Shuffle_Int64(const values: PInt64; right: NativeInt); static;
+    class procedure Shuffle_Single(const values: PSingle; right: NativeInt); static;
+    class procedure Shuffle_Double(const values: PDouble; right: NativeInt); static;
+    class procedure Shuffle_Extended(const values: PExtended; right: NativeInt); static;
+    class procedure Shuffle_Method(const values: PMethodPointer; right: NativeInt); static;
+    class procedure Shuffle_Ref(const values: PByte; hi: NativeInt; size: Integer); static;
     class procedure Shuffle_Generic<T>(var values: array of T); static;
   public
     /// <summary>
@@ -3386,7 +3391,12 @@ begin
     end;
     tkArray, tkDynArray:
       Result := FormatArray(value);
-    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString:
+    tkChar, tkWChar:
+      if TValueData(value).FAsUWord < 20 then
+        Result := '#' + IntToStr(TValueData(value).FAsUWord)
+      else
+        Result := QuotedStr(value.ToString);
+    tkString, tkLString, tkWString, tkUString:
       Result := QuotedStr(value.ToString);
     tkClassRef:
       Result := value.AsClass.ClassName;
@@ -4257,6 +4267,12 @@ begin
   Result := nil;
 end;
 
+function OutOfMemoryError: Integer;
+begin
+  SysUtils.OutOfMemoryError;
+  Result := 0;
+end;
+
 function GrowCapacity(oldCapacity: Integer): Integer;
 begin
   if oldCapacity = 0 then
@@ -4267,9 +4283,9 @@ begin
       Result := oldCapacity * 2
     else
     begin
-      Result := oldCapacity + oldCapacity div 2;
+      Result := oldCapacity + oldCapacity shr 1;
       if Result < 0 then
-        OutOfMemoryError;
+        Exit(OutOfMemoryError);
     end;
   end;
 end;
@@ -4279,14 +4295,14 @@ begin
   Result := oldCapacity;
   repeat
     if Result >= 1024 then
-      Result := Result + Result div 2
+      Result := Result + Result shr 1
     else
       if Result >= 4 then
         Result := Result * 2
       else
         Result := 4;
     if Result < 0 then
-      OutOfMemoryError;
+      Exit(OutOfMemoryError);
   until Result >= newCount;
 end;
 
@@ -4779,7 +4795,7 @@ begin
 {$IFDEF USE_VMTAUTOTABLE}
   InitTables := TObjectList<TInitTable>.Create;
 {$ELSE}
-  InitTables := TObjectDictionary<TClass,TInitTable>.Create([doOwnsValues]);
+  InitTables := TObjectDictionary<TClass,TInitTable>.Create([Generics.Collections.doOwnsValues]);
 {$ENDIF}
 end;
 
@@ -5663,11 +5679,12 @@ begin
     Result := RawEquals(left.TypeInfo.RttiType);
 end;
 
-function EqualsDynArray2DynArray(const left, right: TValue): Boolean;
+function EqualsArray2Array(const left, right: TValue): Boolean;
 var
   len, i: Integer;
 begin
-  if PPointer(left.GetReferenceToRawData)^ = PPointer(right.GetReferenceToRawData)^ then
+  if (left.Kind = tkDynArray) and (right.Kind = tkDynArray)
+    and (PPointer(left.GetReferenceToRawData)^ = PPointer(right.GetReferenceToRawData)^) then
     Exit(True);
   len := left.GetArrayLength;
   if len <> right.GetArrayLength then
@@ -5876,9 +5893,9 @@ const
       // tkString, tkSet, tkClass, tkMethod, tkWChar,
       EqualsFail, EqualsFail, EqualsFail, EqualsFail, EqualsFail,
       // tkLString, tkWString, tkVariant, tkArray, tkRecord,
-      EqualsFail, EqualsFail, EqualsFail, EqualsFail, EqualsFail,
+      EqualsFail, EqualsFail, EqualsFail, EqualsArray2Array, EqualsFail,
       // tkInterface, tkInt64, tkDynArray, tkUString, tkClassRef
-      EqualsFail, EqualsFail, EqualsFail, EqualsFail, EqualsFail,
+      EqualsFail, EqualsFail, EqualsArray2Array, EqualsFail, EqualsFail,
       // tkPointer, tkProcedure
       EqualsFail, EqualsFail {$IF Declared(tkMRecord)}, EqualsFail{$IFEND}
     ),
@@ -5928,9 +5945,9 @@ const
       // tkString, tkSet, tkClass, tkMethod, tkWChar,
       EqualsFail, EqualsFail, EqualsFail, EqualsFail, EqualsFail,
       // tkLString, tkWString, tkVariant, tkArray, tkRecord,
-      EqualsFail, EqualsFail, EqualsFail, EqualsFail, EqualsFail,
+      EqualsFail, EqualsFail, EqualsFail, EqualsArray2Array, EqualsFail,
       // tkInterface, tkInt64, tkDynArray, tkUString, tkClassRef
-      EqualsFail, EqualsFail, EqualsDynArray2DynArray, EqualsFail, EqualsFail,
+      EqualsFail, EqualsFail, EqualsArray2Array, EqualsFail, EqualsFail,
       // tkPointer, tkProcedure
       EqualsFail, EqualsFail {$IF Declared(tkMRecord)}, EqualsFail{$IFEND}
     ),
@@ -11742,9 +11759,9 @@ begin
     BinarySwap(left, right, SizeOf(T))
 end;
 
-class procedure TArray.Reverse_Int8(const values: PInt8; right: Integer);
+class procedure TArray.Reverse_Int8(const values: PInt8; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: Int8;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11758,9 +11775,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Int16(const values: PInt16; right: Integer);
+class procedure TArray.Reverse_Int16(const values: PInt16; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: Int16;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11774,9 +11791,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Int24(const values: PInt24; right: Integer);
+class procedure TArray.Reverse_Int24(const values: PInt24; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: Int24;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11790,9 +11807,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Int32(const values: PInt32; right: Integer);
+class procedure TArray.Reverse_Int32(const values: PInt32; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: Int32;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11806,9 +11823,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Int64(const values: PInt64; right: Integer);
+class procedure TArray.Reverse_Int64(const values: PInt64; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: Int64;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11822,9 +11839,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Single(const values: PSingle; right: Integer);
+class procedure TArray.Reverse_Single(const values: PSingle; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: Single;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11838,9 +11855,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Double(const values: PDouble; right: Integer);
+class procedure TArray.Reverse_Double(const values: PDouble; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: Double;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11854,9 +11871,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Extended(const values: PExtended; right: Integer);
+class procedure TArray.Reverse_Extended(const values: PExtended; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: Extended;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11870,9 +11887,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Method(const values: PMethodPointer; right: Integer);
+class procedure TArray.Reverse_Method(const values: PMethodPointer; right: NativeInt);
 var
-  left: Integer;
+  left: NativeInt;
   temp: TMethodPointer;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
@@ -11886,9 +11903,9 @@ begin
   end;
 end;
 
-class procedure TArray.Reverse_Ref(const values: PByte; right: Integer; size: Integer);
+class procedure TArray.Reverse_Ref(const values: PByte; right: NativeInt; size: Integer);
 var
-  left: Integer;
+  left: NativeInt;
 begin
   for left := 0 to ((right + 1) shr 1) - 1 do
   begin
@@ -11899,7 +11916,7 @@ end;
 
 class procedure TArray.Reverse_Generic<T>(var values: array of T);
 var
-  left, right: Integer;
+  left, right: NativeInt;
   temp: T;
 begin
   right := High(values);
@@ -11998,9 +12015,9 @@ begin
   Reverse<T>(@values[index], count - 1);
 end;
 
-class procedure TArray.Shuffle_Int8(const values: PInt8; right: Integer);
+class procedure TArray.Shuffle_Int8(const values: PInt8; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: Int8;
 begin
   for left := 0 to right - 2 do
@@ -12015,9 +12032,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Int16(const values: PInt16; right: Integer);
+class procedure TArray.Shuffle_Int16(const values: PInt16; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: Int16;
 begin
   for left := 0 to right - 2 do
@@ -12032,9 +12049,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Int24(const values: PInt24; right: Integer);
+class procedure TArray.Shuffle_Int24(const values: PInt24; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: Int24;
 begin
   for left := 0 to right - 2 do
@@ -12049,9 +12066,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Int32(const values: PInt32; right: Integer);
+class procedure TArray.Shuffle_Int32(const values: PInt32; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: Int32;
 begin
   for left := 0 to right - 2 do
@@ -12066,9 +12083,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Int64(const values: PInt64; right: Integer);
+class procedure TArray.Shuffle_Int64(const values: PInt64; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: Int64;
 begin
   for left := 0 to right - 2 do
@@ -12083,9 +12100,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Single(const values: PSingle; right: Integer);
+class procedure TArray.Shuffle_Single(const values: PSingle; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: Single;
 begin
   for left := 0 to right - 2 do
@@ -12100,9 +12117,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Double(const values: PDouble; right: Integer);
+class procedure TArray.Shuffle_Double(const values: PDouble; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: Double;
 begin
   for left := 0 to right - 2 do
@@ -12117,9 +12134,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Extended(const values: PExtended; right: Integer);
+class procedure TArray.Shuffle_Extended(const values: PExtended; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: Extended;
 begin
   for left := 0 to right - 2 do
@@ -12134,9 +12151,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Method(const values: PMethodPointer; right: Integer);
+class procedure TArray.Shuffle_Method(const values: PMethodPointer; right: NativeInt);
 var
-  left, i: Integer;
+  left, i: NativeInt;
   temp: TMethodPointer;
 begin
   for left := 0 to right - 2 do
@@ -12151,9 +12168,9 @@ begin
   end;
 end;
 
-class procedure TArray.Shuffle_Ref(const values: PByte; hi, size: Integer);
+class procedure TArray.Shuffle_Ref(const values: PByte; hi: NativeInt; size: Integer);
 var
-  left, i: Integer;
+  left, i: NativeInt;
 begin
   for left := 0 to hi - 2 do
   begin
@@ -12370,7 +12387,7 @@ end;
 {$ENDIF}
 
 class procedure TArray.DownHeap<T>(var values: array of T;
-  {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; i: Integer);
+  {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; i: NativeInt);
 var
   hi, child: NativeInt;
   temp: T;
@@ -12432,7 +12449,7 @@ begin
 end;
 
 class function TArray.QuickSortPartition<T>(var values: array of T;
-  {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>): Integer;
+  {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>): NativeInt;
 var
   left, right, middle: NativeInt;
   temp: T;
@@ -12537,10 +12554,10 @@ begin
   end;
 end;
 
-class procedure TArray.DownHeap_Ref(values: PByte; hi: Integer;
-  const comparer: IComparerRef; i: Integer; size: Integer);
+class procedure TArray.DownHeap_Ref(values: PByte; hi: NativeInt;
+  const comparer: IComparerRef; i: NativeInt; size: Integer);
 var
-  child: Integer;
+  child: NativeInt;
 begin
   while True do
   begin
@@ -12558,10 +12575,10 @@ begin
   end;
 end;
 
-class procedure TArray.HeapSort_Ref(values: PByte; hi: Integer;
+class procedure TArray.HeapSort_Ref(values: PByte; hi: NativeInt;
   const comparer: IComparerRef; size: Integer);
 var
-  i: Integer;
+  i: NativeInt;
 begin
   for i := (hi+1) shr 1 - 1 downto 0 do
     DownHeap_Ref(values, hi, comparer, i, size);
@@ -12572,7 +12589,7 @@ begin
   end;
 end;
 
-class procedure TArray.InsertionSort_Ref(values: PByte; hi: Integer;
+class procedure TArray.InsertionSort_Ref(values: PByte; hi: NativeInt;
   const comparer: IComparerRef; size: Integer);
 var
   i, j: NativeInt;
@@ -12588,10 +12605,10 @@ begin
   end;
 end;
 
-class function TArray.QuickSortPartition_Ref(values: PByte; hi: Integer;
-  const comparer: IComparerRef; size: Integer): Integer;
+class function TArray.QuickSortPartition_Ref(values: PByte; hi: NativeInt;
+  const comparer: IComparerRef; size: Integer): NativeInt;
 var
-  left, right, middle, pivotIndex: Integer;
+  left, right, middle, pivotIndex: NativeInt;
 begin
   right := hi;
   middle := right shr 1;
@@ -12630,10 +12647,10 @@ begin
   Result := left;
 end;
 
-class procedure TArray.IntroSort_Ref(values: PByte; hi: Integer;
+class procedure TArray.IntroSort_Ref(values: PByte; hi: NativeInt;
   const comparer: IComparerRef; size: Integer; depthLimit: Integer);
 var
-  partitionSize, pivot: Integer;
+  partitionSize, pivot: NativeInt;
 begin
   partitionSize := hi + 1;
   while partitionSize > 1 do
