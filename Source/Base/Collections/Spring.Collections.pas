@@ -657,6 +657,14 @@ type
     function Min(const comparer: TComparison<T>): T; overload;
 
     /// <summary>
+    ///   Creates a sequence that lazily caches the source as it is iterated
+    ///   for the first time, reusing the cache thereafter for future
+    ///   re-iterations. If the source is already cached or buffered then it
+    ///   is returned verbatim.
+    /// </summary>
+    function Memoize: IEnumerable<T>;
+
+    /// <summary>
     ///   Sorts the elements of a sequence in ascending order using the default
     ///   comparer for their type.
     /// </summary>
@@ -3366,6 +3374,12 @@ type
     class procedure InternalFrom_Interface_DynArray(source: Pointer; var result; elementType: PTypeInfo); static;
     class procedure InternalFrom_Interface_OpenArray(source: Pointer; count: Integer; var result; elementType: PTypeInfo); static;
   public
+    class function Aggregate<TSource, TAccumulate>(const source: IEnumerable<TSource>;
+      const seed: TAccumulate; const func: Func<TAccumulate, TSource, TAccumulate>): TAccumulate; overload; static;
+    class function Aggregate<TSource, TAccumulate, TResult>(const source: IEnumerable<TSource>;
+      const seed: TAccumulate; const func: Func<TAccumulate, TSource, TAccumulate>;
+      const resultSelector: Func<TAccumulate, TResult>): TResult; overload; static;
+
     class function CombinePredicates<T>(const predicate1, predicate2: Predicate<T>): Predicate<T>; static;
 
     /// <summary>
@@ -3426,6 +3440,22 @@ type
 
     class function SelectMany<T, TResult>(const source: IEnumerable<T>;
       const selector: Func<T, IEnumerable<TResult>>): IEnumerable<TResult>; overload; static;
+
+    class function Sum(const source: IEnumerable<Integer>): Integer; overload; static;
+    class function Sum(const source: IEnumerable<Int64>): Int64; overload; static;
+    class function Sum(const source: IEnumerable<Single>): Single; overload; static;
+    class function Sum(const source: IEnumerable<Double>): Double; overload; static;
+    class function Sum(const source: IEnumerable<Currency>): Currency; overload; static;
+    class function Sum<TSource>(const source: IEnumerable<TSource>;
+      const selector: Func<TSource, Integer>): Integer; overload; static;
+    class function Sum<TSource>(const source: IEnumerable<TSource>;
+      const selector: Func<TSource, Int64>): Int64; overload; static;
+    class function Sum<TSource>(const source: IEnumerable<TSource>;
+      const selector: Func<TSource, Single>): Single; overload; static;
+    class function Sum<TSource>(const source: IEnumerable<TSource>;
+      const selector: Func<TSource, Double>): Double; overload; static;
+    class function Sum<TSource>(const source: IEnumerable<TSource>;
+      const selector: Func<TSource, Currency>): Currency; overload; static;
 
     class function ToDictionary<TSource, TKey>(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>): IDictionary<TKey, TSource>; overload; static;
@@ -3493,7 +3523,7 @@ type
       const resultSelector: Func<TFirst, TSecond, TResult>): IEnumerable<TResult>; overload; static;
   end;
 
-  TStringComparer = class(TCustomComparer<string>)
+  TStringComparer = class(TObject, IComparer<string>, IEqualityComparer<string>)
   private
     fLocaleOptions: TLocaleOptions;
     fIgnoreCase: Boolean;
@@ -3501,9 +3531,13 @@ type
       fOrdinal: TStringComparer;
       fOrdinalIgnoreCase: TStringComparer;
   protected
-    function Compare(const Left, Right: string): Integer; override;
-    function Equals(const Left, Right: string): Boolean; override;
-    function GetHashCode(const Value: string): Integer; override;
+    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
+    function _AddRef: Integer; stdcall;
+    function _Release: Integer; stdcall;
+
+    function Compare(const left, right: string): Integer; reintroduce;
+    function Equals(const left, right: string): Boolean; reintroduce;
+    function GetHashCode(const value: string): Integer; reintroduce;
   public
     constructor Create(localeOptions: TLocaleOptions; ignoreCase: Boolean);
     class constructor Create;
@@ -3553,9 +3587,6 @@ implementation
 
 uses
   Character,
-{$IFDEF DELPHIXE8_UP}
-  System.Hash,
-{$ENDIF}
   Rtti,
   Spring.Collections.Base,
   Spring.Collections.Dictionaries,
@@ -3567,6 +3598,7 @@ uses
   Spring.Collections.Queues,
   Spring.Collections.Sets,
   Spring.Collections.Stacks,
+  Spring.Comparers,
   Spring.ResourceStrings;
 
 
@@ -7222,6 +7254,40 @@ end;
 
 {$REGION 'TEnumerable'}
 
+class function TEnumerable.Aggregate<TSource, TAccumulate>(
+  const source: IEnumerable<TSource>; const seed: TAccumulate;
+  const func: Func<TAccumulate, TSource, TAccumulate>): TAccumulate;
+var
+  enumerator: IEnumerator<TSource>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(func) then RaiseHelper.ArgumentNil(ExceptionArgument.func);
+
+  Result := seed;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := func(Result, enumerator.Current);
+end;
+
+class function TEnumerable.Aggregate<TSource, TAccumulate, TResult>(
+  const source: IEnumerable<TSource>; const seed: TAccumulate;
+  const func: Func<TAccumulate, TSource, TAccumulate>;
+  const resultSelector: Func<TAccumulate, TResult>): TResult;
+var
+  enumerator: IEnumerator<TSource>;
+  res: TAccumulate;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(func) then RaiseHelper.ArgumentNil(ExceptionArgument.func);
+  if not Assigned(resultSelector) then RaiseHelper.ArgumentNil(ExceptionArgument.resultSelector);
+
+  res := seed;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    res := func(res, enumerator.Current);
+  Result := resultSelector(res);
+end;
+
 class function TEnumerable.CombinePredicates<T>(const predicate1,
   predicate2: Predicate<T>): Predicate<T>;
 begin
@@ -7449,6 +7515,136 @@ begin
   Result := TSelectManyIterator<T, TResult>.Create(source, selector);
 end;
 
+class function TEnumerable.Sum(const source: IEnumerable<Integer>): Integer;
+var
+  enumerator: IEnumerator<Integer>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + enumerator.Current;
+end;
+
+class function TEnumerable.Sum(const source: IEnumerable<Int64>): Int64;
+var
+  enumerator: IEnumerator<Int64>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + enumerator.Current;
+end;
+
+class function TEnumerable.Sum(const source: IEnumerable<Single>): Single;
+var
+  enumerator: IEnumerator<Single>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + enumerator.Current;
+end;
+
+class function TEnumerable.Sum(const source: IEnumerable<Double>): Double;
+var
+  enumerator: IEnumerator<Double>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + enumerator.Current;
+end;
+
+class function TEnumerable.Sum(const source: IEnumerable<Currency>): Currency;
+var
+  enumerator: IEnumerator<Currency>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + enumerator.Current;
+end;
+
+class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
+  const selector: Func<TSource, Integer>): Integer;
+var
+  enumerator: IEnumerator<TSource>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + selector(enumerator.Current);
+end;
+
+class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
+  const selector: Func<TSource, Int64>): Int64;
+var
+  enumerator: IEnumerator<TSource>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + selector(enumerator.Current);
+end;
+
+class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
+  const selector: Func<TSource, Single>): Single;
+var
+  enumerator: IEnumerator<TSource>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + selector(enumerator.Current);
+end;
+
+class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
+  const selector: Func<TSource, Double>): Double;
+var
+  enumerator: IEnumerator<TSource>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + selector(enumerator.Current);
+end;
+
+class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
+  const selector: Func<TSource, Currency>): Currency;
+var
+  enumerator: IEnumerator<TSource>;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
+
+  Result := 0;
+  enumerator := source.GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + selector(enumerator.Current);
+end;
+
 class function TEnumerable.ToDictionary<TSource, TKey>(
   const source: IEnumerable<TSource>;
   const keySelector: Func<TSource, TKey>): IDictionary<TKey, TSource>;
@@ -7580,68 +7776,89 @@ begin
   FreeAndNil(fOrdinalIgnoreCase);
 end;
 
-function TStringComparer.Compare(const Left, Right: string): Integer;
-var
-  L, R: string;
+function TStringComparer.Compare(const left, right: string): Integer;
 begin
   if fIgnoreCase then
-  begin
-{$IFNDEF DELPHIXE4_UP}
-    L := TCharacter.ToUpper(Left);
-    R := TCharacter.ToUpper(Right);
-{$ELSE}
-    L := Char.ToUpper(Left);
-    R := Char.ToUpper(Right);
-{$ENDIF}
-  end else
-  begin
-    L := Left;
-    R := Right;
-  end;
-
-  Result := CompareStr(L, R, fLocaleOptions);
-end;
-
-function TStringComparer.Equals(const Left, Right: string): Boolean;
-var
-  L, R: string;
-begin
-  if fIgnoreCase then
-  begin
-{$IFNDEF DELPHIXE4_UP}
-    L := TCharacter.ToUpper(Left);
-    R := TCharacter.ToUpper(Right);
-{$ELSE}
-    L := Char.ToUpper(Left);
-    R := Char.ToUpper(Right);
-{$ENDIF}
-  end else
-  begin
-    L := Left;
-    R := Right;
-  end;
-
-  Result := SameStr(L, R, fLocaleOptions);
-end;
-
-function TStringComparer.GetHashCode(const Value: string): Integer;
-var
-  s: string;
-begin
-  if fIgnoreCase then
-{$IFNDEF DELPHIXE4_UP}
-    S := TCharacter.ToUpper(Value)
-{$ELSE}
-    S := Char.ToUpper(Value)
-{$ENDIF}
+    Result := AnsiCompareText(left, right)
   else
-    S := Value;
+    Result := AnsiCompareStr(left, right);
+end;
 
-{$IFDEF DELPHIXE8_UP}
-  Result := THashBobJenkins.GetHashValue(S);
-{$ELSE}
-  Result := BobJenkinsHash(PChar(S)^, SizeOf(Char) * Length(S), 0);
-{$ENDIF}
+function TStringComparer.Equals(const left, right: string): Boolean;
+begin
+  if fIgnoreCase then
+    Result := AnsiSameText(left, right)
+  else
+    Result := AnsiSameStr(left, right);
+end;
+
+function TStringComparer.GetHashCode(const value: string): Integer;
+const
+  FNV_Prime = 16777619;
+  FNV_OffsetBasis = Integer($811C9DC5); // 2166136261
+  NotAsciiMask = $FF80FF80;
+  LowerCaseMask = $00200020;
+
+  // for inlining when compiled as package - System.Length does not in that case
+  function Length(const s: string): NativeInt; inline;
+  begin
+    Result := IntPtr(s);
+    if Result <> 0 then
+      Result := PInteger(@PByte(Result)[-4])^;
+  end;
+
+  function GetHashCodeIgnoreCaseSlow(const value: string): Integer;
+  var
+    s: string;
+    len, i: NativeInt;
+    c: Integer;
+  begin
+    s := AnsiUpperCase(value);
+    len := Length(s);
+    Result := FNV_OffsetBasis;
+    i := 0;
+    while len > 0 do
+    begin
+      c := PIntegerArray(s)[i];
+      c := c or LowerCaseMask;
+      Result := Result xor c;
+      {$Q-}
+      Result := Result * FNV_PRIME;
+      {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+      Inc(i);
+      Dec(len, 2);
+    end;
+  end;
+
+label
+  NotAscii;
+var
+  len, i: NativeInt;
+  hashCode, c: Integer;
+begin
+  len := Length(value);
+  if fIgnoreCase then
+  begin
+    hashCode := FNV_OffsetBasis;
+    i := 0;
+    while len > 0 do
+    begin
+      c := PIntegerArray(value)[i];
+      if c and NotAsciiMask <> 0 then goto NotAscii;
+      c := c or LowerCaseMask;
+      hashCode := hashCode xor c;
+      {$Q-}
+      hashCode := hashCode * FNV_PRIME;
+      {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+      Inc(i);
+      Dec(len, 2);
+    end;
+    Exit(hashCode);
+  NotAscii:
+    Result := GetHashCodeIgnoreCaseSlow(value);
+  end
+  else
+    Result := DefaultHashFunction(Pointer(value)^, len * SizeOf(Char));
 end;
 
 class function TStringComparer.Ordinal: TStringComparer;
@@ -7652,6 +7869,24 @@ end;
 class function TStringComparer.OrdinalIgnoreCase: TStringComparer;
 begin
   Result := fOrdinalIgnoreCase;
+end;
+
+function TStringComparer.QueryInterface(const IID: TGUID; out Obj): HResult;
+begin
+  if GetInterface(IID, Obj) then
+    Result := S_OK
+  else
+    Result := E_NOINTERFACE;
+end;
+
+function TStringComparer._AddRef: Integer;
+begin
+  Result := -1;
+end;
+
+function TStringComparer._Release: Integer;
+begin
+  Result := -1;
 end;
 
 {$ENDREGION}

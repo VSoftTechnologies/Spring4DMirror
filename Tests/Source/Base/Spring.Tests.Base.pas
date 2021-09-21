@@ -469,6 +469,8 @@ type
 
     procedure EqualsReturnsTrueForEqualTValue;
 
+    procedure EqualsReturnsTrueForEqualArrays;
+
     procedure FromVariantProperlyHandlesVariantArrays;
 
     procedure ConvertStringToIntegerFailsForInvalidString;
@@ -3000,6 +3002,30 @@ begin
   DoCheckEquals;
 end;
 
+procedure TTestValueHelper.EqualsReturnsTrueForEqualArrays;
+type
+  TCharArray8 = array[0..7] of Char;
+var
+  chars: TArray<Char>;
+begin
+  fSUT := TValue.From<TCharArray8>('abcdefgh');
+  fValue := TValue.From<TCharArray8>('abcdefgh');
+  DoCheckEquals;
+
+  chars := TArray<Char>.Create('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h');
+  fValue := TValue.From<TArray<Char>>(chars);
+  DoCheckEquals;
+
+  fSUT := TValue.From<TArray<Char>>(chars);
+  DoCheckEquals;
+
+  fValue := TValue.From<TCharArray8>('abcdefgh');
+  DoCheckEquals;
+
+  fValue := TValue.From<TCharArray8>('abcdefg');
+  DoCheckEquals(False);
+end;
+
 procedure TTestValueHelper.EqualsReturnsTrueForEqualTValue;
 var
   nums: TArray<Integer>;
@@ -3875,7 +3901,7 @@ begin
       values[j].DoubleValue :=j;
       PDouble(@values[j].Stuff[0])^ := 2 * j;
       PDouble(@values[j].Stuff[8])^ := -3 * j;
-      values[j].Text := FloatToStr(6 * j + 2);
+      values[j].Text := IntToStr(6 * j + 2);
     end;
     TArray.Shuffle<TManagedRec>(values);
     TArray.StableSort<TManagedRec>(values, comparison);
@@ -3886,7 +3912,7 @@ begin
       CheckEquals(j, values[j].DoubleValue);
       CheckEquals(2 * j, PDouble(@values[j].Stuff[0])^);
       CheckEquals(-3 * j, PDouble(@values[j].Stuff[8])^);
-      CheckEquals(FloatToStr(6 * j + 2), values[j].Text);
+      CheckEquals(IntToStr(6 * j + 2), values[j].Text);
     end;
   end;
 end;
