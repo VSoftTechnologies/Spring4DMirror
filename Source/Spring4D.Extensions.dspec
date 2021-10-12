@@ -1,7 +1,7 @@
 {
   "metadata": {
     "id": "Spring4D.Extensions",
-    "version": "2.0.0-dev7",
+    "version": "2.0.0-dev8",
     "description": "Spring4D Extensions",
     "authors": "Spring4D Team",
     "projectUrl": "https://bitbucket.org/sglienke/spring4d",
@@ -71,7 +71,7 @@
       "template": "default"
     },
     {
-      "compiler": "11",
+      "compiler": "11.0",
       "platforms": "Win32, Win64, OSX64, OSXARM64, iOS64, AndroidArm32, LinuxIntel64",
       "template": "default"
     }
@@ -82,7 +82,7 @@
       "dependencies": [
         {
           "id": "Spring4D.Base",
-          "version": "[2.0.0-dev7,]"
+          "version": "[2.0.0-dev8,]"
         }
       ],
       "comment": "due to the layout of the repo and relative paths in the packages we need to keep the same layout",
