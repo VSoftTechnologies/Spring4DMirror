@@ -1,0 +1,142 @@
+{
+  "metadata": {
+    "id": "Spring4D.Core",
+    "version": "2.0.0-dev11",
+    "description": "Spring4D Core",
+    "authors": "Spring4D Team",
+    "projectUrl": "https://bitbucket.org/sglienke/spring4d",
+    "license": "Apache-2.0",
+    "copyright": "2009-2021 Spring4D Team",
+    "tags": "spring4d core ioc container"
+  },
+  "targetPlatforms": [
+    {
+      "compiler": "XE2",
+      "platforms": "Win32, Win64, OSX32",
+      "template": "default"
+    },
+    {
+      "compiler": "XE3",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32",
+      "template": "default"
+    },
+    {
+      "compiler": "XE4",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32",
+      "template": "default"
+    },
+    {
+      "compiler": "XE5",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32",
+      "template": "default"
+    },
+    {
+      "compiler": "XE6",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32",
+      "template": "default"
+    },
+    {
+      "compiler": "XE7",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32",
+      "template": "default"
+    },
+    {
+      "compiler": "XE8",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32",
+      "template": "default"
+    },
+    {
+      "compiler": "10.0",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32",
+      "template": "default"
+    },
+    {
+      "compiler": "10.1",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32",
+      "template": "default"
+    },
+    {
+      "compiler": "10.2",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32, LinuxIntel64",
+      "template": "default"
+    },
+    {
+      "compiler": "10.3",
+      "platforms": "Win32, Win64, OSX32, iOS32, AndroidArm32, LinuxIntel64",
+      "template": "default"
+    },
+    {
+      "compiler": "10.4",
+      "platforms": "Win32, Win64, OSX64, iOS32, AndroidArm32, LinuxIntel64",
+      "template": "default"
+    },
+    {
+      "compiler": "11.0",
+      "platforms": "Win32, Win64, OSX64, OSXARM64, iOS64, AndroidArm32, LinuxIntel64",
+      "template": "default"
+    }
+  ],
+  "templates": [
+    {
+      "name": "default",
+      "dependencies": [
+        {
+          "id": "Spring4D.Base",
+          "version": "2.0.0-dev11"
+        }
+      ],
+      "source": [
+        {
+          "src": ".\\*.inc",
+          "dest": "Source"
+        },
+        {
+          "src": ".\\Core\\**\\*.pas",
+          "dest": "Source\\Core"
+        },
+        {
+          "src": "..\\packages\\Delphi$compilerNoPoint$$CompilerCodeName$\\Spring.Core.dpk",
+          "dest": "packages\\Delphi$compilerNoPoint$$CompilerCodeName$"
+        },
+        {
+          "src": "..\\packages\\Delphi$compilerNoPoint$$CompilerCodeName$\\Spring.Core.dproj",
+          "dest": "packages\\Delphi$compilerNoPoint$$CompilerCodeName$"
+        }
+      ],
+      "searchPaths": [
+        {
+          "path": "Source"
+        },
+        {
+          "path": "Source\\Core\\Container"
+        },
+        {
+          "path": "Source\\Core\\Interception"
+        },
+        {
+          "path": "Source\\Core\\Logging"
+        },
+        {
+          "path": "Source\\Core\\Mocking"
+        },
+        {
+          "path": "Source\\Core\\Services"
+        }
+      ],
+      "build": [
+        {
+          "id": "Runtime",
+          "project": ".\\packages\\Delphi$compilerNoPoint$$CompilerCodeName$\\Spring.Core.dproj",
+		  "config" : "debug"
+        }
+      ],
+      "runtime" : [
+       {
+         "buildId" : "Runtime",
+         "src" : "bin\\Spring.Core.Delphi$compilerNoPoint$$CompilerCodeName$.bpl",
+         "copyLocal" : true
+       }
+      ]
+    }
+  ]
+}
