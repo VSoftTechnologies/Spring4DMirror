@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2021 Spring4D Team                           }
+{           Copyright (c) 2009-2022 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -148,10 +148,9 @@ asm
   imul    edi, edi, Prime1
 
   add     ebx, 16                             // Inc(NativeUInt(data), 16);
-  cmp     ebx, esi                            // until NativeUInt(data) > NativeUInt(pLimit);
+  cmp     ebx, esi                            // until NativeUInt(data) > NativeUInt(limit);
   jbe     @loop16bytes
 
-  add     esi, 16
   rol     eax, 1                              // Result := Rol(v1, 1) + Rol(v2, 7) + Rol(v3, 12) + Rol(v4, 18);
   rol     edx, 7
   add     eax, edx
@@ -161,6 +160,7 @@ asm
   add     eax, edi
 
 @tail:
+  add     esi, 16
   add     eax, [esp]                          // Inc(Result, len);
   lea     ebp, [esi-4]
   cmp     ebp, ebx                            // while NativeUInt(data) <= (NativeUInt(pEnd) - 4) do
