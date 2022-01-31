@@ -1,12 +1,12 @@
 {
   "metadata": {
     "id": "Spring4D.Base",
-    "version": "2.0.0-dev11",
+    "version": "2.0.0-dev13",
     "description": "Spring4D Base",
     "authors": "Spring4D Team",
     "projectUrl": "https://bitbucket.org/sglienke/spring4d",
     "license": "Apache-2.0",
-    "copyright": "2009-2021 Spring4D Team",
+    "copyright": "2009-2022 Spring4D Team",
     "tags": "spring4d collections"
   },
   "targetPlatforms": [
@@ -73,7 +73,11 @@
     {
       "compiler": "11.0",
       "platforms": "Win32, Win64, OSX64, OSXARM64, iOS64, AndroidArm32, LinuxIntel64",
-      "template": "default"
+      "template": "default",
+	  "variables" : 
+	  {
+		"CompilerCodeName" : ""
+	  }
     }
   ],
   "templates": [
@@ -121,8 +125,7 @@
       "build": [
         {
           "id": "Runtime",
-          "project": ".\\packages\\Delphi$compilerNoPoint$$CompilerCodeName$\\Spring.Base.dproj",
-		  "config" : "debug"
+          "project": ".\\packages\\Delphi$compilerNoPoint$$CompilerCodeName$\\Spring.Base.dproj"
         }
       ],
       "runtime" : [
