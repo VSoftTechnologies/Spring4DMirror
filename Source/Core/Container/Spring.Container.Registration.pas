@@ -70,11 +70,14 @@ type
       const serviceName: string = '');
     procedure RegisterDefault(const model: TComponentModel; serviceType: PTypeInfo);
 
+    procedure RegisterFactory(const model: TComponentModel); overload;
     procedure RegisterFactory(const model: TComponentModel;
-      paramResolution: TParamResolution = TParamResolution.ByName); overload;
+      paramResolution: TParamResolution); overload;
+    procedure RegisterFactory(const model: TComponentModel;
+      const resolvedServiceName: string); overload;
     procedure RegisterFactory(const model: TComponentModel;
       const resolvedServiceName: string;
-      paramResolution: TParamResolution = TParamResolution.ByName); overload;
+      paramResolution: TParamResolution); overload;
 
     procedure UnregisterAll;
     function HasService(serviceType: PTypeInfo): Boolean; overload;
@@ -138,9 +141,10 @@ type
     function AsCustom(const lifetimeManager: IInterface): TRegistration; overload;
     function AsCustom<TLifetimeManagerType: class, constructor, ILifetimeManager>: TRegistration; overload; inline;
 
-    function AsFactory(paramResolution: TParamResolution = TParamResolution.ByName): TRegistration; overload;
-    function AsFactory(const resolvedServiceName: string;
-      paramResolution: TParamResolution = TParamResolution.ByName): TRegistration; overload;
+    function AsFactory: TRegistration; overload;
+    function AsFactory(paramResolution: TParamResolution): TRegistration; overload;
+    function AsFactory(const resolvedServiceName: string): TRegistration; overload;
+    function AsFactory(const resolvedServiceName: string; paramResolution: TParamResolution): TRegistration; overload;
 
     function InterceptedBy(interceptorType: PTypeInfo;
       where: TWhere = TWhere.Last): TRegistration; overload;
@@ -160,7 +164,16 @@ uses
   Spring.Collections.Lists,
   Spring.Container.Resolvers,
   Spring.Container.ResourceStrings,
-  Spring.Reflection;
+  Spring.Reflection,
+  StrUtils;
+
+function GetDefaultParamResolution(factoryType: TRttiType): TParamResolution;
+begin
+  if StartsStr('Spring.Func<', factoryType.DefaultName) then
+    Result := TParamResolution.ByType
+  else
+    Result := TParamResolution.ByName;
+end;
 
 
 {$REGION 'TComponentRegistry'}
@@ -276,23 +289,17 @@ var
   params: TArray<TRttiParameter>;
   i: Integer;
 begin
-  case paramResolution of
-    TParamResolution.ByName:
-    begin
-      SetLength(Result, Length(args) - 1);
-      params := method.GetParameters;
-      for i := 0 to High(params) do
+  SetLength(Result, Length(args) - 1);
+  params := method.GetParameters;
+  for i := 0 to High(params) do
+    case paramResolution of
+      TParamResolution.ByName:
         Result[i] := TNamedValue.Create(args[i + 1], params[i].Name);
+      TParamResolution.ByType:
+        Result[i] := TTypedValue.Create(args[i + 1], params[i].ParamType.Handle);
+    else
+      Result[i] := args[i + 1];
     end;
-    TParamResolution.ByType:
-    begin
-      SetLength(Result, Length(args) - 1);
-      for i := 1 to High(args) do
-        Result[i - 1] := TTypedValue.Create(args[i], args[i].TypeInfo);
-    end
-  else
-    Result := Copy(args, 1);
-  end;
 end;
 
 procedure TComponentRegistry.InternalRegisterFactory(
@@ -335,6 +342,11 @@ begin
     end;
 end;
 
+procedure TComponentRegistry.RegisterFactory(const model: TComponentModel);
+begin
+  RegisterFactory(model, GetDefaultParamResolution(model.ComponentType));
+end;
+
 procedure TComponentRegistry.RegisterFactory(const model: TComponentModel;
   paramResolution: TParamResolution);
 var
@@ -351,6 +363,12 @@ begin
     end;
 
   InternalRegisterFactory(model, invokeEvent);
+end;
+
+procedure TComponentRegistry.RegisterFactory(const model: TComponentModel;
+  const resolvedServiceName: string);
+begin
+  RegisterFactory(model, resolvedServiceName, GetDefaultParamResolution(model.ComponentType));
 end;
 
 procedure TComponentRegistry.RegisterFactory(const model: TComponentModel;
@@ -682,6 +700,12 @@ begin
   Result := AsCustom(TLifetimeManagerType.Create);
 end;
 
+function TRegistration.AsFactory: TRegistration;
+begin
+  Kernel.Registry.RegisterFactory(Model);
+  Result := Self;
+end;
+
 function TRegistration.AsFactory(
   paramResolution: TParamResolution): TRegistration;
 begin
@@ -689,8 +713,14 @@ begin
   Result := Self;
 end;
 
+function TRegistration.AsFactory(const resolvedServiceName: string): TRegistration;
+begin
+  Kernel.Registry.RegisterFactory(Model, resolvedServiceName);
+  Result := Self;
+end;
+
 function TRegistration.AsFactory(const resolvedServiceName: string;
-  paramResolution: TParamResolution = TParamResolution.ByName): TRegistration;
+  paramResolution: TParamResolution): TRegistration;
 begin
   Kernel.Registry.RegisterFactory(Model, resolvedServiceName, paramResolution);
   Result := Self;

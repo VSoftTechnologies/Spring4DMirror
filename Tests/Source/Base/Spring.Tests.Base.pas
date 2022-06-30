@@ -41,7 +41,8 @@ uses
   Spring.TestUtils,
   Spring,
   Spring.Collections,
-  Spring.Events;
+  Spring.Events,
+  Spring.Testing;
 
 type
   TTestNullableInteger = class(TTestCase)
@@ -712,6 +713,13 @@ type
     procedure TestNextPowerOf2;
   end;
 
+  THashKind = (xxHash32, Murmur3Hash);
+
+  TTestHash = class(TTestCase)
+  published
+    procedure TestHash([Values] hashKind: THashKind; [Range(0, 64)] len: Cardinal);
+  end;
+
 implementation
 
 uses
@@ -725,6 +733,7 @@ uses
   TimeSpan,
   Types,
   Spring.Comparers,
+  Spring.Hash,
   Spring.VirtualClass;
 
 
@@ -1042,10 +1051,13 @@ var
   t: TEventHandler;
 begin
   t := TEventHandler.Create;
-  e.Add(t.HandleInt64);
-  e.Invoke(42);
-  CheckTrue(t.fClassHandlerInvoked);
-  t.Free;
+  try
+    e.Add(t.HandleInt64);
+    e.Invoke(42);
+    CheckTrue(t.fClassHandlerInvoked);
+  finally
+    t.Free;
+  end;
 end;
 
 procedure TTestMulticastEvent.TestInvoke;
@@ -4545,6 +4557,79 @@ begin
     Result.b := Random(High(Integer));
     Result.c := Random(High(Integer));
   end);
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestHash'}
+
+procedure TTestHash.TestHash(hashKind: THashKind; len: Cardinal);
+const
+  // test data generated using Python mmh3 and xxhash modules
+  Data: array [0..63] of Byte = (
+    208, 117, 92, 62, 156, 212, 232, 10, 35, 8, 31, 230, 228, 102, 224, 58,
+    53, 25, 103, 147, 179, 175, 210, 84, 17, 158, 140, 126, 98, 98, 25, 120,
+    107, 167, 23, 87, 158, 237, 185, 74, 200, 146, 231, 119, 143, 138, 200,
+    172, 241, 93, 30, 70, 178, 63, 21, 44, 83, 159, 38, 242, 19, 166, 62, 97
+  );
+
+  // results generated using Python mmh3 and xxhash modules
+  (*
+    import mmh3
+    import xxhash
+
+    data = bytes([
+        208, 117, 92, 62, 156, 212, 232, 10, 35, 8, 31, 230, 228, 102, 224, 58,
+        53, 25, 103, 147, 179, 175, 210, 84, 17, 158, 140, 126, 98, 98, 25, 120,
+        107, 167, 23, 87, 158, 237, 185, 74, 200, 146, 231, 119, 143, 138, 200,
+        172, 241, 93, 30, 70, 178, 63, 21, 44, 83, 159, 38, 242, 19, 166, 62, 97
+    ])
+    print('input data')
+    print(', '.join([str(byte) for byte in data]))
+
+    mmh3h = [mmh3.hash(data[:len], 0xDEADBEEF) for len in range(65)]
+    print('mmh3')
+    print(', '.join('${:x}'.format(hash & 0xFFFFFFFF) for hash in mmh3h))
+
+    xxhash32h = [xxhash.xxh32(data[:len], 0xDEADBEEF) for len in range(65)]
+    print('xxhash32')
+    print(', '.join('${:x}'.format(hash.intdigest() & 0xFFFFFFFF) for hash in xxhash32h))
+  *)
+  ExpectedResults: array[THashKind, 0..64] of Cardinal = (
+    // xxHash32
+    (
+      $c372c6cb,
+      $e5f216a3, $0af6a55a, $40a90440, $03a549c5, $3b99221e, $fa164638, $7bcbf3c7, $e83a09d9,
+      $106efc1d, $8a9ce6e6, $fe5b8b51, $c8827864, $a5242ac6, $ab86ba02, $eeea2f7f, $5ae17b66,
+      $f8941f27, $aff57b0d, $9d039176, $43f5a52f, $5ca7d512, $77e0f040, $5ab1b93a, $46733668,
+      $534b5035, $d48af9d6, $7bbfc89d, $028abc3a, $267414eb, $1707db61, $7090c40b, $b36235df,
+      $68c68326, $a991ecd9, $335e17a0, $6a3fafd2, $51ebc2f5, $cbf1407e, $5ce8404b, $711181d5,
+      $b6b13b3f, $bdc248ed, $2c0d8235, $a33ce951, $0aba04ea, $295420b0, $d5b42bc0, $285d177f,
+      $5ce588c2, $fbeadfa1, $9b187c03, $4769a55b, $50f2669d, $e2e281ae, $89bf3044, $411c7bb3,
+      $d2173590, $43553094, $14b0d583, $07d1fe61, $e55f8855, $ab440b8e, $b5b7652a, $d3b4aa34
+    ),
+    // MurmurHash3
+    (
+      $0de5c6a9,
+      $42e92f47, $9eaac96c, $c48ae3bd, $2dafc77c, $fef89a7f, $e1241ce9, $cd21f3c5, $57ac4e2a,
+      $a4dee050, $49f322e2, $0bf78fbe, $5cd88bbe, $5c6bf74c, $e1e36aa6, $2a338652, $a51e1300,
+      $c04472ea, $5d553691, $f1ce041e, $97a46b33, $716ffc60, $e9a8a4df, $9634b6ff, $d644ecc4,
+      $431edce0, $111f82c5, $9bb9fd33, $7faad2cc, $3c3edc99, $c63467b2, $33cbe27e, $a6af9905,
+      $d7a690bd, $debaaeab, $be8cee99, $8339ee23, $86c4ec4d, $4bd40901, $c0ea88c6, $a8b4420b,
+      $0f7c34b0, $697a2423, $452acf1a, $803074d6, $add9a248, $69ab4d82, $b87c8b80, $2bdd6015,
+      $9ddce451, $139e2db6, $35105699, $4c8678c6, $4ba58bb0, $04478d61, $6906fea6, $7f8f1b82,
+      $6a89407a, $22dca392, $e33c5839, $13a53c29, $19872049, $92529e7b, $4aeb837f, $98258a10
+    )
+  );
+
+  HashFunction: array[THashKind] of THashFunction = (
+    Spring.Hash.xxHash32, Spring.Hash.MurmurHash3
+  );
+
+  Seed = Integer($deadbeef);
+begin
+  CheckEquals(ExpectedResults[hashKind, len], Cardinal(HashFunction[hashKind](Data[0], len, Seed)));
 end;
 
 {$ENDREGION}

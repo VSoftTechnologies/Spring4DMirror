@@ -37,7 +37,8 @@ uses
   Generics.Defaults,
   SysUtils,
   TypInfo,
-  Spring;
+  Spring,
+  Spring.Comparers;
 
 const
   doOwnsKeys = Spring.doOwnsKeys;
@@ -3545,29 +3546,7 @@ type
       const resultSelector: Func<TFirst, TSecond, TResult>): IEnumerable<TResult>; overload; static;
   end;
 
-  TStringComparer = class(TObject, IComparer<string>, IEqualityComparer<string>)
-  private
-    fLocaleOptions: TLocaleOptions;
-    fIgnoreCase: Boolean;
-    class var
-      fOrdinal: TStringComparer;
-      fOrdinalIgnoreCase: TStringComparer;
-  protected
-    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
-    function _AddRef: Integer; stdcall;
-    function _Release: Integer; stdcall;
-
-    function Compare(const left, right: string): Integer; reintroduce;
-    function Equals(const left, right: string): Boolean; reintroduce;
-    function GetHashCode(const value: string): Integer; reintroduce;
-  public
-    constructor Create(localeOptions: TLocaleOptions; ignoreCase: Boolean);
-    class constructor Create;
-    class destructor Destroy;
-
-    class function Ordinal: TStringComparer;
-    class function OrdinalIgnoreCase: TStringComparer;
-  end;
+  TStringComparer = Spring.Comparers.TStringComparer;
 
   TIdentityFunction<T> = record
   private class var
@@ -3623,7 +3602,6 @@ uses
   Spring.Collections.Queues,
   Spring.Collections.Sets,
   Spring.Collections.Stacks,
-  Spring.Comparers,
   Spring.ResourceStrings;
 
 
@@ -7884,131 +7862,6 @@ class function TEnumerable.Zip<TFirst, TSecond, TResult>(
   const resultSelector: Func<TFirst, TSecond, TResult>): IEnumerable<TResult>;
 begin
   Result := TZipIterator<TFirst, TSecond, TResult>.Create(first, second, resultSelector);
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TStringComparer'}
-
-constructor TStringComparer.Create(localeOptions: TLocaleOptions;
-  ignoreCase: Boolean);
-begin
-  fLocaleOptions := localeOptions;
-  fIgnoreCase := ignoreCase;
-end;
-
-class constructor TStringComparer.Create;
-begin
-  fOrdinal := TStringComparer.Create(loInvariantLocale, False);
-  fOrdinalIgnoreCase := TStringComparer.Create(loInvariantLocale, True);
-end;
-
-class destructor TStringComparer.Destroy;
-begin
-  FreeAndNil(fOrdinal);
-  FreeAndNil(fOrdinalIgnoreCase);
-end;
-
-function TStringComparer.Compare(const left, right: string): Integer;
-begin
-  if fIgnoreCase then
-    Result := AnsiCompareText(left, right)
-  else
-    Result := AnsiCompareStr(left, right);
-end;
-
-function TStringComparer.Equals(const left, right: string): Boolean;
-begin
-  if fIgnoreCase then
-    Result := AnsiSameText(left, right)
-  else
-    Result := AnsiSameStr(left, right);
-end;
-
-function TStringComparer.GetHashCode(const value: string): Integer;
-const
-  NotAsciiMask = $FF80FF80;
-  LowerCaseMask = $00200020;
-
-  // for inlining when compiled as package - System.Length does not in that case
-  function Length(const s: string): NativeInt; inline;
-  begin
-    Result := IntPtr(s);
-    if Result <> 0 then
-      Result := PInteger(@PByte(Result)[-4])^;
-  end;
-
-  function GetHashCodeIgnoreCaseSlow(const value: string): Integer;
-  var
-    s: string;
-    len: NativeInt;
-  begin
-    s := AnsiLowerCase(value);
-    len := Length(s);
-    Result := DefaultHashFunction(Pointer(s)^, len * SizeOf(Char));
-  end;
-
-label
-  NotAscii;
-var
-  i: NativeInt;
-  c: Integer;
-  buffer: array[0..1023] of Integer;
-  len: record value: NativeInt; end;
-begin
-  if value <> '' then
-  begin
-    len.value := PInteger(@PByte(value)[-4])^;
-    if fIgnoreCase then
-    begin
-      if len.value <= 2048 then
-      begin
-        for i := 0 to (len.value-1) shr 1 do
-        begin
-          c := PIntegerArray(value)[i];
-          if c and NotAsciiMask <> 0 then goto NotAscii;
-          buffer[i] := c or LowerCaseMask;
-        end;
-        Result := DefaultHashFunction(buffer[0], len.value * SizeOf(Char));
-      end
-      else
-      NotAscii:
-        Result := GetHashCodeIgnoreCaseSlow(value);
-    end
-    else
-      Result := DefaultHashFunction(Pointer(value)^, len.value * SizeOf(Char));
-  end
-  else
-    Result := DefaultHashFunction(Pointer(value)^, 0);
-end;
-
-class function TStringComparer.Ordinal: TStringComparer;
-begin
-  Result := fOrdinal;
-end;
-
-class function TStringComparer.OrdinalIgnoreCase: TStringComparer;
-begin
-  Result := fOrdinalIgnoreCase;
-end;
-
-function TStringComparer.QueryInterface(const IID: TGUID; out Obj): HResult;
-begin
-  if GetInterface(IID, Obj) then
-    Result := S_OK
-  else
-    Result := E_NOINTERFACE;
-end;
-
-function TStringComparer._AddRef: Integer;
-begin
-  Result := -1;
-end;
-
-function TStringComparer._Release: Integer;
-begin
-  Result := -1;
 end;
 
 {$ENDREGION}

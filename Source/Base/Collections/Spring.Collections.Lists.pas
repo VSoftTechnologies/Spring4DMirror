@@ -380,7 +380,7 @@ type
   TObservableObjectList = class(TFoldedList<TObject>, INotifyPropertyChanged)
   private
     fOnPropertyChanged: TPropertyChangedEventImpl;
-    function GetOnPropertyChanged: IEvent<TPropertyChangedEvent>;
+    function GetOnPropertyChanged: IInvokableEvent<TPropertyChangedEvent>;
   protected
     procedure DoItemPropertyChanged(sender: TObject;
       const eventArgs: IPropertyChangedEventArgs);
@@ -394,7 +394,7 @@ type
   TObservableInterfaceList = class(TFoldedList<IInterface>, INotifyPropertyChanged)
   private
     fOnPropertyChanged: TPropertyChangedEventImpl;
-    function GetOnPropertyChanged: IEvent<TPropertyChangedEvent>;
+    function GetOnPropertyChanged: IInvokableEvent<TPropertyChangedEvent>;
   protected
     procedure DoItemPropertyChanged(sender: TObject;
       const eventArgs: IPropertyChangedEventArgs);
@@ -1090,12 +1090,12 @@ begin
         Dec(fCount, count);
 
         if ItemType.IsManaged then
-          FinalizeArray(@fItems[index], TypeInfo(T), count);
+          System.Finalize(fItems[index], count);
         if tailCount > 0 then
           if ItemType.HasWeakRef then
           begin
             MoveManaged(@fItems[index + count], @fItems[index], TypeInfo(T), tailCount);
-            FinalizeArray(@fItems[index + tailCount], TypeInfo(T), count);
+            System.Finalize(fItems[index + tailCount], count);
           end
           else
             System.Move(fItems[index + count], fItems[index], SizeOf(T) * tailCount);
@@ -1262,7 +1262,7 @@ begin
   if ItemType.HasWeakRef then
   begin
     MoveManaged(@fItems[sourceIndex], @fItems[targetIndex], TypeInfo(T), itemCount);
-    FinalizeArray(@fItems[newIndex], TypeInfo(T), 1);
+    System.Finalize(fItems[newIndex], 1);
   end
   else
     System.Move(fItems[sourceIndex], fItems[targetIndex], SizeOf(T) * itemCount);
@@ -1292,7 +1292,7 @@ begin
     // hardcast to solve compiler glitch in older Delphi versions due to AddRange overload
     ICollectionInternal(collection).AddRange(Slice(TSlice<T>((@fItems[0])^), Result));
     if ItemType.IsManaged then
-      FinalizeArray(fItems, TypeInfo(T), Result);
+      System.Finalize(fItems[0], Result);
     System.FillChar(fItems[0], SizeOf(T) * Result, 0);
   end;
 end;
@@ -1462,7 +1462,7 @@ begin
   Result := listCount - freeIndex;
   if Result > 0 then
     if ItemType.IsManaged then
-      FinalizeArray(@fItems[freeIndex], TypeInfo(T), Result)
+      System.Finalize(fItems[freeIndex], Result)
     else
       System.FillChar(fItems[freeIndex], SizeOf(T) * Result, 0);
   Dec(fCount, Result);
@@ -2395,7 +2395,7 @@ begin
     Invoke(Self, TPropertyChangedEventArgs.Create(propertyName) as IPropertyChangedEventArgs);
 end;
 
-function TObservableObjectList.GetOnPropertyChanged: IEvent<TPropertyChangedEvent>;
+function TObservableObjectList.GetOnPropertyChanged: IInvokableEvent<TPropertyChangedEvent>;
 begin
   Result := fOnPropertyChanged;
 end;
@@ -2452,7 +2452,7 @@ begin
     Invoke(Self, TPropertyChangedEventArgs.Create(propertyName) as IPropertyChangedEventArgs);
 end;
 
-function TObservableInterfaceList.GetOnPropertyChanged: IEvent<TPropertyChangedEvent>;
+function TObservableInterfaceList.GetOnPropertyChanged: IInvokableEvent<TPropertyChangedEvent>;
 begin
   Result := fOnPropertyChanged;
 end;

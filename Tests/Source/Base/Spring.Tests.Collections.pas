@@ -2105,7 +2105,7 @@ begin
   SUT.Add('1');
   SUT.Add('2');
   SUT.InsertRange(1, SUT);
-  CheckTrue(SUT.EqualsTo(['1', '1', '2', '2']));;
+  CheckTrue(SUT.EqualsTo(['1', '1', '2', '2']));
   SUT.Delete(1);
   SUT.Delete(0);
 end;
@@ -6941,7 +6941,10 @@ begin
     end);
   memoized := range.Memoize;
 
+  CheckEquals(5, memoized.Take(5).Count);
+  CheckEquals(5, count);
   CheckEquals(10, memoized.Count);
+  CheckEquals(0, count);
   CheckEquals(10, memoized.Count);
 end;
 

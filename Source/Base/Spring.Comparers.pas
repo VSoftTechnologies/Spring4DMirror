@@ -46,6 +46,20 @@ type
     class function Default: IEqualityComparer<T>; static;
   end;
 
+  TStringComparer = record
+  private type
+    TIStringComparer = record
+      class operator Implicit(const value: TIStringComparer): IEqualityComparer<string>;
+      class operator Implicit(const value: TIStringComparer): IComparer<string>;
+    end;
+  public
+    class operator Implicit(const value: TStringComparer): IEqualityComparer<string>;
+    class operator Implicit(const value: TStringComparer): IComparer<string>;
+
+    class function Ordinal: TStringComparer; static; //inline;
+    class function OrdinalIgnoreCase: TIStringComparer; static; //inline;
+  end;
+
   THashFunction = function(const key; len: Cardinal; seed: Integer = 0): Integer;
 
 function _LookupVtableInfo(intf: TDefaultGenericInterface; info: PTypeInfo; size: Integer): Pointer;
@@ -53,7 +67,7 @@ procedure RegisterComparer(intf: TDefaultGenericInterface; typeInfo: PTypeInfo; 
 function SameGuid(const left, right: TGUID): Boolean;
 
 var
-  DefaultHashFunction: THashFunction = MurmurHash3;
+  DefaultHashFunction: THashFunction = xxHash32;
 
 implementation
 
@@ -62,8 +76,25 @@ uses
   SyncObjs,
   SysUtils,
   Variants,
+  {$IFDEF MSWINDOWS}
+  Windows,
+  {$ENDIF}
   Spring,
   Spring.HashTable;
+
+function BinaryCompare(left, right: Pointer; size: NativeInt): Integer;
+begin
+  while size > 0 do
+  begin
+    Result := PByte(left)^ - PByte(right)^;
+    if Result <> 0 then
+      Exit;
+    Dec(size);
+    Inc(PByte(left));
+    Inc(PByte(right));
+  end;
+  Result := 0;
+end;
 
 function SameGuid(const left, right: TGUID): Boolean;
 {$IFDEF ASSEMBLER}
@@ -91,21 +122,16 @@ end;
 
 class function TComparer<T>.Default: IComparer<T>;
 begin
-  Result := IComparer<T>(_LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T)));
+  Result := IComparer<T>(_LookupVtableInfo(giComparer, TypeInfo(T), Integer(SizeOf(T))));
 end;
 
 class function TEqualityComparer<T>.Default: IEqualityComparer<T>;
 begin
-  Result := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T)));
+  Result := IEqualityComparer<T>(_LookupVtableInfo(giEqualityComparer, TypeInfo(T), Integer(SizeOf(T))));
 end;
 
 type
-  TMethodPointer = procedure of object;
-  Int24 = packed record
-  case Integer of
-    0: (Low: Word; High: Byte);
-    1: (Bytes: array[0..2] of Byte);
-  end;
+  UInt24 = Int24;
 
   IComparer = record
     VTable,
@@ -313,9 +339,9 @@ begin
 end;
 {$ENDIF}
 
-function Compare_Bin16(const inst: Pointer; const left, right: Word): Integer;
+function Compare_Bin16(const inst: Pointer; const left, right: UInt16): Integer;
 var
-  leftVal, rightVal: NativeUInt;
+  leftVal, rightVal: Cardinal;
 begin
   leftVal := left;
   rightVal := right;
@@ -324,60 +350,55 @@ begin
   Result := Integer(leftVal) - Integer(rightVal);
 end;
 
-function Compare_Bin24(const inst: Pointer; const left, right: Int24): Integer;
+function Compare_Bin24(const inst: Pointer; const left, right: UInt24): Integer;
 var
-  leftVal, rightVal: NativeUInt;
+  leftVal, rightVal: Cardinal;
 begin
   leftVal := left.Low;
   rightVal := right.Low;
-  leftVal := (Swap(leftVal) shl 8) + left.High;
-  rightVal := (Swap(rightVal) shl 8) + right.High;
+  leftVal := (Swap(leftVal) shl 8) or left.High;
+  rightVal := (Swap(rightVal) shl 8) or right.High;
   Result := Integer(leftVal) - Integer(rightVal);
 end;
 
-function Compare_Bin32(const inst: Pointer; const left, right: Cardinal): Integer;
+function Compare_Bin32(const inst: Pointer; const left, right: UInt32): Integer;
 var
-  leftVal, rightVal: NativeUInt;
+  leftVal, rightVal: Cardinal;
 begin
-  {$IFDEF CPU64BITS}
-  leftVal := left;
-  rightVal := right;
-  leftVal := (Swap(leftVal) shl 16) + Swap(leftVal shr 16);
-  rightVal := (Swap(rightVal) shl 16) + Swap(rightVal shr 16);
-  {$ELSE}
-  leftVal := (Swap(left) shl 16) + Swap(left shr 16);
-  rightVal := (Swap(right) shl 16) + Swap(right shr 16);
-  {$ENDIF}
+  leftVal := (Swap(left) shl 16) or Swap(left shr 16);
+  rightVal := (Swap(right) shl 16) or Swap(right shr 16);
   Result := ShortInt(Byte(leftVal >= rightVal) - Byte(leftVal <= rightVal));
 end;
 
-function Compare_Bin64(const inst: Pointer; const left, right: Int64): Integer;
+function Compare_Bin64(const inst: Pointer; const left, right: UInt64): Integer;
 var
-  leftVal, rightVal: NativeUInt;
+  leftVal, rightVal: Cardinal;
 begin
-  if Integer(left) = Integer(right) then
+  if Cardinal(left) = Cardinal(right) then
   begin
-    leftVal := left shr 32;
-    rightVal := right shr 32;
+    leftVal := Cardinal(left shr 32);
+    rightVal := Cardinal(right shr 32);
   end else
   begin
     leftVal := Cardinal(left);
     rightVal := Cardinal(right);
   end;
-  leftVal := (Swap(leftVal) shl 16) + Swap(leftVal shr 16);
-  rightVal := (Swap(rightVal) shl 16) + Swap(rightVal shr 16);
+  leftVal := (Swap(leftVal) shl 16) or Swap(leftVal shr 16);
+  rightVal := (Swap(rightVal) shl 16) or Swap(rightVal shr 16);
 
   Result := ShortInt(Byte(leftVal >= rightVal) - Byte(leftVal <= rightVal));
 end;
 
-function Equals_Bin24(const inst: Pointer; const left, right: Int24): Boolean;
+function Equals_Bin24(const inst: Pointer; const left, right: UInt24): Boolean;
 begin
-  Result := (left.Low + left.High shl 16) = (right.Low + right.High shl 16);
+  {$B+}
+  Result := (left.Low = right.Low) and (left.High = right.High);
+  {$B-}
 end;
 
-function GetHashCode_Bin24(const inst: Pointer; const value: Int24): Integer;
+function GetHashCode_Bin24(const inst: Pointer; const value: UInt24): Integer;
 begin
-  Result := value.Low + value.High shl 16;
+  Result := value.Low or (value.High shl 16);
 end;
 
 function Compare_Int32(const inst: Pointer; const left, right: Integer): Integer;
@@ -664,34 +685,154 @@ begin
   Result := DefaultHashFunction(e, SizeOf(e), Result);
 end;
 
-function Compare_String(const inst: Pointer; const left, right: OpenString): Integer;
+function Compare_String(const inst: Pointer; const left, right: Pointer): Integer;
+{$IFDEF ASSEMBLER}
+{$IFDEF CPUX86}
+asm
+  mov    eax, edx
+  mov    edx, ecx
+  call   System.@PStrCmp
+  setnz  dl
+  movzx  edx, dl
+  mov    eax, -1
+  cmovnb eax, edx
+end;
+{$ELSE}
+asm
+  .params 2
+  mov    rcx, rdx
+  mov    rdx, r8
+  call   System.@PStrCmp
+end;
+{$ENDIF}
+{$ELSE}
 begin
-  if left < right then
+  if PShortString(left)^ < PShortString(right)^ then
     Result := -1
-  else if left > right then
+  else if PShortString(left)^ > PShortString(right)^ then
     Result := 1
   else
     Result := 0;
 end;
+{$ENDIF}
 
-function Equals_String(const inst: Pointer; const left, right: OpenString): Boolean;
+function Equals_String(const inst: Pointer; const left, right: Pointer): Boolean;
+{$IFDEF CPUX86}
+asm
+  mov   eax, ecx
+  movzx ecx, [ecx]
+  inc   ecx
+  call  System.@AStrCmp
+  setz  al
+end;
+{$ELSE}
 begin
-  Result := left = right;
+  Result := PShortString(left)^ = PShortString(right)^;
+end;
+{$ENDIF}
+
+function GetHashCode_String(const inst: Pointer; const value: Pointer): Integer;
+begin
+  Result := DefaultHashFunction(PByte(value)[1], PByte(value)[0]);
 end;
 
-function GetHashCode_String(const inst: Pointer; const value: OpenString): Integer;
+function Compare_String_CaseInsensitive(const inst: Pointer; const left, right: string): Integer;
+{$IFDEF MSWINDOWS}
+var
+  leftLen, rightLen: NativeInt;
+{$ENDIF}
 begin
-  Result := DefaultHashFunction(value[1], Length(value));
+  Result := 0;
+  if Pointer(left) = Pointer(right) then Exit;
+  {$IFDEF MSWINDOWS}
+  leftLen := IntPtr(left);
+  if leftLen <> 0 then
+    leftLen := PCardinal(@PByte(left)[-4])^;
+  rightLen := IntPtr(right);
+  if rightLen <> 0 then
+    rightLen := PCardinal(@PByte(right)[-4])^;
+  Result := CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, Pointer(left), leftLen, Pointer(right), rightLen);
+  Result := Result - CSTR_EQUAL;
+  {$ELSE}
+  Result := AnsiCompareText(left, right);
+  {$ENDIF}
+end;
+
+function Equals_String_CaseInsensitive(const inst: Pointer; const left, right: string): Boolean;
+var
+{$IFDEF MSWINDOWS}
+  leftLen, rightLen: NativeInt;
+{$ENDIF}
+  res: Integer;
+begin
+  Result := True;
+  if Pointer(left) = Pointer(right) then Exit;
+  {$IFDEF MSWINDOWS}
+  leftLen := IntPtr(left);
+  if leftLen <> 0 then
+    leftLen := PCardinal(@PByte(left)[-4])^;
+  rightLen := IntPtr(right);
+  if rightLen <> 0 then
+    rightLen := PCardinal(@PByte(right)[-4])^;
+  res := CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, Pointer(left), leftLen, Pointer(right), rightLen);
+  Result := res = CSTR_EQUAL;
+  {$ELSE}
+  res := AnsiCompareText(left, right);
+  Result := res = 0;
+  {$ENDIF}
+end;
+
+function GetHashCode_String_CaseInsensitive(const inst: Pointer; const value: string): Integer;
+
+  function GetHashCodeIgnoreCaseSlow(const value: string): Integer;
+  var
+    s: string;
+  begin
+    s := AnsiLowerCase(value);
+    Result := DefaultHashFunction(Pointer(s)^, PCardinal(@PByte(s)[-4])^ * SizeOf(Char));
+  end;
+
+const
+  NotAsciiMask = $FF80FF80;
+  LowerCaseMask = $00200020;
+  MaxBufferSize = 2048;
+label
+  NotAscii;
+var
+  i: NativeInt;
+  c: Integer;
+  buffer: array[0..MaxBufferSize-1] of Char;
+  len: record value: Cardinal; end;
+begin
+  if value <> '' then
+  begin
+    len.value := PCardinal(@PByte(value)[-4])^;
+    if len.value <= MaxBufferSize then
+    begin
+      for i := 0 to Pred(len.value) div 2 do
+      begin
+        c := PIntegerArray(value)[i];
+        if c and NotAsciiMask <> 0 then goto NotAscii;
+        PIntegerArray(@buffer)[i] := c or LowerCaseMask;
+      end;
+      Result := DefaultHashFunction(buffer[0], len.value * SizeOf(Char));
+    end
+    else
+    NotAscii:
+      Result := GetHashCodeIgnoreCaseSlow(value);
+  end
+  else
+    Result := DefaultHashFunction(Pointer(value)^, 0);
 end;
 
 function Equals_Class(const inst: Pointer; const left, right: TObject): Boolean;
 begin
-  if left <> nil then
+  if left = right then
+    Result := True
+  else if left <> nil then
     Result := left.Equals(right)
-  else if right <> nil then
-    Result := right.Equals(left)
   else
-    Result := True;
+    Result := right.Equals(left)
 end;
 
 function Compare_Class(const inst: Pointer; const left, right: TObject): Integer;
@@ -771,8 +912,13 @@ begin
 end;
 
 function GetHashCode_LString(const inst: Pointer; const value: RawByteString): Integer;
+var
+  hashCode: NativeInt;
 begin
-  Result := DefaultHashFunction(value[1], Length(value) * SizeOf(value[1]));
+  hashCode := NativeInt(value);
+  if hashCode <> 0 then
+    hashCode := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^);
+  Result := Integer(hashCode);
 end;
 
 function Compare_WString(const inst: Pointer; const left, right: WideString): Integer;
@@ -799,9 +945,14 @@ begin
   Result := Compare_WString(inst, left, right) = 0;
 end;
 
-function GetHashCode_WString(const inst: Pointer; const value: RawByteString): Integer;
+function GetHashCode_WString(const inst: Pointer; const value: WideString): Integer;
+var
+  hashCode: NativeInt;
 begin
-  Result := DefaultHashFunction(value[1], Length(value) * SizeOf(value[1]));
+  hashCode := NativeInt(value);
+  if hashCode <> 0 then
+    hashCode := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^{$IFNDEF MSWINDOWS} * SizeOf(WideChar){$ENDIF});
+  Result := Integer(hashCode);
 end;
 
 function Compare_UString(const inst: Pointer; const left, right: string): Integer;
@@ -828,8 +979,8 @@ var
 begin
   hashCode := NativeInt(value);
   if hashCode <> 0 then
-    hashCode := DefaultHashFunction(PPointer(hashCode)^, PInteger(@PByte(value)[-4])^ * SizeOf(Char));
-  Result := hashCode;
+    hashCode := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^ * SizeOf(Char));
+  Result := Integer(hashCode);
 end;
 
 function Compare_Variant_Complex(checkEquality: Boolean; const left, right: PVariant): Integer;
@@ -1018,6 +1169,12 @@ begin
 end;
 
 function GetHashCode_Variant(const inst: Pointer; value: PVarData): Integer;
+type
+  PShortString = ^TShortString;
+  TShortString = packed record
+    Length: Byte;
+    Data: record end;
+  end;
 begin
   case value.VType of
     varEmpty, varNull:
@@ -1035,11 +1192,12 @@ begin
     varDouble, varDate:
       Exit(GetHashCode_Double(nil, value.VDouble));
     varString:
-      Exit(DefaultHashFunction(PByte(value.VPointer)[1], PByte(value.VPointer)^));
+      with PShortString(value.VPointer)^ do
+        Exit(DefaultHashFunction(Data, Length));
     varUString:
       Exit(GetHashCode_UString(nil, string(value.VPointer)));
     varOleStr:
-      Exit(GetHashCode_WString(nil, RawByteString(value.VPointer)));
+      Exit(GetHashCode_WString(nil, WideString(Pointer(value.VOleStr))));
   else
     Result := GetHashCode_Variant_Complex(nil, PVariant(value));
   end;
@@ -1086,7 +1244,16 @@ end;
 
 function TComparerInstance.GetHashCode_Binary(const value): Integer;
 begin
-  Result := DefaultHashFunction(value, Size);
+  Result := DefaultHashFunction(value, Cardinal(Size));
+end;
+
+function DynArrayLength(const A: Pointer): NativeInt; inline;
+begin
+  Result := NativeInt(A);
+  if Result <> 0 then
+    {$POINTERMATH ON}
+    Result := PNativeInt(Result)[-1];
+    {$POINTERMATH OFF}
 end;
 
 function TComparerInstance.Compare_DynArray(const left, right: Pointer): Integer;
@@ -1099,7 +1266,7 @@ begin
     Dec(len, lenDiff);
   Result := BinaryCompare(left, right, Size * len);
   if Result = 0 then
-    Result := lenDiff;
+    Result := Byte(lenDiff > 0) - Byte(lenDiff < 0);
 end;
 
 function TComparerInstance.Equals_DynArray(const left, right: Pointer): Boolean;
@@ -1114,8 +1281,19 @@ begin
 end;
 
 function TComparerInstance.GetHashCode_DynArray(const value: Pointer): Integer;
+var
+{$IFDEF CPUX86}
+  size: Cardinal;
+{$ENDIF}
+  hashCode: NativeInt;
 begin
-  Result := DefaultHashFunction(value^, Size * DynArrayLength(value));
+{$IFDEF CPUX86}
+  size := Cardinal(Self.Size);
+{$ENDIF}
+  hashCode := NativeInt(value);
+  if hashCode <> 0 then
+    hashCode := DefaultHashFunction(PPointer(hashCode)^, PNativeUInt(@PByte(value)[-SizeOf(NativeInt)])^ * Cardinal(size));
+  Result := Integer(hashCode);
 end;
 
 const
@@ -1328,6 +1506,23 @@ const
     GetHashCode: @GetHashCode_String
   );
 
+  Comparer_String_CaseInsensitive: IComparer = (
+    VTable: @Comparer_String_CaseInsensitive.QueryInterface;
+    QueryInterface: @NopQueryInterface;
+    AddRef: @NopRef;
+    Release: @NopRef;
+    Compare: @Compare_String_CaseInsensitive
+  );
+
+  EqualityComparer_String_CaseInsensitive: IEqualityComparer = (
+    VTable: @EqualityComparer_String_CaseInsensitive.QueryInterface;
+    QueryInterface: @NopQueryInterface;
+    AddRef: @NopRef;
+    Release: @NopRef;
+    Equals: @Equals_String_CaseInsensitive;
+    GetHashCode: @GetHashCode_String_CaseInsensitive
+  );
+
   Comparer_Class: IComparer = (
     VTable: @Comparer_Class.QueryInterface;
     QueryInterface: @NopQueryInterface;
@@ -1388,7 +1583,7 @@ const
   );
 
   EqualityComparer_WString: IEqualityComparer = (
-    VTable: @EqualityComparer_LString.QueryInterface;
+    VTable: @EqualityComparer_WString.QueryInterface;
     QueryInterface: @NopQueryInterface;
     AddRef: @NopRef;
     Release: @NopRef;
@@ -1605,6 +1800,34 @@ begin
   end
   else
     Result := Selector_Binary(intf, info, size);
+end;
+
+class operator TStringComparer.TIStringComparer.Implicit(const value: TIStringComparer): IComparer<string>;
+begin
+  Result := IComparer<string>(@Comparer_String_CaseInsensitive);
+end;
+
+class operator TStringComparer.TIStringComparer.Implicit(const value: TIStringComparer): IEqualityComparer<string>;
+begin
+  Result := IEqualityComparer<string>(@EqualityComparer_String_CaseInsensitive);
+end;
+
+class operator TStringComparer.Implicit(const value: TStringComparer): IComparer<string>;
+begin
+  Result := IComparer<string>(_LookupVtableInfo(giComparer, TypeInfo(string), Integer(SizeOf(string))));
+end;
+
+class operator TStringComparer.Implicit(const value: TStringComparer): IEqualityComparer<string>;
+begin
+  Result := IEqualityComparer<string>(_LookupVtableInfo(giEqualityComparer, TypeInfo(string), Integer(SizeOf(string))));
+end;
+
+class function TStringComparer.Ordinal: TStringComparer;
+begin
+end;
+
+class function TStringComparer.OrdinalIgnoreCase: TIStringComparer;
+begin
 end;
 
 function Equals_TypeInfo(const inst: Pointer; const left, right: PPTypeInfo): Boolean;
