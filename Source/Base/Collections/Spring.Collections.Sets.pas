@@ -368,10 +368,13 @@ begin
 end;
 
 procedure THashSet<T>.AfterConstruction;
+var
+  elementType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
-  fHashTable.Initialize(@TComparerThunks<T>.Equals, @TComparerThunks<T>.GetHashCode, TypeInfo(T));
+  elementType := GetElementType;
+  fHashTable.Initialize(@TComparerThunks<T>.Equals, @TComparerThunks<T>.GetHashCode, elementType);
   {$IFDEF DELPHIXE7_UP}
   if fHashTable.DefaultComparer then
     fHashTable.Find := @THashTable<T>.FindWithoutComparer

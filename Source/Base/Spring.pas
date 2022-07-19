@@ -94,6 +94,10 @@ type
   SIZE_T = ULONG_PTR;
 {$ENDIF}
 
+{$IFNDEF DELPHIXE3_UP}
+  TSymbolName = ShortString;
+{$ENDIF}
+
   PObject = ^TObject;
   {$POINTERMATH ON}
   PVTable = ^Pointer;
@@ -616,6 +620,15 @@ type
     function AsType<T>: T; overload;
 
     procedure AsType(typeInfo: PTypeInfo; out target); overload;
+
+    /// <summary>
+    ///   Casts the currently stored value to another type.
+    /// </summary>
+    /// <remarks>
+    ///   This method uses an equality check on the typeInfo to support types
+    ///   across binary boundaries
+    /// </remarks>
+    procedure AsTypeRelaxed(typeInfo: PTypeInfo; out target);
 
     /// <summary>
     ///   Casts the currently stored value to another type.
@@ -3155,6 +3168,12 @@ function IsAssignableFrom(leftType, rightType: PTypeInfo): Boolean; overload;
 function IsAssignableFrom(const leftTypes, rightTypes: array of PTypeInfo): Boolean; overload;
 
 /// <summary>
+///   Determines whether an instance of <c>leftType</c> can be assigned from an
+///   instance of <c>rightType</c> using an equality check of the typeinfo.
+/// </summary>
+function IsAssignableFromRelaxed(leftType, rightType: PTypeInfo): Boolean;
+
+/// <summary>
 ///   Returns <c>True</c> if the type is a nullable type.
 /// </summary>
 function IsNullable(typeInfo: PTypeInfo): Boolean;
@@ -3221,6 +3240,15 @@ function MethodToMethodReference(const method: TMethod): IInterface;
 function MethodPointerToMethodReference(const method: TMethodPointer): IInterface;
 function HasMethodInfo(typeInfo: PTypeInfo): Boolean;
 function IsMethodReference(typeInfo: PTypeInfo): Boolean;
+
+function GetInterfaceByTypeInfo(self: TObject; intf: PTypeInfo; out obj): Boolean;
+
+{$IFDEF MSWINDOWS}
+function UTF8IdentIdentCompare(left, right: PByte): Boolean;
+{$ENDIF}
+
+function SameTypeInfo(const left, right: PTypeInfo): Boolean;
+function GetTypeInfoHashCode(const typeInfo: PTypeInfo): Integer;
 
 function SkipShortString(P: PByte): Pointer; inline;
 
@@ -3377,6 +3405,12 @@ uses
   Spring.Events,
   Spring.ResourceStrings,
   Spring.VirtualClass;
+
+const
+  TypeDataOffset    = SizeOf(TTypeKind) + SizeOf(Byte);
+  UnitNameOffset    = TypeDataOffset + SizeOf(TClass) + SizeOf(PPTypeInfo) + SizeOf(SmallInt);
+  IntfUnitOffset    = TypeDataOffset + SizeOf(PPTypeInfo) + SizeOf(TIntfFlagsBase) + SizeOf(TGUID);
+  DynUnitNameOffset = TypeDataOffset + SizeOf(Integer) + SizeOf(PPTypeInfo) + SizeOf(Integer) + SizeOf(PPTypeInfo);
 
 
 {$REGION 'Routines'}
@@ -3586,6 +3620,218 @@ begin
 {$ENDIF}
 end;
 
+{$IFDEF MSWINDOWS}
+function InternalUTF8ShortShortCompare(left, right: Pointer): Boolean; overload;
+var
+  leftLen, rightLen: Integer;
+  leftBuffer, rightBuffer: array[0..255] of WideChar;
+begin
+  leftLen := MultiByteToWideChar(CP_UTF8, 0, @PByte(left)[1], PByte(left)^, leftBuffer, Length(leftBuffer));
+  rightLen := MultiByteToWideChar(CP_UTF8, 0, @PByte(right)[1], PByte(right)^, rightBuffer, Length(rightBuffer));
+  Result := CompareString(UTF8CompareLocale, NORM_IGNORECASE, leftBuffer, leftLen, rightBuffer, rightLen) = CSTR_EQUAL;
+end;
+
+function UTF8IdentIdentCompare(left, right: PByte): Boolean;
+label
+  NotEqual, Utf8Compare;
+var
+  i, n: NativeInt;
+begin
+  if left^ <> right^ then
+    goto NotEqual;
+
+  i := 1;
+  for n := 1 to left^ div 4 do
+  begin
+    if PCardinal(@left[i])^ and $80808080 <> 0 then
+      goto Utf8Compare;
+    if PCardinal(@right[i])^ and $80808080 <> 0 then
+      goto Utf8Compare;
+    if (PCardinal(@left[i])^ xor PCardinal(@right[i])^) and $5F5F5F5F <> 0 then
+      goto NotEqual;
+    Inc(i, 4);
+  end;
+  for n := 1 to left^ mod 4 do
+  begin
+    if left[i] and $80 <> 0 then
+      goto Utf8Compare;
+    if right[i] and $80 <> 0 then
+      goto Utf8Compare;
+    if (left[i] xor right[i]) and $5F <> 0 then
+      goto NotEqual;
+    Inc(i);
+  end;
+  Exit(True);
+NotEqual:
+  Exit(False);
+Utf8Compare:
+  Result := InternalUTF8ShortShortCompare(left, right);
+end;
+{$ENDIF}
+
+function SameTypeInfo(const left, right: PTypeInfo): Boolean;
+label
+  BothTypesNonNil, Equal;
+var
+  leftUnitName, rightUnitName: ^TSymbolName;
+begin
+  if left <> right then
+  begin
+    if NativeUInt(left) and NativeUInt(right) <> 0 then
+    begin
+  BothTypesNonNil:
+      if left.Kind = right.Kind then
+      if UTF8IdentIdentCompare(@left.Name, @right.Name) then
+      begin
+        case left.Kind of
+          tkDynArray:
+          begin
+            leftUnitName := @PByte(left)[Length(left.Name) + DynUnitNameOffset];
+            rightUnitName := @PByte(right)[Length(right.Name) + DynUnitNameOffset];
+          end;
+          tkInterface:
+          begin
+            leftUnitName := @PByte(left)[Length(left.Name) + IntfUnitOffset];
+            rightUnitName := @PByte(right)[Length(right.Name) + IntfUnitOffset];
+          end;
+          tkClass:
+          begin
+            leftUnitName := @PByte(left)[Length(left.Name) + UnitNameOffset];
+            rightUnitName := @PByte(right)[Length(right.Name) + UnitNameOffset];
+          end;
+        else
+          goto Equal;
+        end;
+        Exit(UTF8IdentIdentCompare(Pointer(leftUnitName), Pointer(rightUnitName)));
+      end;
+    end else if Assigned(left) and Assigned(right) then
+      goto BothTypesNonNil;
+    Exit(False);
+  end;
+Equal:
+  Result := True;
+end;
+
+function GetTypeInfoHashCode(const typeInfo: PTypeInfo): Integer;
+var
+  hashFunction: THashFunction;
+  unitName: ^TSymbolName;
+begin
+  hashFunction := DefaultHashFunction;
+  Result := hashFunction(typeInfo.Name[1], Length(typeInfo.Name), Ord(typeInfo.Kind));
+  case typeInfo.Kind of
+    tkDynArray:  unitName := @PByte(typeInfo)[Length(typeInfo.Name) + DynUnitNameOffset];
+    tkInterface: unitName := @PByte(typeInfo)[Length(typeInfo.Name) + IntfUnitOffset];
+    tkClass:     unitName := @PByte(typeInfo)[Length(typeInfo.Name) + UnitNameOffset];
+  else
+    Exit;
+  end;
+  Result := hashFunction(unitName^[1], Length(unitName^), Result);
+end;
+
+function GetInterfaceEntryByTypeInfo(cls: TClass; intf: PTypeInfo): PInterfaceEntry;
+var
+  interfaceTable: PInterfaceTable;
+  p: PPPTypeInfo;
+  i: Integer;
+begin
+  repeat
+    interfaceTable := cls.GetInterfaceTable;
+    if interfaceTable <> nil then
+    begin
+      p := @interfaceTable.Entries[interfaceTable.EntryCount];
+      for i := 0 to interfaceTable.EntryCount - 1 do
+      begin
+        Result := @interfaceTable.Entries[i];
+        if p^^ = intf then
+          Exit;
+        if (p^^.Kind = tkInterface)
+          and UTF8IdentIdentCompare(@p^^.Name, @intf.Name)
+          and UTF8IdentIdentCompare(@p^^.TypeData.IntfUnit, @intf.TypeData.IntfUnit) then
+          Exit;
+        Inc(p);
+      end;
+    end;
+    cls := cls.ClassParent;
+  until cls = nil;
+  Result := nil;
+end;
+
+procedure InvokeImplGetter(const self: TObject; implGetter: NativeUInt; var result: IInterface);
+{$IFNDEF CPUX86}
+type
+{$IF Defined(MSWINDOWS) or Defined(OSX32)}
+  TGetProc = procedure (const Self: TObject; var Result: IInterface);
+{$ELSEIF Defined(LINUX64) or Defined(OSX64) or Defined(CPUARM32)}
+  TGetProc = procedure (var Result: IInterface; const Self: TObject);
+{$ELSEIF Defined(CPUARM64)}
+  TGetProc = function (const Self: TObject): IInterface;
+{$ELSE}
+  {$MESSAGE Fatal 'InvokeImplGetter not implemented for platform'}
+{$IFEND}
+var
+  getProc: TGetProc;
+begin
+  if (implGetter and PROPSLOT_MASK) = PROPSLOT_FIELD then
+    Result := IInterface(PPointer(PByte(self) + (implGetter and not PROPSLOT_MASK))^)
+  else
+  begin
+    if (implGetter and PROPSLOT_MASK) = PROPSLOT_VIRTUAL then
+      getProc := PPointer(PNativeInt(self)^ + SmallInt(implGetter))^
+    else
+      getProc := Pointer(implGetter);
+{$IF Defined(MSWINDOWS) or Defined(OSX32)}
+    GetProc(Self, Result);
+{$ELSEIF Defined(LINUX64) or Defined(OSX64) or Defined(CPUARM32)}
+    GetProc(Result, Self);
+{$ELSEIF Defined(CPUARM64)}
+    Result := GetProc(Self);
+{$ELSE}
+    {$MESSAGE Fatal 'InvokeImplGetter not implemented for platform'}
+{$IFEND}
+  end;
+end;
+{$ELSE}
+asm
+  xchg edx,ecx
+  cmp ecx,PROPSLOT_FIELD
+  jae @@isField
+  cmp ecx,PROPSLOT_VIRTUAL
+  jb @@isStaticMethod
+
+  movsx ecx,cx
+  add ecx,[eax]
+  jmp dword ptr [ecx]
+
+@@isStaticMethod:
+  jmp ecx
+
+@@isField:
+  and ecx,not PROPSLOT_MASK
+  add ecx,eax
+  mov eax,edx
+  mov edx,[ecx]
+  jmp System.@IntfCopy
+end;
+{$ENDIF}
+
+function GetInterfaceByTypeInfo(self: TObject; intf: PTypeInfo; out Obj): Boolean;
+var
+  InterfaceEntry: PInterfaceEntry;
+begin
+  Pointer(obj) := nil;
+  InterfaceEntry := GetInterfaceEntryByTypeInfo(self.ClassType, intf);
+  if InterfaceEntry <> nil then
+    if InterfaceEntry^.IOffset <> 0 then
+    begin
+      Pointer(obj) := Pointer(PByte(self) + InterfaceEntry^.IOffset);
+      if Pointer(obj) <> nil then IInterface(obj)._AddRef;
+    end
+    else
+      InvokeImplGetter(self, InterfaceEntry^.ImplGetter, IInterface(obj));
+  Result := Pointer(obj) <> nil;
+end;
+
 function IsAssignableFrom(leftType, rightType: PTypeInfo): Boolean;
 var
   leftData, rightData: PTypeData;
@@ -3602,8 +3848,10 @@ begin
     Result := rightData.ClassType.InheritsFrom(leftData.ClassType)
   else if (rightType.Kind = tkClass) and (leftType.Kind = tkInterface) then
   begin
-    Result := (ifHasGuid in leftData.IntfFlags) and
-      Supports(rightData.ClassType, leftData.Guid);
+    if ifHasGuid in leftData.IntfFlags then
+      Result := Supports(rightData.ClassType, leftData.Guid)
+    else
+      Result := GetInterfaceEntryByTypeInfo(rightData.ClassType, leftType) <> nil;
   end
   else if (rightType.Kind = tkInterface) and (leftType.Kind = tkInterface) then
   begin
@@ -3629,6 +3877,11 @@ begin
     for i := Low(leftTypes) to High(leftTypes) do
       if not IsAssignableFrom(leftTypes[i], rightTypes[i]) then
         Exit(False);
+end;
+
+function IsAssignableFromRelaxed(leftType, rightType: PTypeInfo): Boolean;
+begin
+  Result := SameTypeInfo(leftType, rightType) or IsAssignableFrom(leftType, rightType);
 end;
 
 function IsNullable(typeInfo: PTypeInfo): Boolean;
@@ -5189,35 +5442,6 @@ end;
 
 procedure TInitTable.AddManagedField(const field: TRttiField;
   const attribute: ManagedAttribute);
-
-  function GetInterfaceEntry(cls: TClass; intf: PTypeInfo): PInterfaceEntry;
-  var
-    intfGuid: TGUID;
-    interfaceTable: PInterfaceTable;
-    p: PPPTypeInfo;
-    i: Integer;
-  begin
-    intfGuid := intf.TypeData.Guid;
-    repeat
-      interfaceTable := cls.GetInterfaceTable;
-      if interfaceTable <> nil then
-      begin
-        p := @interfaceTable.Entries[interfaceTable.EntryCount];
-        for i := 0 to interfaceTable.EntryCount - 1 do
-        begin
-          Result := @interfaceTable.Entries[i];
-          if p^^ = intf then
-            Exit;
-          Inc(p);
-          if Result.IID = intf.TypeData.Guid then
-            Exit;
-        end;
-      end;
-      cls := cls.ClassParent;
-    until cls = nil;
-    Result := nil;
-  end;
-
 var
   fieldType: PTypeInfo;
   offset: Integer;
@@ -5243,7 +5467,7 @@ begin
     begin
       if Assigned(cls) then
       begin
-        entry := GetInterfaceEntry(cls, fieldType);
+        entry := GetInterfaceEntryByTypeInfo(cls, fieldType);
         if entry = nil then
           raise EInvalidOperationException.CreateFmt(
             'class %s is not compatible with interface %s (field %s)', [
@@ -5432,64 +5656,6 @@ end;
 
 {$REGION 'TInitTable.TManagedInterfaceField'}
 
-procedure InvokeImplGetter(const self: TObject; implGetter: NativeUInt; var result: IInterface);
-{$IFNDEF CPUX86}
-type
-{$IF Defined(MSWINDOWS) or Defined(OSX32)}
-  TGetProc = procedure (const Self: TObject; var Result: IInterface);
-{$ELSEIF Defined(LINUX64) or Defined(OSX64) or Defined(CPUARM32)}
-  TGetProc = procedure (var Result: IInterface; const Self: TObject);
-{$ELSEIF Defined(CPUARM64)}
-  TGetProc = function (const Self: TObject): IInterface;
-{$ELSE}
-  {$MESSAGE Fatal 'InvokeImplGetter not implemented for platform'}
-{$IFEND}
-var
-  getProc: TGetProc;
-begin
-  if (implGetter and PROPSLOT_MASK) = PROPSLOT_FIELD then
-    Result := IInterface(PPointer(PByte(self) + (implGetter and not PROPSLOT_MASK))^)
-  else
-  begin
-    if (implGetter and PROPSLOT_MASK) = PROPSLOT_VIRTUAL then
-      getProc := PPointer(PNativeInt(self)^ + SmallInt(implGetter))^
-    else
-      getProc := Pointer(implGetter);
-{$IF Defined(MSWINDOWS) or Defined(OSX32)}
-    GetProc(Self, Result);
-{$ELSEIF Defined(LINUX64) or Defined(OSX64) or Defined(CPUARM32)}
-    GetProc(Result, Self);
-{$ELSEIF Defined(CPUARM64)}
-    Result := GetProc(Self);
-{$ELSE}
-    {$MESSAGE Fatal 'InvokeImplGetter not implemented for platform'}
-{$IFEND}
-  end;
-end;
-{$ELSE}
-asm
-  xchg edx,ecx
-  cmp ecx,PROPSLOT_FIELD
-  jae @@isField
-  cmp ecx,PROPSLOT_VIRTUAL
-  jb @@isStaticMethod
-
-  movsx ecx,cx
-  add ecx,[eax]
-  jmp dword ptr [ecx]
-
-@@isStaticMethod:
-  jmp ecx
-
-@@isField:
-  and ecx,not PROPSLOT_MASK
-  add ecx,eax
-  mov eax,edx
-  mov edx,[ecx]
-  jmp System.@IntfCopy
-end;
-{$ENDIF}
-
 constructor TInitTable.TManagedInterfaceField.Create(offset: Integer;
   fieldType: PTypeInfo; const initializer: TFieldInitializer; cls: TClass;
   entry: PInterfaceEntry);
@@ -5606,6 +5772,13 @@ begin
   if not TryAsInterface(System.TypeInfo(T), Result) then
   if not TryAsType(System.TypeInfo(T), Result) then
     Guard.RaiseInvalidTypeCast(TypeInfo, System.TypeInfo(T));
+end;
+
+procedure TValueHelper.AsTypeRelaxed(typeInfo: PTypeInfo; out target);
+begin
+  if SameTypeInfo(TValueData(Self).FTypeInfo, typeInfo) then
+    typeInfo := TValueData(Self).FTypeInfo;
+  AsType(typeInfo, target);
 end;
 
 procedure TValueHelper.AsType(typeInfo: PTypeInfo; out target);

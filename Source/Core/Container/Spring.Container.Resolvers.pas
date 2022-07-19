@@ -160,9 +160,11 @@ implementation
 
 uses
   Classes,
+  Generics.Defaults,
   StrUtils,
   TypInfo,
   Spring.Collections.Lists,
+  Spring.Comparers,
   Spring.Container.CreationContext,
   Spring.Container.ResourceStrings,
   Spring.Reflection;
@@ -219,6 +221,8 @@ function TDependencyResolver.InternalResolveValue(
   const dependency: TDependencyModel; const instance: TValue): TValue;
 var
   intf: Pointer;
+  typeInfo: PTypeInfo;
+  typeData: PTypeData;
 begin
 {$IFDEF SPRING_ENABLE_GUARD}
   Guard.CheckNotNull(context, 'context');
@@ -226,27 +230,36 @@ begin
   Guard.CheckNotNull(not instance.IsEmpty, 'instance');
 {$ENDIF}
 
-  if dependency.TypeInfo.Kind = tkInterface then
+  typeInfo := dependency.TypeInfo;
+  if typeInfo.Kind = tkInterface then
   begin
+    typeData := typeInfo.TypeData;
     if instance.IsObject then
-      instance.AsObject.GetInterface(dependency.TypeInfo.TypeData.Guid, intf)
+    begin
+      if ifHasGuid in typeData.IntfFlags then
+        instance.AsObject.GetInterface(typeData.Guid, intf)
+      else
+        GetInterfaceByTypeInfo(instance.AsObject, typeInfo, intf);
+    end
     else
     begin
-      if IsMethodReference(dependency.TypeInfo) then
+      if IsMethodReference(typeInfo) then
       begin
         intf := nil;
         IInterface(intf) := instance.AsInterface;
       end
       else
-        instance.AsInterface.QueryInterface(dependency.TypeInfo.TypeData.Guid, intf);
+        instance.AsInterface.QueryInterface(typeData.Guid, intf);
     end;
-    TValue.MakeWithoutCopy(@intf, dependency.TypeInfo, Result);
+    TValue.MakeWithoutCopy(@intf, typeInfo, Result);
     Result := Kernel.ProxyFactory.CreateInstance(context, Result, model, []);
   end
   else
     Result := instance;
 
   Result := Kernel.DecoratorResolver.Resolve(dependency, model, context, Result);
+  // ensure that the typeinfo of Result is exactly the one that was requested
+  TValueData(Result).FTypeInfo := typeInfo;
 end;
 
 function TDependencyResolver.CanResolve(const context: ICreationContext;
@@ -254,10 +267,12 @@ function TDependencyResolver.CanResolve(const context: ICreationContext;
 var
   kind: TTypeKind;
   serviceName: string;
-  serviceType: PTypeInfo;
   componentModel: TComponentModel;
 begin
   if dependency.TypeInfo = nil then
+    Exit(True);
+
+  if CanResolveFromArgument(context, dependency, argument) then
     Exit(True);
 
   if CanResolveFromContext(context, dependency, argument) then
@@ -266,9 +281,7 @@ begin
   if CanResolveFromSubResolvers(context, dependency, argument) then
     Exit(True);
 
-  if CanResolveFromArgument(context, dependency, argument) then
-    Result := True
-  else if argument.IsEmpty then
+  if argument.IsEmpty then
     Result := Kernel.Registry.HasDefault(dependency.TypeInfo)
   else if argument.TryAsType(TypeInfo(TTypeKind), kind) and (kind = tkDynArray) then
     Result := Kernel.Registry.HasService(dependency.TypeInfo)
@@ -279,12 +292,8 @@ begin
     begin
       serviceName := argument.AsString;
       componentModel := Kernel.Registry.FindOne(serviceName);
-      Result := Assigned(componentModel);
-      if Result then
-      begin
-        serviceType := componentModel.Services[serviceName];
-        Result := IsAssignableFrom(dependency.TypeInfo, serviceType);
-      end;
+      Result := Assigned(componentModel)
+        and IsAssignableFromRelaxed(dependency.TypeInfo, componentModel.Services[serviceName]);
     end;
   end;
 end;
@@ -647,7 +656,8 @@ end;
 constructor TDecoratorResolver.Create;
 begin
   inherited Create;
-  fDecorators := TCollections.CreateMultiMap<PTypeInfo, TDecoratorEntry>;
+  fDecorators := TCollections.CreateMultiMap<PTypeInfo, TDecoratorEntry>(
+    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));
 end;
 
 procedure TDecoratorResolver.AddDecorator(decoratedType: PTypeInfo;

@@ -73,6 +73,7 @@ type
 function _LookupVtableInfo(intf: TDefaultGenericInterface; info: PTypeInfo; size: Integer): Pointer;
 procedure RegisterComparer(intf: TDefaultGenericInterface; typeInfo: PTypeInfo; const comparer: IInterface);
 function SameGuid(const left, right: TGUID): Boolean;
+function GetTypeInfoEqualityComparer: Pointer;
 
 var
   DefaultHashFunction: THashFunction = xxHash32;
@@ -1508,6 +1509,16 @@ begin
   Result := DefaultHashFunction(value, SizeOf(TGUID));
 end;
 
+function Equals_PTypeInfo(const inst: Pointer; const left, right: PTypeInfo): Boolean;
+begin
+  Result := SameTypeInfo(left, right);
+end;
+
+function GetHashCode_PTypeInfo(const inst: Pointer; const value: PTypeInfo): Integer;
+begin
+  Result := GetTypeInfoHashCode(value);
+end;
+
 function TComparerInstance.Compare_Binary(const left, right): Integer;
 begin
   Result := BinaryCompare(@left, @right, Size);
@@ -1954,6 +1965,20 @@ const
     @TComparerInstance.Equals_DynArray,
     @TComparerInstance.GetHashCode_DynArray
   );
+
+  EqualityComparer_PTypeInfo: IEqualityComparer = (
+    VTable: @EqualityComparer_PTypeInfo.QueryInterface;
+    QueryInterface: @NopQueryInterface;
+    AddRef: @NopRef;
+    Release: @NopRef;
+    Equals: @Equals_PTypeInfo;
+    GetHashCode: @GetHashCode_PTypeInfo
+  );
+
+function GetTypeInfoEqualityComparer: Pointer;
+begin
+  Result := @EqualityComparer_PTypeInfo;
+end;
 
 function Selector_Integer(intf: TDefaultGenericInterface; typeInfo: PTypeInfo; size: Integer): Pointer;
 const
