@@ -54,7 +54,6 @@ type
     fOnChanged: TCollectionChangedEventImpl<TComponentModel>;
     function GetOnChanged: ICollectionChangedEvent<TComponentModel>;
   protected
-    procedure CheckIsNonGuidInterface(const serviceType: TRttiType);
     function InternalResolveParams(const method: TRttiMethod;
       const args: TArray<TValue>; paramResolution: TParamResolution): TArray<TValue>;
     procedure InternalRegisterFactory(const model: TComponentModel;
@@ -159,9 +158,11 @@ type
 implementation
 
 uses
+  Generics.Defaults,
   SysUtils,
   TypInfo,
   Spring.Collections.Lists,
+  Spring.Comparers,
   Spring.Container.Resolvers,
   Spring.Container.ResourceStrings,
   Spring.Reflection,
@@ -189,11 +190,14 @@ begin
   fOnChanged := TCollectionChangedEventImpl<TComponentModel>.Create;
   fModels := TCollections.CreateObjectList<TComponentModel>(True);
   fModels.OnChanged.Add(fOnChanged.Invoke);
-  fDefaultRegistrations := TCollections.CreateDictionary<PTypeInfo, TComponentModel>;
+  fDefaultRegistrations := TCollections.CreateDictionary<PTypeInfo, TComponentModel>(
+    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));;
   fDefaultRegistrations.OnValueChanged.Add(fOnChanged.Invoke);
-  fUnnamedRegistrations := TCollections.CreateMultiMap<PTypeInfo, TComponentModel>;
+  fUnnamedRegistrations := TCollections.CreateMultiMap<PTypeInfo, TComponentModel>(
+    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));;
   fUnnamedRegistrations.OnValueChanged.Add(fOnChanged.Invoke);
-  fServiceTypeMappings := TCollections.CreateMultiMap<PTypeInfo, TComponentModel>;
+  fServiceTypeMappings := TCollections.CreateMultiMap<PTypeInfo, TComponentModel>(
+    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));;
   fServiceTypeMappings.OnValueChanged.Add(fOnChanged.Invoke);
   fServiceNameMappings := TCollections.CreateDictionary<string, TComponentModel>;
   fServiceNameMappings.OnValueChanged.Add(fOnChanged.Invoke);
@@ -205,17 +209,9 @@ begin
   inherited;
 end;
 
-procedure TComponentRegistry.CheckIsNonGuidInterface(const serviceType: TRttiType);
-begin
-  if serviceType.IsInterface and not serviceType.AsInterface.HasGuid
-    and not IsMethodReference(serviceType.Handle) then
-    raise ERegistrationException.CreateResFmt(@SMissingGuid, [serviceType.DefaultName]);
-end;
-
 procedure TComponentRegistry.Validate(const componentType, serviceType: TRttiType;
   var serviceName: string);
 begin
-  CheckIsNonGuidInterface(serviceType);
   if not serviceType.IsAssignableFrom(componentType)
     and not componentType.IsInterface then
     raise ERegistrationException.CreateResFmt(@SIncompatibleTypes, [
@@ -443,7 +439,7 @@ begin
     Result := FindOne(serviceName);
     if not Assigned(Result) then
       raise EResolveException.CreateResFmt(@SServiceNotFound, [serviceName]);
-    if not IsAssignableFrom(serviceType, Result.Services[serviceName]) then
+    if not IsAssignableFromRelaxed(serviceType, Result.Services[serviceName]) then
       raise EResolveException.CreateResFmt(@SCannotResolveTypeNamed, [
         serviceType.TypeName, serviceName]);
   end

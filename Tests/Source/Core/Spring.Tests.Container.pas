@@ -53,7 +53,6 @@ type
   TTestEmptyContainer = class(TContainerTestCase)
   published
     procedure TestResolveUnknownInterfaceService;
-//    procedure TestResolveUnknownClassService;
     procedure TestRegisterNonGuidInterfaceService;
     procedure TestRegisterGenericInterfaceService;
     procedure TestRegisterUnassignableService;
@@ -371,16 +370,11 @@ begin
   fContainer.Resolve<INameService>;
 end;
 
-//procedure TTestEmptyContainer.TestResolveUnknownClassService;
-//begin
-//  ExpectedException := EResolveException;
-//  fContainer.Resolve<TFoo2>;
-//end;
-
 procedure TTestEmptyContainer.TestRegisterNonGuidInterfaceService;
 begin
-  ExpectedException := ERegistrationException;
   fContainer.RegisterType<TNonGuid>.Implements<INonGuid>;
+  fContainer.Build;
+  CheckNotNull(fContainer.Resolve<INonGuid>);
 end;
 
 procedure TTestEmptyContainer.TestRegisterTwoNamedDifferentServices;
@@ -421,8 +415,9 @@ end;
 
 procedure TTestEmptyContainer.TestRegisterGenericInterfaceService;
 begin
-  ExpectedException := ERegistrationException;
   fContainer.RegisterType<TNonGuid<TObject>>.Implements<INonGuid<TObject>>;
+  fContainer.Build;
+  CheckNotNull(fContainer.Resolve<INonGuid<TObject>>);
 end;
 
 procedure TTestEmptyContainer.TestRegisterUnassignableService;
