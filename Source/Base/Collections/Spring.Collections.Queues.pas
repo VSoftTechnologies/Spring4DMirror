@@ -166,7 +166,7 @@ uses
 
 {$REGION 'TAbstractQueue<T>'}
 
-function TAbstractQueue<T>.Dequeue: T;
+function TAbstractQueue<T>.Dequeue: T; //FI:W521
 begin
   if Count > 0 then
   begin
@@ -180,7 +180,7 @@ begin
     RaiseHelper.NoElements;
 end;
 
-function TAbstractQueue<T>.Extract: T;
+function TAbstractQueue<T>.Extract: T; //FI:W521
 begin
   if Count > 0 then
   begin
@@ -191,7 +191,7 @@ begin
     RaiseHelper.NoElements;
 end;
 
-function TAbstractQueue<T>.Peek: T;
+function TAbstractQueue<T>.Peek: T; //FI:W521
 begin
   if Count > 0 then
     Result := Items[Head]
@@ -318,7 +318,7 @@ end;
 
 {$REGION 'TAbstractDeque<T>'}
 
-function TAbstractDeque<T>.RemoveFirst: T;
+function TAbstractDeque<T>.RemoveFirst: T; //FI:W521
 begin
   if Count > 0 then
   begin
@@ -332,7 +332,7 @@ begin
     RaiseHelper.NoElements;
 end;
 
-function TAbstractDeque<T>.RemoveLast: T;
+function TAbstractDeque<T>.RemoveLast: T; //FI:W521
 begin
   if Count > 0 then
   begin
@@ -346,7 +346,7 @@ begin
     RaiseHelper.NoElements;
 end;
 
-function TAbstractDeque<T>.ExtractFirst: T;
+function TAbstractDeque<T>.ExtractFirst: T; //FI:W521
 begin
   if Count > 0 then
   begin
@@ -357,7 +357,7 @@ begin
     RaiseHelper.NoElements;
 end;
 
-function TAbstractDeque<T>.ExtractLast: T;
+function TAbstractDeque<T>.ExtractLast: T; //FI:W521
 begin
   if Count > 0 then
   begin

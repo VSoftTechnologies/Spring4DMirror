@@ -253,7 +253,7 @@ begin
   fProxyClass := CreateVirtualClass(classType);
 end;
 
-destructor TVirtualClass.Destroy;
+destructor TVirtualClass.Destroy; //FI:W504
 begin
   DestroyVirtualClass(fProxyClass);
 end;
@@ -274,7 +274,7 @@ begin
   fLock := TCriticalSection.Create;
 end;
 
-destructor TVirtualClasses.Destroy;
+destructor TVirtualClasses.Destroy; //FI:W504
 var
   classType: Pointer;
 begin

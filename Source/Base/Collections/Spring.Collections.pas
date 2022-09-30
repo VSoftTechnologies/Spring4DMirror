@@ -51,7 +51,7 @@ const
   caMoved = Spring.caMoved;
   caReset = Spring.caReset;
   caChanged = Spring.caChanged;
-  caReseted = Spring.caReset deprecated 'Use caReset instead';
+  caReseted = Spring.caReset deprecated 'Use caReset instead'; //FI:O803
 
 type
   TDictionaryOwnerships = Spring.TDictionaryOwnerships;
@@ -70,7 +70,7 @@ type
   ICollectionChangedEvent<T> = interface(IEvent<TCollectionChangedEvent<T>>)
   end;
 
-  INotifyCollectionChanged<T> = interface
+  INotifyCollectionChanged<T> = interface //FI:W524
     ['{B4F756F2-B436-462D-8046-AB70377228F1}']
   {$REGION 'Property Accessors'}
     function GetOnChanged: ICollectionChangedEvent<T>;
@@ -87,7 +87,7 @@ type
   /// <typeparam name="T">
   ///   The type of objects to enumerate.
   /// </typeparam>
-  IEnumerator<T> = interface
+  IEnumerator<T> = interface //FI:W524
     ['{E6525A22-15EF-46EB-8A68-8CB202DA7D67}']
   {$REGION 'Property Accessors'}
     function GetCurrent: T;
@@ -151,7 +151,7 @@ type
   /// <seealso href="http://msdn.microsoft.com/en-us/magazine/cc700332.aspx">
   ///   The LINQ Enumerable Class
   /// </seealso>
-  IEnumerable<T> = interface
+  IEnumerable<T> = interface //FI:W524
     ['{A6B46D30-5B0F-495F-B7EC-46FBC5A75D24}']
 
     /// <summary>
@@ -775,14 +775,14 @@ type
   /// <summary>
   ///   Represents a sub range of a collection.
   /// </summary>
-  IPartition<T> = interface(IEnumerable<T>)
+  IPartition<T> = interface(IEnumerable<T>) //FI:W524
     ['{ACFB79AB-F593-4F2B-9720-E6CE984F6844}']
   end;
 
   /// <summary>
   ///   Represents a strongly-typed, read-only collection of elements.
   /// </summary>
-  IReadOnlyCollection<T> = interface(IEnumerable<T>)
+  IReadOnlyCollection<T> = interface(IEnumerable<T>) //FI:W524
     ['{E1368FD5-02AE-4481-A9DC-96329DFF606C}']
 
     /// <summary>
@@ -810,7 +810,7 @@ type
   /// <typeparam name="T">
   ///   The type of the elements in the collection.
   /// </typeparam>
-  ICollection<T> = interface(IEnumerable<T>)
+  ICollection<T> = interface(IEnumerable<T>) //FI:W524
     ['{9BFD9B06-45CD-4C80-B145-01B09D432CF0}']
     // IMPORTANT NOTICE:
     // keep this in sync with ICollectionInternal<T> in Spring.Collections.Lists
@@ -923,7 +923,7 @@ type
   ///   Represents a read-only collection of elements that can be accessed by
   ///   index.
   /// </summary>
-  IReadOnlyList<T> = interface(IReadOnlyCollection<T>)
+  IReadOnlyList<T> = interface(IReadOnlyCollection<T>) //FI:W524
     ['{82A74ABB-509E-4AC0-9268-A993E7DC3AB3}']
   {$REGION 'Property Accessors'}
     function GetItem(index: Integer): T;
@@ -959,7 +959,7 @@ type
   ///   Represents a collection of elements that can be individually accessed
   ///   by index.
   /// </summary>
-  IList<T> = interface(ICollection<T>)
+  IList<T> = interface(ICollection<T>) //FI:W524
     ['{B6B4E1E1-0D29-40E1-854C-A93DEA8D1AA5}']
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
@@ -1154,7 +1154,7 @@ type
   /// <typeparam name="T">
   ///   Specifies the element type of the linked list.
   /// </typeparam>
-  ILinkedList<T> = interface(ICollection<T>)
+  ILinkedList<T> = interface(ICollection<T>) //FI:W524
     ['{73351AD9-15A5-4DA0-9BB7-D8FF66A3077E}']
   {$REGION 'Property Accessors'}
     function GetFirst: TLinkedListNode<T>;
@@ -1443,7 +1443,7 @@ type
     property OnChanged: ICollectionChangedEvent<T> read GetOnChanged;
   end;
 
-  IReadOnlyMap<TKey, TValue> = interface(IReadOnlyCollection<TPair<TKey, TValue>>)
+  IReadOnlyMap<TKey, TValue> = interface(IReadOnlyCollection<TPair<TKey, TValue>>) //FI:W524
     ['{1FBECEB8-582E-4108-BB44-F21A06FE425B}']
   {$REGION 'Property Accessors'}
     function GetKeys: IReadOnlyCollection<TKey>;
@@ -1526,7 +1526,7 @@ type
   /// <typeparam name="TValue">
   ///   The type of values in the read-only dictionary.
   /// </typeparam>
-  IReadOnlyDictionary<TKey, TValue> = interface(IReadOnlyMap<TKey, TValue>)
+  IReadOnlyDictionary<TKey, TValue> = interface(IReadOnlyMap<TKey, TValue>) //FI:W524
     ['{39F7C68B-373E-4758-808C-705D3978E38F}']
   {$REGION 'Property Accessors'}
     function GetItem(const key: TKey): TValue;
@@ -1573,8 +1573,8 @@ type
   ///   Represents a generic read-only collection of key/value pairs that
   ///   preserves insertion order.
   /// </summary>
-  IReadOnlyOrderedDictionary<TKey, TValue> = interface(IReadOnlyDictionary<TKey, TValue>)
-    ['{299B7DFB-5104-488E-B299-0622D0B4D605}']
+  IReadOnlyOrderedDictionary<TKey, TValue> = interface(IReadOnlyDictionary<TKey, TValue>) //FI:W524
+    ['{9040B3AB-0E85-4945-9894-A229E6422126}']
   {$REGION 'Property Accessors'}
     function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
   {$ENDREGION}
@@ -1593,7 +1593,7 @@ type
   /// <typeparam name="TValue">
   ///   The type of values in the map.
   /// </typeparam>
-  IMap<TKey, TValue> = interface(ICollection<TPair<TKey, TValue>>)
+  IMap<TKey, TValue> = interface(ICollection<TPair<TKey, TValue>>) //FI:W524
     ['{94262688-16E4-4092-926B-7B17FEF94A86}']
   {$REGION 'Property Accessors'}
     function GetKeys: IReadOnlyCollection<TKey>;
@@ -1759,7 +1759,7 @@ type
   /// <typeparam name="TValue">
   ///   The type of values in the dictionary.
   /// </typeparam>
-  IDictionary<TKey, TValue> = interface(IMap<TKey, TValue>)
+  IDictionary<TKey, TValue> = interface(IMap<TKey, TValue>) //FI:W524
     ['{7F0D544F-6A59-4FA0-9C96-DB09029CC835}']
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
@@ -1885,7 +1885,7 @@ type
   /// <summary>
   ///   Represents a generic dictionary that preserves insertion order.
   /// </summary>
-  IOrderedDictionary<TKey, TValue> = interface(IDictionary<TKey, TValue>)
+  IOrderedDictionary<TKey, TValue> = interface(IDictionary<TKey, TValue>) //FI:W524
     ['{299B7DFB-5104-488E-B299-0622D0B4D605}']
   {$REGION 'Property Accessors'}
     function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
@@ -1898,7 +1898,7 @@ type
     property Items[index: Integer]: TPair<TKey, TValue> read GetItemByIndex;
   end;
 
-  IBidiDictionary<TKey, TValue> = interface(IDictionary<TKey, TValue>)
+  IBidiDictionary<TKey, TValue> = interface(IDictionary<TKey, TValue>) //FI:W524
     ['{DA8F1C48-B4F4-4487-ADAD-AF15596DD53C}']
   {$REGION 'Property Accessors'}
     function GetInverse: IBidiDictionary<TValue, TKey>;
@@ -1911,7 +1911,7 @@ type
     property Inverse: IBidiDictionary<TValue, TKey> read GetInverse;
   end;
 
-  IReadOnlyMultiMap<TKey, TValue> = interface(IReadOnlyMap<TKey, TValue>)
+  IReadOnlyMultiMap<TKey, TValue> = interface(IReadOnlyMap<TKey, TValue>) //FI:W524
     ['{5411F9EC-5A56-4F40-890A-089A08AE795F}']
   {$REGION 'Property Accessors'}
     function GetItems(const key: TKey): IReadOnlyCollection<TValue>;
@@ -1921,7 +1921,7 @@ type
     property Items[const key: TKey]: IReadOnlyCollection<TValue> read GetItems; default;
   end;
 
-  IMultiMap<TKey, TValue> = interface(IMap<TKey, TValue>)
+  IMultiMap<TKey, TValue> = interface(IMap<TKey, TValue>) //FI:W524
     ['{8598095E-92A7-4FCC-9F78-8EE7653B8B49}']
   {$REGION 'Property Accessors'}
     function GetItems(const key: TKey): IReadOnlyCollection<TValue>;
@@ -1976,7 +1976,7 @@ type
   /// <typeparam name="T">
   ///   Specifies the type of elements in the stack.
   /// </typeparam>
-  IStack<T> = interface(IEnumerable<T>)
+  IStack<T> = interface(IEnumerable<T>) //FI:W524
     ['{5BD7BDD3-0198-4727-B97C-658BF194FF63}']
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
@@ -2090,7 +2090,7 @@ type
   /// <typeparam name="T">
   ///   Specifies the type of elements in the queue.
   /// </typeparam>
-  IQueue<T> = interface(IEnumerable<T>)
+  IQueue<T> = interface(IEnumerable<T>) //FI:W524
     ['{D305A076-3F19-497C-94E3-6BD1C7A30F3F}']
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
@@ -2206,7 +2206,7 @@ type
   /// <typeparam name="T">
   ///   Specifies the type of elements in the deque.
   /// </typeparam>
-  IDeque<T> = interface(IEnumerable<T>)
+  IDeque<T> = interface(IEnumerable<T>) //FI:W524
     ['{852D8B1A-8587-4C7E-85DA-41F255887153}']
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
@@ -2359,7 +2359,7 @@ type
   /// <typeparam name="T">
   ///   The type of elements in the set.
   /// </typeparam>
-  ISet<T> = interface(ICollection<T>)
+  ISet<T> = interface(ICollection<T>) //FI:W524
     ['{DC0B211F-E9FD-41D6-BEE0-FCB9F79327AB}']
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
@@ -2480,7 +2480,7 @@ type
   /// <summary>
   ///   Represents a generic set that preserves insertion order.
   /// </summary>
-  IOrderedSet<T> = interface(ISet<T>)
+  IOrderedSet<T> = interface(ISet<T>) //FI:W524
     ['{3547BF38-902F-49BA-8BB1-215E6754891D}']
   {$REGION 'Property Accessors'}
     function GetItemByIndex(index: Integer): T;
@@ -2496,7 +2496,7 @@ type
     Count: Integer;
   end;
 
-  IReadOnlyMultiSet<T> = interface(IReadOnlyCollection<T>)
+  IReadOnlyMultiSet<T> = interface(IReadOnlyCollection<T>) //FI:W524
     ['{7ECC0F3E-B73C-4821-82ED-FD84E0F81856}']
   {$REGION 'Property Accessors'}
     function GetEntries: IReadOnlyCollection<TMultiSetEntry<T>>;
@@ -2525,7 +2525,7 @@ type
     property ItemCount[const item: T]: Integer read GetItemCount; default;
   end;
 
-  IMultiSet<T> = interface(ICollection<T>)
+  IMultiSet<T> = interface(ICollection<T>) //FI:W524
     ['{CC7C2115-EED6-4FDE-9AE6-44C253514B2F}']
   {$REGION 'Property Accessors'}
     function GetEntries: IReadOnlyCollection<TMultiSetEntry<T>>;
@@ -2614,7 +2614,7 @@ type
   /// <typeparam name="TElement">
   ///   The type of the values in the IGrouping&lt;TKey, TElement&gt;.
   /// </typeparam>
-  IGrouping<TKey, TElement> = interface(IReadOnlyCollection<TElement>)
+  IGrouping<TKey, TElement> = interface(IReadOnlyCollection<TElement>) //FI:W524
     ['{CFC3071C-663A-400A-B21B-1F5E28BA4892}']
   {$REGION 'Property Accessors'}
     function GetKey: TKey;
@@ -2641,7 +2641,7 @@ type
   ///   The type of the elements in the <see cref="IEnumerable&lt;T&gt;" />
   ///   sequences that make up the values in the ILookup&lt;TKey, TElement&gt;.
   /// </typeparam>
-  ILookup<TKey, TElement> = interface(IReadOnlyCollection<IGrouping<TKey, TElement>>)
+  ILookup<TKey, TElement> = interface(IReadOnlyCollection<IGrouping<TKey, TElement>>) //FI:W524
     ['{B2380533-F2B1-465B-84B2-97FA79A6EE09}']
   {$REGION 'Property Accessors'}
     function GetItem(const key: TKey): IReadOnlyCollection<TElement>;
@@ -2677,7 +2677,7 @@ type
   /// <summary>
   ///   Provides direct access to an array that is used for internal storage.
   /// </summary>
-  IArrayAccess<T> = interface(ICountable)
+  IArrayAccess<T> = interface(ICountable) //FI:W524
     ['{0C6C22BE-DBFD-4EBE-9E32-6E4BBA8AC382}']
   {$REGION 'Property Accessors'}
      function GetItems: TArray<T>;
@@ -4790,21 +4790,25 @@ end;
 class procedure TCollections.CreateQueue_Object(capacity: Integer; comparer: Pointer; ownsObjects: Boolean; var result; elementType: Pointer);
 begin
   IQueue<TObject>(result) := TFoldedQueue<TObject>.Create(elementType, IComparer<TObject>(comparer), ownsObjects);
+  IQueue<TObject>(result).Capacity := capacity;
 end;
 
 class procedure TCollections.CreateQueue_Interface(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
   IQueue<IInterface>(result) := TFoldedQueue<IInterface>.Create(elementType, IComparer<IInterface>(comparer));
+  IQueue<IInterface>(result).Capacity := capacity;
 end;
 
 class procedure TCollections.CreateStack_Interface(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
   IStack<IInterface>(result) := TFoldedStack<IInterface>.Create(elementType, IComparer<IInterface>(comparer));
+  IStack<IInterface>(result).Capacity := capacity;
 end;
 
 class procedure TCollections.CreateStack_Object(capacity: Integer; comparer: Pointer; ownsObjects: Boolean; var result; elementType: Pointer);
 begin
   IStack<TObject>(result) := TFoldedStack<TObject>.Create(elementType, IComparer<TObject>(comparer), ownsObjects);
+  IStack<TObject>(result).Capacity := capacity;
 end;
 
 class procedure TCollections.CreateObservableList_Interface(var result; elementType: Pointer);
@@ -6852,10 +6856,9 @@ begin
   Result := TBoundedStack<T>.Create(size);
 end;
 
-class function TCollections.CreateBoundedStack<T>(size: Integer;
-  ownsObjects: Boolean): IStack<T>;
+class function TCollections.CreateBoundedStack<T>(size: Integer; ownsObjects: Boolean): IStack<T>;
 begin
-  Result := TBoundedStack<T>.Create(size);
+  Result := TBoundedStack<T>.Create(size, ownsObjects);
 end;
 
 class function TCollections.CreateQueue<T>: IQueue<T>;
@@ -7619,7 +7622,7 @@ begin
   Result := TOrderedEnumerable<T,TKey>.Create(source, keySelector, comparer, True);
 end;
 
-class function TEnumerable.Range(start, count: Integer): IReadOnlyList<Integer>;
+class function TEnumerable.Range(start, count: Integer): IReadOnlyList<Integer>; //FI:W521
 begin
   if (count >= 0) and (Int64(start) + count <= Cardinal(MaxInt) + 1) then
     if count = 0 then
@@ -7997,7 +8000,7 @@ begin
   Result := fResultClass.ClassInfo;
 end;
 
-function TOfTypeIterator.GetEnumerator: IEnumerator<TObject>;
+function TOfTypeIterator.GetEnumerator: IEnumerator<TObject>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -8018,7 +8021,7 @@ begin
   Result := fCurrent;
 end;
 
-function TOfTypeIterator.TEnumerator.MoveNext: Boolean;
+function TOfTypeIterator.TEnumerator.MoveNext: Boolean; //FI:W521
 label
   HasEnumerator;
 var

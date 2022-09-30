@@ -449,7 +449,7 @@ begin
   begin
     fHashTable.ClearCount;
     item := PItem(fHashTable.Items);
-    for i := 1 to fHashTable.ItemCount do
+    for i := 1 to fHashTable.ItemCount do //FI:W528
       if item.HashCode >= 0 then
         Notify(Self, item.Item, caRemoved);
   end;
@@ -481,7 +481,7 @@ begin
     Result := Default(T);
 end;
 
-function THashSet<T>.GetEnumerator: IEnumerator<T>;
+function THashSet<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -507,7 +507,7 @@ begin
   Result := fHashTable.Count;
 end;
 
-function THashSet<T>.GetItemByIndex(index: Integer): T;
+function THashSet<T>.GetItemByIndex(index: Integer): T; //FI:W521
 begin
   if Cardinal(index) < Cardinal(fHashTable.Count) then
   begin
@@ -697,7 +697,7 @@ begin
   Result := fTree.Count;
 end;
 
-function TSortedSet<T>.GetEnumerator: IEnumerator<T>;
+function TSortedSet<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,

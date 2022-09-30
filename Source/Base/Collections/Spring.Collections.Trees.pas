@@ -349,7 +349,7 @@ type
     property Root: PBinaryTreeNode read GetRoot;
   end;
 
-  IBinaryTree<T> = interface(IBinaryTree)
+  IBinaryTree<T> = interface(IBinaryTree) //FI:W524
     ['{06E837A5-29B7-4F33-AC5C-46BC82F00D15}']
   {$REGION 'Property Accessors'}
     function GetRoot: TNodes<T>.PRedBlackTreeNode;
@@ -367,7 +367,7 @@ type
     property Root: TNodes<T>.PRedBlackTreeNode read GetRoot;
   end;
 
-  IBinaryTree<TKey, TValue> = interface(IBinaryTree)
+  IBinaryTree<TKey, TValue> = interface(IBinaryTree) //FI:W524
     ['{7F554520-BD51-4B53-953B-61B43ED6D59E}']
   {$REGION 'Property Accessors'}
     function GetRoot: TNodes<TKey, TValue>.PRedBlackTreeNode;
@@ -386,13 +386,13 @@ type
     property Root: TNodes<TKey, TValue>.PRedBlackTreeNode read GetRoot;
   end;
 
-  IRedBlackTree<T> = interface(IBinaryTree<T>)
+  IRedBlackTree<T> = interface(IBinaryTree<T>) //FI:W524
     ['{59BB2B37-D85F-4092-8E80-1EFEE1D2E8F8}']
     function FindNode(const value: T): TNodes<T>.PRedBlackTreeNode;
     procedure DeleteNode(node: TNodes<T>.PRedBlackTreeNode);
   end;
 
-  IRedBlackTree<TKey, TValue> = interface(IBinaryTree<TKey, TValue>)
+  IRedBlackTree<TKey, TValue> = interface(IBinaryTree<TKey, TValue>) //FI:W524
     ['{8C6F6C1A-92C1-4F4A-A1A9-DD5EA70921CB}']
     function FindNode(const key: TKey): TNodes<TKey, TValue>.PRedBlackTreeNode;
     procedure DeleteNode(node: TNodes<TKey, TValue>.PRedBlackTreeNode);
@@ -780,7 +780,7 @@ end;
 
 {$REGION 'TRedBlackTree'}
 
-destructor TRedBlackTree.Destroy;
+destructor TRedBlackTree.Destroy; //FI:W504
 begin
   Clear;
 end;
@@ -1329,7 +1329,7 @@ begin
       node := child;
       compareResult := fComparer.Compare(PNode(node).Key, key);
       if compareResult = 0 then
-        Exit(Pointer(compareResult));
+        Exit(Pointer(compareResult)); //FI:W541
       i := compareResult shr 31; // left -> 0, right -> 1
       child := PRedBlackTreeNode(node).fChilds[i];
     until not Assigned(child);
@@ -1453,7 +1453,7 @@ begin
     value := Default(T);
 end;
 
-function TRedBlackTree<T>.GetEnumerator: IEnumerator<T>;
+function TRedBlackTree<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
     TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
@@ -1689,7 +1689,7 @@ begin
     foundValue := Default(TValue);
 end;
 
-function TRedBlackTree<TKey, TValue>.GetEnumerator: IEnumerator<TPair<TKey, TValue>>;
+function TRedBlackTree<TKey, TValue>.GetEnumerator: IEnumerator<TPair<TKey, TValue>>; //FI:W521
 begin
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
     TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do

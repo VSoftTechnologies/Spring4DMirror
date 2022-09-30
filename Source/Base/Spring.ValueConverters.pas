@@ -1040,7 +1040,7 @@ end;
 
 {$REGION 'TStringToIntegerConverter'}
 
-function TStringToIntegerConverter.DoConvertTo(const value: TValue;
+function TStringToIntegerConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 begin
   if targetTypeInfo = TypeInfo(Integer) then
@@ -1099,7 +1099,7 @@ end;
 
 {$REGION 'TBooleanToIntegerConverter'}
 
-function TBooleanToIntegerConverter.DoConvertTo(const value: TValue;
+function TBooleanToIntegerConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 begin
   if targetTypeInfo = TypeInfo(Integer) then
@@ -1157,7 +1157,7 @@ end;
 
 {$REGION 'TTypeToNullableConverter'}
 
-function TTypeToNullableConverter.DoConvertTo(const value: TValue;
+function TTypeToNullableConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 var
   innerTypeInfo: PTypeInfo;
@@ -1326,7 +1326,7 @@ end;
 
 {$REGION 'TFloatToIntegerConverter'}
 
-function TFloatToIntegerConverter.DoConvertTo(const value: TValue;
+function TFloatToIntegerConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 var
   f: Extended;
@@ -1359,7 +1359,7 @@ end;
 
 {$REGION 'TStringToFloatConverter'}
 
-function TStringToFloatConverter.DoConvertTo(const value: TValue;
+function TStringToFloatConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 var
   targetTypeData: PTypeData;
@@ -1656,7 +1656,7 @@ end;
 
 {$REGION 'TObjectToInterfaceConverter'}
 
-function TObjectToInterfaceConverter.DoConvertTo(const value: TValue;
+function TObjectToInterfaceConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 var
   guid: TGUID;
@@ -2212,28 +2212,28 @@ class procedure TValueConverterFactory.RegisterConverter(
   sourceTypeInfo, targetTypeInfo: PTypeInfo;
   converterClass: TConverterClass);
 begin
-  RegisterConverter(sourceTypeInfo, targetTypeInfo, converterClass.Create);
+  RegisterConverter(sourceTypeInfo, targetTypeInfo, converterClass.Create); //FI:W536
 end;
 
 class procedure TValueConverterFactory.RegisterConverter(
   sourceTypeInfo: PTypeInfo; targetTypeKinds: TTypeKinds;
   converterClass: TConverterClass);
 begin
-  RegisterConverter(sourceTypeInfo, targetTypeKinds, converterClass.Create);
+  RegisterConverter(sourceTypeInfo, targetTypeKinds, converterClass.Create); //FI:W536
 end;
 
 class procedure TValueConverterFactory.RegisterConverter(
   sourceTypeKinds: TTypeKinds; targetTypeInfo: PTypeInfo;
   converterClass: TConverterClass);
 begin
-  RegisterConverter(sourceTypeKinds, targetTypeInfo, converterClass.Create);
+  RegisterConverter(sourceTypeKinds, targetTypeInfo, converterClass.Create); //FI:W536
 end;
 
 class procedure TValueConverterFactory.RegisterConverter(
   sourceTypeKinds, targetTypeKinds: TTypeKinds;
   converterClass: TConverterClass);
 begin
-  RegisterConverter(sourceTypeKinds, targetTypeKinds, converterClass.Create);
+  RegisterConverter(sourceTypeKinds, targetTypeKinds, converterClass.Create); //FI:W536
 end;
 
 class procedure TValueConverterFactory.UnregisterConverter<T>(

@@ -238,7 +238,7 @@ uses
   Spring.ResourceStrings;
 
 const
-  PointerSize = SizeOf(Pointer);
+  PointerSize = SizeOf(Pointer); //FI:O803
 
 
 {$REGION 'Proxy generators'}
@@ -590,7 +590,8 @@ end;
 
 {$IFDEF USE_RTTI_FOR_PROXY}
 procedure TEvent.InternalInvokeMethod(UserData: Pointer;
-  const Args: TArray<TValue>; out Result: TValue);
+  const Args: TArray<TValue>;
+  out Result: TValue); //FI:O804
 var
   argsWithoutSelf: TArray<TValue>;
   guard: GuardedPointer;
@@ -616,7 +617,8 @@ begin
 end;
 
 procedure TEvent.InternalInvokeDelegate(Method: TRttiMethod;
-  const Args: TArray<TValue>; out Result: TValue);
+  const Args: TArray<TValue>;
+  out Result: TValue); //FI:O804
 var
   argsWithoutSelf: TArray<TValue>;
   guard: GuardedPointer;

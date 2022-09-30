@@ -75,9 +75,9 @@ begin
   fSelectors.Add(selector);
 end;
 
-function TProxyFactory.CreateInstance(const context: ICreationContext;
+function TProxyFactory.CreateInstance(const context: ICreationContext; //FI:O804
   const instance: TValue; const model: TComponentModel;
-  const constructorArguments: array of TValue): TValue;
+  const constructorArguments: array of TValue): TValue; //FI:O804
 var
   interceptors: TArray<IInterceptor>;
   intf: IInterface;

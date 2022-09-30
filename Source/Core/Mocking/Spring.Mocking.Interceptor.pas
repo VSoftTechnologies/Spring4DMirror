@@ -225,33 +225,33 @@ begin
   RefArgs.values := nil;
 end;
 
-function GetBoolean(inst: Pointer): Boolean;
+function GetBoolean(inst: Pointer): Boolean; //FI:O804
 begin
   Result := False;
 end;
 
-function GetMethodPointer(inst: Pointer): TMethodPointer;
+function GetMethodPointer(inst: Pointer): TMethodPointer; //FI:O804
 begin
   Result := nil;
 end;
 
 procedure SetBoolean(inst: Pointer; const value: Boolean);
-begin
+begin //FI:W519
 end;
 
 procedure SetMethodPointer(inst: Pointer; const value: TMethodPointer);
-begin
+begin //FI:W519
 end;
 
 procedure RemoveAll(inst: Pointer; instance: Pointer);
-begin
+begin //FI:W519
 end;
 
 procedure Clear(inst: Pointer);
-begin
+begin //FI:W519
 end;
 
-function GetInvoke(inst: Pointer): TMethodPointer;
+function GetInvoke(inst: Pointer): TMethodPointer; //FI:O804
 begin
   raise ENotSupportedException.Create('');
 end;
@@ -560,7 +560,7 @@ begin
   fBehavior := @behavior;
 end;
 
-function TResultsMockAction.Invoke(const callInfo: TCallInfo): TValue;
+function TResultsMockAction.Invoke(const callInfo: TCallInfo): TValue; //FI:W521
 begin
   if callInfo.CallCount <= Length(fValues) then
     Result := fValues[callInfo.CallCount - 1]

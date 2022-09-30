@@ -525,7 +525,7 @@ begin
   InsertRange(Count, values);
 end;
 
-function TAbstractArrayList<T>.GetEnumerator: IEnumerator<T>;
+function TAbstractArrayList<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -536,7 +536,7 @@ begin
   end;
 end;
 
-function TAbstractArrayList<T>.GetItem(index: Integer): T;
+function TAbstractArrayList<T>.GetItem(index: Integer): T; //FI:W521
 var
   items: Pointer;
 begin
@@ -611,7 +611,7 @@ begin
             8: i64 := Int64((@item)^);
           end;
         end;
-        for i := 1 to count do
+        for i := 1 to count do //FI:W528
         begin
           case GetTypeKind(T) of
             tkClass:
@@ -712,7 +712,7 @@ begin
     fCount := (fCount and CountMask) or (Ord(value) shl OwnsObjectsBitIndex);
 end;
 
-function TAbstractArrayList<T>.Single: T;
+function TAbstractArrayList<T>.Single: T; //FI:W521
 begin
   case Count of
     0: RaiseHelper.NoElements;
@@ -722,7 +722,7 @@ begin
   end;
 end;
 
-function TAbstractArrayList<T>.SingleOrDefault(const defaultValue: T): T;
+function TAbstractArrayList<T>.SingleOrDefault(const defaultValue: T): T; //FI:W521
 begin
   case Count of
     0: Result := defaultValue;
@@ -902,7 +902,7 @@ begin
             8: i64 := Int64((@item)^);
           end;
         end;
-        for i := 1 to count do
+        for i := 1 to count do //FI:W528
         begin
           case GetTypeKind(T) of
             tkClass:
@@ -2208,7 +2208,7 @@ begin
   fVersion := fSource.fVersion;
 end;
 
-destructor TCollectionList<T>.TEnumerator.Destroy;
+destructor TCollectionList<T>.TEnumerator.Destroy; //FI:W504
 begin
   fSource._Release;
 end;
@@ -2376,7 +2376,7 @@ begin
   if value.GetInterface(INotifyPropertyChanged, Pointer(intf)) then
   begin
     intf := INotifyPropertyChanged(intf).OnPropertyChanged;
-    case Action of
+    case Action of //FI:W535
       caAdded: IEvent<TPropertyChangedEvent>(intf).Add(DoItemPropertyChanged);
       caRemoved, caExtracted: IEvent<TPropertyChangedEvent>(intf).Remove(DoItemPropertyChanged);
     end;
@@ -2430,7 +2430,7 @@ begin
   if value.QueryInterface(INotifyPropertyChanged, Pointer(intf)) = S_OK then
   begin
     intf := INotifyPropertyChanged(intf).OnPropertyChanged;
-    case Action of
+    case Action of //FI:W535
       caAdded: IEvent<TPropertyChangedEvent>(intf).Add(DoItemPropertyChanged);
       caRemoved, caExtracted: IEvent<TPropertyChangedEvent>(intf).Remove(DoItemPropertyChanged);
     end;

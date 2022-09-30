@@ -442,7 +442,7 @@ begin
   Inc(fCount, count);
 
   if Assigned(Notify) then
-    for i := 1 to count do
+    for i := 1 to count do //FI:W528
       Notify(Self, item, caAdded);
 end;
 
@@ -466,7 +466,7 @@ begin
 
   for i := 0 to oldItemCount - 1 do
     if oldItems[i].HashCode >= 0 then
-      for n := 1 to oldItems[i].Count do
+      for n := 1 to oldItems[i].Count do //FI:W528
         Notify(Self, oldItems[i].Item, caRemoved);
 end;
 
@@ -499,7 +499,7 @@ begin
   Result := fItems;
 end;
 
-function THashMultiSet<T>.GetEnumerator: IEnumerator<T>;
+function THashMultiSet<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -550,7 +550,7 @@ begin
     Dec(fCount, count);
 
     if Assigned(Notify) then
-      for i := 1 to count  do
+      for i := 1 to count do //FI:W528
         Notify(Self, item, caRemoved);
     Result := existingCount;
   end
@@ -573,7 +573,7 @@ begin
     begin
       Dec(fCount, entry.Count);
       if Assigned(Notify) then
-        for i := 1 to entry.Count do
+        for i := 1 to entry.Count do //FI:W528
           Notify(Self, item, caRemoved);
     end;
   end
@@ -607,7 +607,7 @@ begin
   targetIndex := 0;
   for sourceIndex := 0 to fHashTable.ItemCount - 1 do
     if TItems(fHashTable.Items)[sourceIndex].HashCode >= 0 then
-      for count := 1 to TItems(fHashTable.Items)[sourceIndex].Count do
+      for count := 1 to TItems(fHashTable.Items)[sourceIndex].Count do //FI:W528
       begin
         Result[targetIndex] := TItems(fHashTable.Items)[sourceIndex].Item;
         Inc(targetIndex);
@@ -686,7 +686,7 @@ begin
   Result := fSource.fCount;
 end;
 
-function THashMultiSet<T>.TEntryCollection.GetEnumerator: IEnumerator<TEntry>;
+function THashMultiSet<T>.TEntryCollection.GetEnumerator: IEnumerator<TEntry>; //FI:W521
 begin
   _AddRef;
   with PEntryEnumerator(TEnumeratorBlock.Create(@Result, @TEntryEnumerator.Enumerator_Vtable,
@@ -819,7 +819,7 @@ begin
   Inc(fCount, count);
 
   if Assigned(Notify) then
-    for i := 1 to count do
+    for i := 1 to count do //FI:W528
       Notify(Self, item, caAdded);
 end;
 
@@ -839,7 +839,7 @@ begin
       node := fTree.Root.LeftMost;
       while Assigned(node) do
       begin
-        for count := PNode(node).Count downto 1 do
+        for count := PNode(node).Count downto 1 do //FI:W528
           Notify(Self, PNode(node).Key, caRemoved);
         node := PBinaryTreeNode(node).Next;
       end;
@@ -879,7 +879,7 @@ begin
   Result := fItems;
 end;
 
-function TTreeMultiSet<T>.GetEnumerator: IEnumerator<T>;
+function TTreeMultiSet<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -895,7 +895,7 @@ var
   node: Pointer;
 begin
   node := fTree.FindNode(item);
-  if not Assigned(node) then Exit(Integer(node));
+  if not Assigned(node) then Exit(Integer(node)); //FI:W541
   Result := PNode(node).Count;
 end;
 
@@ -916,7 +916,7 @@ begin
   if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
   temp := fTree.FindNode(item);
-  if not Assigned(temp) then Exit(Integer(temp));
+  if not Assigned(temp) then Exit(Integer(temp)); //FI:W541
   node := temp;
 
   {$Q-}
@@ -933,7 +933,7 @@ begin
     node.Count := Result - count;
   Dec(fCount, count);
   if Assigned(Notify) then
-    for i := 1 to count do
+    for i := 1 to count do //FI:W528
       Notify(Self, item, caRemoved);
 end;
 
@@ -970,7 +970,7 @@ begin
   node := fTree.Root.LeftMost;
   while Assigned(node) do
   begin
-    for count := 1 to PNode(node).Count do
+    for count := 1 to PNode(node).Count do //FI:W528
     begin
       Result[index] := PNode(node).Key;
       Inc(index);
@@ -1048,7 +1048,7 @@ begin
   Result := fSource.fTree.Count;
 end;
 
-function TTreeMultiSet<T>.TItemCollection.GetEnumerator: IEnumerator<T>;
+function TTreeMultiSet<T>.TItemCollection.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   fSource._AddRef;
   with PItemEnumerator(TEnumeratorBlock.Create(@Result, @TItemEnumerator.Enumerator_Vtable,
@@ -1154,7 +1154,7 @@ begin
   Result := fSource.fTree.Count;
 end;
 
-function TTreeMultiSet<T>.TEntryCollection.GetEnumerator: IEnumerator<TEntry>;
+function TTreeMultiSet<T>.TEntryCollection.GetEnumerator: IEnumerator<TEntry>; //FI:W521
 begin
   fSource._AddRef;
   with PEntryEnumerator(TEnumeratorBlock.Create(@Result, @TEntryEnumerator.Enumerator_Vtable,

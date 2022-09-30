@@ -671,7 +671,7 @@ begin
   Result := True;
 end;
 
-function TDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>;
+function TDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -690,7 +690,7 @@ begin
   fHashTable.ClearCount;
 
   item := PItem(fHashTable.Items);
-  for i := 1 to fHashTable.ItemCount do
+  for i := 1 to fHashTable.ItemCount do //FI:W528
   begin
     if item.HashCode >= 0 then
     begin
@@ -736,7 +736,7 @@ begin
   SetLength(Result, fHashTable.Count);
   target := Pointer(Result);
   source := PItem(fHashTable.Items);
-  for i := 1 to fHashTable.ItemCount do
+  for i := 1 to fHashTable.ItemCount do //FI:W528
   begin
     if source.HashCode >= 0 then
     begin
@@ -1023,7 +1023,7 @@ begin
   Result := item.Value;
 end;
 
-function TDictionary<TKey, TValue>.GetItemByIndex(index: Integer): TPair<TKey, TValue>;
+function TDictionary<TKey, TValue>.GetItemByIndex(index: Integer): TPair<TKey, TValue>; //FI:W521
 begin
   if Cardinal(index) < Cardinal(fHashTable.Count) then
   begin
@@ -1220,7 +1220,7 @@ begin
   begin
     sourceItem := PItem(fItems);
     targetItem := PItem(fItems);
-    for i := 0 to fItemCount - 1 do
+    for i := 0 to fItemCount - 1 do //FI:W528
     begin
       if PInteger(sourceItem)^ >= 0 then // not removed
       begin
@@ -1273,7 +1273,7 @@ begin
   Rehash(newCapacity);
 end;
 
-function TBidiDictionary<TKey, TValue>.FindKey(const key: TKey; hashCode: Integer;
+function TBidiDictionary<TKey, TValue>.FindKey(const key: TKey; hashCode: Integer; //FI:W521
   out bucketIndex, itemIndex: Integer): Boolean;
 var
   bucketValue, mask, perturb: Integer;
@@ -1308,7 +1308,7 @@ begin
   end;
 end;
 
-function TBidiDictionary<TKey, TValue>.FindValue(const value: TValue; hashCode: Integer;
+function TBidiDictionary<TKey, TValue>.FindValue(const value: TValue; hashCode: Integer; //FI:W521
   out bucketIndex, itemIndex: Integer): Boolean;
 var
   bucketValue, mask, perturb: Integer;
@@ -1505,7 +1505,7 @@ begin
   ValueChanged(value, caAdded);
 end;
 
-function TBidiDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>;
+function TBidiDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -1964,7 +1964,7 @@ begin
   Result := fSource.fCount;
 end;
 
-function TBidiDictionary<TKey, TValue>.TInverse.GetEnumerator: IEnumerator<TValueKeyPair>;
+function TBidiDictionary<TKey, TValue>.TInverse.GetEnumerator: IEnumerator<TValueKeyPair>; //FI:W521
 begin
   fSource._AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.InverseEnumerator_Vtable,
@@ -2255,7 +2255,7 @@ begin
   Result := fSource.fCount;
 end;
 
-function TBidiDictionary<TKey, TValue>.TKeyCollection.GetEnumerator: IEnumerator<TKey>;
+function TBidiDictionary<TKey, TValue>.TKeyCollection.GetEnumerator: IEnumerator<TKey>; //FI:W521
 begin
   fSource._AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.KeysEnumerator_Vtable,
@@ -2328,7 +2328,7 @@ begin
   Result := fSource.fCount;
 end;
 
-function TBidiDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>;
+function TBidiDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>; //FI:W521
 begin
   fSource._AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.ValuesEnumerator_Vtable,
@@ -2585,7 +2585,7 @@ begin
   Result := fTree.Count;
 end;
 
-function TSortedDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>;
+function TSortedDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -2880,7 +2880,7 @@ begin
   Result := fSource.fTree.Count;
 end;
 
-function TSortedDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>;
+function TSortedDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.ValuesEnumerator_Vtable,

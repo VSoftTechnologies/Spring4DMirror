@@ -40,7 +40,7 @@ type
   ///   This interface is designed to be binary compatible with
   ///   Spring.Predicate&lt;T&gt;.
   /// </remarks>
-  ISpecification<T> = interface(IInvokable)
+  ISpecification<T> = interface(IInvokable) //FI:W524
     ['{95E8259B-1397-4A66-9E12-A734E97C1C7C}']
     function IsSatisfiedBy(const item: T): Boolean;
     // DO NOT ADD ANY METHODS HERE!!!

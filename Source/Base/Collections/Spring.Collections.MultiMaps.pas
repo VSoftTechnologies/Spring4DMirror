@@ -533,7 +533,7 @@ begin
   Result := fCount^;
 end;
 
-function TValueCollection<T>.GetEnumerator: IEnumerator<T>;
+function TValueCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -591,7 +591,7 @@ begin
   Result := fEnumerator.Current;
 end;
 
-function TValueCollection<T>.TEnumerator.MoveNext: Boolean;
+function TValueCollection<T>.TEnumerator.MoveNext: Boolean; //FI:W521
 var
   hashTable: PHashTable;
   item: PByte;
@@ -680,7 +680,7 @@ begin
   Result := fCount^;
 end;
 
-function TTreeValueCollection<T>.GetEnumerator: IEnumerator<T>;
+function TTreeValueCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -817,7 +817,7 @@ begin
   Result := fCollection.Count;
 end;
 
-function TCollectionWrapper<T>.GetEnumerator: IEnumerator<T>;
+function TCollectionWrapper<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   RefreshIfEmpty;
   _AddRef;
@@ -1131,7 +1131,7 @@ begin
   Result := fCount;
 end;
 
-function TMultiMapBase<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>;
+function TMultiMapBase<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -1260,7 +1260,7 @@ begin
   Result.Value := fEnumerator.Current;
 end;
 
-function TMultiMapBase<TKey, TValue>.TEnumerator.MoveNext: Boolean;
+function TMultiMapBase<TKey, TValue>.TEnumerator.MoveNext: Boolean; //FI:W521
 var
   hashTable: PHashTable;
   item: PItem;
@@ -1561,7 +1561,7 @@ begin
   Result := fCount;
 end;
 
-function TSortedMultiMapBase<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>;
+function TSortedMultiMapBase<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,

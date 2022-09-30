@@ -180,7 +180,7 @@ begin
   fKernel := kernel;
 end;
 
-function TSubDependencyResolverBase.CanResolve(const context: ICreationContext;
+function TSubDependencyResolverBase.CanResolve(const context: ICreationContext; //FI:O804
   const dependency: TDependencyModel; const argument: TValue): Boolean;
 begin
   if not argument.IsEmpty and argument.IsString then
@@ -343,8 +343,8 @@ begin
   Result := True;
 end;
 
-function TDependencyResolver.CanResolveFromArgument(
-  const context: ICreationContext; const dependency: TDependencyModel;
+function TDependencyResolver.CanResolveFromArgument(const context: ICreationContext;
+  const dependency: TDependencyModel; //FI:O804
   const argument: TValue): Boolean;
 begin
   Result := Assigned(argument.TypeInfo) and argument.IsType(dependency.TypeInfo);
@@ -429,7 +429,7 @@ begin
       Kernel.Resolver.Resolve(context, dependencyModel, value).AsType(TypeInfo(T), Result);
     end;
 
-  case lazyKind of
+  case lazyKind of //FI:W535
     lkFunc: Result := TValue.From<Func<T>>(factory);
     lkRecord: Result := TValue.From<Lazy<T>>(Lazy<T>.Create(factory));
     lkInterface: Result := TValue.From<ILazy<T>>(Lazy<T>.Create(factory));
