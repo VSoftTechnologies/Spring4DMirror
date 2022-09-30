@@ -208,7 +208,8 @@ begin
   raise ENotSupportedException.CreateResFmt(@STypeNotSupported, [typeInfo.TypeName]);
 end;
 
-procedure SetIndexOrdinal(typeInfo: PTypeInfo; index: Integer; var Result); //FI:O804
+procedure SetIndexOrdinal(typeInfo: PTypeInfo; //FI:O804
+  index: Integer; var Result);
 begin
   PByte(@Result)^ := Byte(index);
 end;
@@ -251,17 +252,20 @@ begin
   end;
 end;
 
-procedure SetIndexObject(typeInfo: PTypeInfo; index: Integer; var Result); //FI:O804
+procedure SetIndexObject(typeInfo: PTypeInfo; //FI:O804
+  index: Integer; var Result);
 begin
   TObject(PPointer(@Result)^) := TIndexWrapper.Create(index);
 end;
 
-procedure SetIndexInterface(typeInfo: PTypeInfo; index: Integer; var Result); //FI:O804
+procedure SetIndexInterface(typeInfo: PTypeInfo; //FI:O804
+  index: Integer; var Result);
 begin
   IInterface(PPointer(@Result)^) := TIndexWrapper.Create(index);
 end;
 
-procedure SetIndexPointer(typeInfo: PTypeInfo; index: Integer; var Result); //FI:O804
+procedure SetIndexPointer(typeInfo: PTypeInfo; //FI:O804
+  index: Integer; var Result);
 begin
   Pointer(Result) := TIndexWrapper.Create(index);
 end;
@@ -291,7 +295,8 @@ begin
   end;
 end;
 
-procedure SetIndexVariant(typeInfo: PTypeInfo; index: Integer; var Result); //FI:O804
+procedure SetIndexVariant(typeInfo: PTypeInfo; //FI:O804
+  index: Integer; var Result);
 begin
   PVariant(@Result)^ := index;
 end;
@@ -597,7 +602,8 @@ begin
     end);
 end;
 
-class function TArg.&&op_Equality<T>(const left: TArg; const right: T): T;
+class function TArg.&&op_Equality<T>(const left: TArg; //FI:O804
+  const right: T): T;
 var
   comparer: Pointer;
 begin
@@ -618,7 +624,8 @@ begin
   end;
 end;
 
-class function TArg.&&op_Inequality<T>(const left: TArg; const right: T): T;
+class function TArg.&&op_Inequality<T>(const left: TArg; //FI:O804
+  const right: T): T;
 var
   comparer: Pointer;
 begin
@@ -639,11 +646,11 @@ begin
   end;
 end;
 
-class function TArg.Ref<T>: TArg<T>;
-begin
+class function TArg.Ref<T>: TArg<T>; //FI:W521
+begin //FI:W519
 end;
 
-class function TArg.Ref<T>(const value: T): TRef<T>;
+class function TArg.Ref<T>(const value: T): TRef<T>; //FI:W521
 begin
   RefArgs.Add(value, TypeInfo(T));
 end;

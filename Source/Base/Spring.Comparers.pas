@@ -748,7 +748,7 @@ end;
 
 function Equals_Single(const inst: Pointer; const left, right: Single): Boolean;
 begin
-  Result := left = right;
+  Result := left = right; //FI:W542
 end;
 
 function GetHashCode_Single(const inst: Pointer; const value: Single): Integer;
@@ -816,7 +816,7 @@ end;
 {$ELSE}
 function Equals_Double(const inst: Pointer; const left, right: Double): Boolean;
 begin
-  Result := left = right;
+  Result := left = right; //FI:W542
 end;
 {$ENDIF}
 
@@ -840,7 +840,7 @@ end;
 
 function Equals_Extended(const inst: Pointer; const left, right: Extended): Boolean;
 begin
-  Result := left = right;
+  Result := left = right; //FI:W542
 end;
 
 function GetHashCode_Extended(const inst: Pointer; const value: Extended): Integer;
@@ -2139,11 +2139,11 @@ begin
   Result := IEqualityComparer<string>(_LookupVtableInfo(giEqualityComparer, TypeInfo(string), Integer(SizeOf(string))));
 end;
 
-class function TStringComparer.Ordinal: TStringComparer;
+class function TStringComparer.Ordinal: TStringComparer; //FI:W521
 begin
 end;
 
-class function TStringComparer.OrdinalIgnoreCase: TIStringComparer;
+class function TStringComparer.OrdinalIgnoreCase: TIStringComparer; //FI:W521
 begin
 end;
 

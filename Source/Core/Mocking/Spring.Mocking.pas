@@ -113,13 +113,13 @@ type
     property TypeInfo: PTypeInfo read GetTypeInfo;
   end;
 
-  IWhen<T> = interface(IInvokable)
+  IWhen<T> = interface(IInvokable) //FI:W524
     ['{4162918E-4DE6-47D6-B609-D5A17F3FBE2B}']
     function When: T; overload;
     function When(const match: TArgMatch): T; overload;
   end;
 
-  ISetup<T> = interface(IInvokable)
+  ISetup<T> = interface(IInvokable) //FI:W524
     ['{CD661866-EB29-400C-ABC8-19FC8D59FFAD}']
     function Executes: IWhen<T>; overload;
     function Executes(const action: TMockAction): IWhen<T>; overload;
@@ -147,7 +147,7 @@ type
     property Current: Integer read GetCurrent;
   end;
 
-  IMock<T> = interface(IInvokable)
+  IMock<T> = interface(IInvokable) //FI:W524
     ['{67AD5AD2-1C23-41BA-8F5D-5C28B3C7ABF7}']
   {$REGION 'Property Accessors'}
     function GetBehavior: TMockBehavior;

@@ -103,7 +103,7 @@ type
   /// <summary>
   ///   Represents an observable subject.
   /// </summary>
-  IObservable<T> = interface(IInvokable)
+  IObservable<T> = interface(IInvokable) //FI:W524
     ['{A5B3E22A-8F64-492D-8FB3-0BFE4406283C}']
     procedure Attach(const observer: T);
     procedure Detach(const observer: T);
@@ -254,7 +254,7 @@ begin
   fObservers := TCollections.CreateList<T>;
 end;
 
-destructor TObservable<T>.Destroy;
+destructor TObservable<T>.Destroy; //FI:W504
 begin
   fObservers := nil;
   fLock.Free;

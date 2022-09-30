@@ -653,7 +653,7 @@ begin
   fLifetimeWatcher := lifetimeWatcher;
 end;
 
-destructor TValueHolder.Destroy;
+destructor TValueHolder.Destroy; //FI:W504
 begin
   if not Assigned(fLifetimeWatcher) and fValue.IsObject then
     fValue.AsObject.Free;

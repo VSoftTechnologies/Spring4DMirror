@@ -410,7 +410,7 @@ end;
 
 class function TProxyGenerationOptions.Default: TProxyGenerationOptions;
 begin
-  Result := TProxyGenerationOptions.Create(TAllMethodsHook.Create);
+  Result := TProxyGenerationOptions.Create(TAllMethodsHook.Create); //FI:W536
   Result.Selector := TAllInterceptorsSelector.Create;
 end;
 

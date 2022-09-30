@@ -370,7 +370,7 @@ type
   end;
 
   // binary compatible interface to Spring.Collections.ILookup<TKey,TValue> but foldable
-  ILookupInternal<TKey, TElement> = interface(IReadOnlyCollection<IInterface>)
+  ILookupInternal<TKey, TElement> = interface(IReadOnlyCollection<IInterface>) //FI:W524
     ['{B2380533-F2B1-465B-84B2-97FA79A6EE09}'] //FI:W530
     function GetItem(const key: TKey): IReadOnlyCollection<TElement>;
     function Contains(const key: TKey): Boolean;
@@ -986,7 +986,7 @@ begin
   Result := 0;
 end;
 
-function TEmptyEnumerable<T>.GetCurrent: T;
+function TEmptyEnumerable<T>.GetCurrent: T; //FI:W521
 begin
   RaiseHelper.NoElements;
 end;
@@ -996,7 +996,7 @@ begin
   Result := Self;
 end;
 
-function TEmptyEnumerable<T>.GetItem(index: Integer): T;
+function TEmptyEnumerable<T>.GetItem(index: Integer): T; //FI:W521
 begin
   RaiseHelper.ArgumentOutOfRange_Index;
 end;
@@ -2328,7 +2328,7 @@ begin
   fIndex := -1;
 end;
 
-destructor TLookup<TKey, TElement>.TEnumerator.Destroy;
+destructor TLookup<TKey, TElement>.TEnumerator.Destroy; //FI:W504
 begin
   fSource._Release;
 end;
@@ -2380,7 +2380,7 @@ begin
   fComparer := comparer;
 end;
 
-destructor TJoinIterator<TOuter, TInner, TKey, TResult>.Destroy;
+destructor TJoinIterator<TOuter, TInner, TKey, TResult>.Destroy; //FI:W504
 begin
   fLookup.Free;
 end;
@@ -2466,7 +2466,7 @@ begin
   fComparer := comparer;
 end;
 
-destructor TGroupJoinIterator<TOuter, TInner, TKey, TResult>.Destroy;
+destructor TGroupJoinIterator<TOuter, TInner, TKey, TResult>.Destroy; //FI:W504
 begin
   fLookup.Free;
 end;
@@ -3233,7 +3233,7 @@ end;
 
 {$REGION 'TRepeatIterator<T>'}
 
-constructor TRepeatIterator<T>.Create(const element: T; count: Integer);
+constructor TRepeatIterator<T>.Create(const element: T; count: Integer); //FI:W525
 begin
   if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
@@ -3270,7 +3270,7 @@ end;
 
 {$REGION 'TAnonymousIterator<T>'}
 
-constructor TAnonymousIterator<T>.Create(const count: Func<Integer>;
+constructor TAnonymousIterator<T>.Create(const count: Func<Integer>; //FI:W525
   const items: Func<Integer, T>);
 begin
   if not Assigned(count) then RaiseHelper.ArgumentNil(ExceptionArgument.count);
@@ -3495,7 +3495,7 @@ begin
   Result := fStrings.Count;
 end;
 
-function TStringsAdapter.GetEnumerator: IEnumerator<string>;
+function TStringsAdapter.GetEnumerator: IEnumerator<string>; //FI:W521
 var
   getCurrent: Pointer;
 begin
@@ -3695,7 +3695,7 @@ begin
   RaiseHelper.NotSupported;
 end;
 
-procedure TStringsAdapter.Reverse(index, count: Integer);
+procedure TStringsAdapter.Reverse(index, count: Integer); //FI:O804
 begin
   RaiseHelper.NotSupported;
 end;
@@ -3706,7 +3706,7 @@ begin
 end;
 
 procedure TStringsAdapter.SetCount(value: Integer);
-begin
+begin //FI:W519
 end;
 
 procedure TStringsAdapter.SetItem(index: Integer; const value: string);
@@ -3717,7 +3717,7 @@ begin
 end;
 
 procedure TStringsAdapter.SetOwnsObjects(value: Boolean);
-begin
+begin //FI:W519
 end;
 
 procedure TStringsAdapter.Sort;
@@ -3726,22 +3726,22 @@ begin
     TStringList(fStrings).Sort;
 end;
 
-procedure TStringsAdapter.Sort(const comparer: IComparer<string>);
+procedure TStringsAdapter.Sort(const comparer: IComparer<string>); //FI:O804
 begin
   RaiseHelper.NotSupported;
 end;
 
-procedure TStringsAdapter.Sort(const comparer: IComparer<string>; index, count: Integer);
+procedure TStringsAdapter.Sort(const comparer: IComparer<string>; index, count: Integer); //FI:O804
 begin
   RaiseHelper.NotSupported;
 end;
 
-procedure TStringsAdapter.Sort(const comparer: TComparison<string>);
+procedure TStringsAdapter.Sort(const comparer: TComparison<string>); //FI:O804
 begin
   RaiseHelper.NotSupported;
 end;
 
-procedure TStringsAdapter.Sort(const comparer: TComparison<string>; index, count: Integer);
+procedure TStringsAdapter.Sort(const comparer: TComparison<string>; index, count: Integer); //FI:O804
 begin
   RaiseHelper.NotSupported;
 end;

@@ -59,7 +59,7 @@ begin
   fMethod := method;
 end;
 
-destructor TMethodIntercept.Destroy;
+destructor TMethodIntercept.Destroy; //FI:W504
 begin
   fImplementation.Free;
 end;

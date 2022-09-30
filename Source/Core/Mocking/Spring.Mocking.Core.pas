@@ -490,7 +490,7 @@ end;
 
 {$REGION 'TResultMockAction'}
 
-function TResultMockAction.Invoke(const callInfo: TCallInfo): TValue;
+function TResultMockAction.Invoke(const callInfo: TCallInfo): TValue; //FI:O804
 begin
   Result := fValue;
 end;
@@ -500,7 +500,7 @@ end;
 
 {$REGION 'TExceptMockAction'}
 
-function TExceptMockAction.Invoke(const callInfo: TCallInfo): TValue;
+function TExceptMockAction.Invoke(const callInfo: TCallInfo): TValue; //FI:O804
 begin
   raise fExceptionClass.Create(fMessage);
 end;

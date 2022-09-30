@@ -82,7 +82,7 @@ type
     property Count: Integer read GetCount;
     property OwnsObjects: Boolean read GetOwnsObjects;
   public
-    constructor Create(capacity: Integer = 0);
+    constructor Create(capacity: Integer = 0; ownsObjects: Boolean = False);
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
 
@@ -145,10 +145,11 @@ uses
 
 {$REGION 'TAbstractStack<T>'}
 
-constructor TAbstractStack<T>.Create(capacity: Integer);
+constructor TAbstractStack<T>.Create(capacity: Integer; ownsObjects: Boolean);
 begin
   inherited Create;
   SetCapacity(capacity);
+  SetOwnsObjects(ownsObjects);
 end;
 
 procedure TAbstractStack<T>.AfterConstruction;
@@ -188,7 +189,7 @@ begin
   Result := fCount and CountMask;
 end;
 
-function TAbstractStack<T>.GetEnumerator: IEnumerator<T>;
+function TAbstractStack<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -278,7 +279,7 @@ begin
     fOnChanged.Invoke(Self, item, caAdded);
 end;
 
-function TAbstractStack<T>.Pop: T;
+function TAbstractStack<T>.Pop: T; //FI:W521
 begin
   if Count > 0 then
     PopInternal(Result, caRemoved)
@@ -286,7 +287,7 @@ begin
     RaiseHelper.NoElements;
 end;
 
-function TAbstractStack<T>.Extract: T;
+function TAbstractStack<T>.Extract: T; //FI:W521
 begin
   if Count > 0 then
     PopInternal(Result, caExtracted)
@@ -294,7 +295,7 @@ begin
     RaiseHelper.NoElements;
 end;
 
-function TAbstractStack<T>.Peek: T;
+function TAbstractStack<T>.Peek: T; //FI:W521
 begin
   if Count > 0 then
     Result := fItems[Count - 1]

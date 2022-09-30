@@ -151,7 +151,7 @@ end;
 
 {$REGION 'TEventBase'}
 
-destructor TEventBase.Destroy;
+destructor TEventBase.Destroy; //FI:W504
 begin
   if NativeUInt(fNotificationHandler) > 1 then
     fNotificationHandler.Free;
@@ -271,7 +271,7 @@ begin
   data := item.Data;
   if UseFreeNotification
     and IsValidObject(data) and TObject(data).InheritsFrom(TComponent) then
-    case action of //FI:W535
+    case action of
       cnAdded:
       begin
         EnsureNotificationHandler;

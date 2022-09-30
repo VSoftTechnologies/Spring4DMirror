@@ -288,7 +288,7 @@ begin
   sourceItem := fItems;
   targetItem := fItems;
   itemType := fItemsInfo.TypeData.elType2^;
-  for i := 0 to fItemCount - 1 do
+  for i := 0 to fItemCount - 1 do //FI:W528
   begin
     if PInteger(sourceItem)^ >= 0 then // not removed
     begin
@@ -679,7 +679,7 @@ deletedFound:
         if PString(@key)^ <> TItem<string>(item^).Key then Continue;
       tkRecord:
         if TypeInfo(T) = TypeInfo(TGUID) then
-          if not SameGuid(TItem<TGUID>(item^).Key, PGUID(@key)^) then Continue else
+          if not SameGuid(TItem<TGUID>(item^).Key, PGUID(@key)^) then Continue else //FI:W506
         else
           if not THashTable<T>(stackData.hashTable^).Comparer.Equals(TItem<T>(item^).Key, key) then Continue;
     else

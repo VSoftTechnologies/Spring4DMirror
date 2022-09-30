@@ -142,8 +142,9 @@ begin
   end;
 end;
 
-function TCreationContext.CanResolve(const context: ICreationContext;
-  const dependency: TDependencyModel; const argument: TValue): Boolean;
+function TCreationContext.CanResolve(const context: ICreationContext; //FI:O804
+  const dependency: TDependencyModel;
+  const argument: TValue): Boolean; //FI:O804
 var
   i: Integer;
 begin
@@ -264,8 +265,9 @@ begin
   end;
 end;
 
-function TCreationContext.Resolve(const context: ICreationContext;
-  const dependency: TDependencyModel; const argument: TValue): TValue;
+function TCreationContext.Resolve(const context: ICreationContext; //FI:O804
+  const dependency: TDependencyModel;
+  const argument: TValue): TValue; //FI:O804
 var
   i: Integer;
 begin

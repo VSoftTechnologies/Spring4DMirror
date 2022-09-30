@@ -107,7 +107,7 @@ uses
 
 {$REGION 'TLifetimeManagerBase'}
 
-constructor TLifetimeManagerBase.Create(const model: TComponentModel);
+constructor TLifetimeManagerBase.Create(const model: TComponentModel); //FI:O804
 begin
   inherited Create;
 end;

@@ -44,7 +44,7 @@ uses
 
 type
   {$IFDEF MSWINDOWS}
-  IEnumerableInternal = interface
+  IEnumerableInternal = interface //FI:W523
     procedure GetEnumerator(var result);
     function GetCount: Integer;
     function GetElementType: PTypeInfo;
@@ -53,7 +53,7 @@ type
     function AsObject: TObject;
     procedure ToArray(var result);
   end;
-  IEnumeratorInternal = interface
+  IEnumeratorInternal = interface //FI:W523
     procedure GetCurrent(var result);
   end;
   {$ENDIF}
@@ -1673,7 +1673,7 @@ begin
     RaiseHelper.MoreThanOneElement;
 end;
 
-function TEnumerableBase<T>.Single(const predicate: Predicate<T>): T;
+function TEnumerableBase<T>.Single(const predicate: Predicate<T>): T; //FI:W521
 var
   enumerator: IEnumerator<T>;
   item: T;
@@ -1738,7 +1738,7 @@ begin
   Result := IEnumerable<T>(this).SingleOrDefault(predicate, defaultValue);
 end;
 
-function TEnumerableBase<T>.SingleOrDefault(const predicate: Predicate<T>; const defaultValue: T): T;
+function TEnumerableBase<T>.SingleOrDefault(const predicate: Predicate<T>; const defaultValue: T): T; //FI:W521
 var
   enumerator: IEnumerator<T>;
   item: T;
@@ -1813,7 +1813,7 @@ begin
     0, 0, PPointer(@predicate)^, TIteratorKind.SkipWhileIndex);
 end;
 
-function TEnumerableBase<T>.Sum: T;
+function TEnumerableBase<T>.Sum: T; //FI:W521
 begin
   if TypeInfo(T) = TypeInfo(Integer) then
     PInteger(@Result)^ := TEnumerable.Sum(IEnumerable<Integer>(this))
@@ -2519,7 +2519,7 @@ begin
   Result := fElementType;
 end;
 
-function TInnerCollection<T>.GetEnumerator: IEnumerator<T>;
+function TInnerCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -2657,7 +2657,7 @@ begin
   Result := fTree.Count;
 end;
 
-function TSortedKeyCollection<T>.GetEnumerator: IEnumerator<T>;
+function TSortedKeyCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -2793,8 +2793,8 @@ procedure TCircularArrayBuffer<T>.Clear;
 var
   i: Integer;
 begin
-  for i := Count downto 1 do
-    DeleteFromHead(caRemoved);
+  for i := Count downto 1 do //FI:W528 // TODO: evaluate possible optimization
+    DeleteFromHead(caRemoved); //FI:O805
 end;
 
 function TCircularArrayBuffer<T>.GetCapacity: Integer;
@@ -2822,7 +2822,7 @@ begin
   Result := fCount and CountMask;
 end;
 
-function TCircularArrayBuffer<T>.GetEnumerator: IEnumerator<T>;
+function TCircularArrayBuffer<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -2943,7 +2943,7 @@ begin
   item^ := Default(T);
 end;
 
-function TCircularArrayBuffer<T>.First: T;
+function TCircularArrayBuffer<T>.First: T; //FI:W521
 begin
   if Count > 0 then
     Result := fItems[fHead]
@@ -2959,7 +2959,7 @@ begin
     Result := Default(T);
 end;
 
-function TCircularArrayBuffer<T>.Single: T;
+function TCircularArrayBuffer<T>.Single: T; //FI:W521
 begin
   case Count of
     0: RaiseHelper.NoElements;
@@ -2969,7 +2969,7 @@ begin
   end;
 end;
 
-function TCircularArrayBuffer<T>.SingleOrDefault(const defaultValue: T): T;
+function TCircularArrayBuffer<T>.SingleOrDefault(const defaultValue: T): T; //FI:W521
 begin
   case Count of
     0: Result := defaultValue;
@@ -3391,7 +3391,7 @@ end;
 
 procedure TIteratorBlock<T>.InitMethods;
 begin
-  case Kind of
+  case Kind of //FI:W535
     TIteratorKind.Partition:
       if Assigned(Source) then
         if SupportsIndexedAccess(Source) then
@@ -3517,7 +3517,7 @@ begin
   Result := False;
 end;
 
-class function TIteratorBlock<T>.DoAdd(const collection: IInterface;
+class function TIteratorBlock<T>.DoAdd(const collection: IInterface; //FI:W521
   const value: Spring.TValue): Boolean;
 var
   elementType: PTypeInfo;
@@ -3907,7 +3907,7 @@ begin
   Items := Source.ToArray;
   {$ENDIF}
   Count := DynArrayLength(Items);
-  case Kind of
+  case Kind of //FI:W535
     TIteratorKind.Ordered:
       TArray.Sort<T>(Items, IComparer<T>(Predicate));
     TIteratorKind.Shuffled:
@@ -3926,7 +3926,7 @@ function TIteratorBase.GetCountFast: Integer;
 var
   count: Integer;
 begin
-  case fKind of
+  case fKind of //FI:W535
     TIteratorKind.Concat:
     begin
       Result := fSource.GetCountFast;
@@ -4138,7 +4138,7 @@ end;
 
 function TIteratorBase<T>.ToArray: TArray<T>;
 begin
-  case fKind of
+  case fKind of //FI:W535
     TIteratorKind.Partition:
       if PartitionToArray(Result) then Exit;
     TIteratorKind.Array:
@@ -4342,7 +4342,7 @@ begin
   Result := DynArrayLength(fItems);
 end;
 
-function TArrayIterator<T>.GetEnumerator: IEnumerator<T>;
+function TArrayIterator<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
     TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do

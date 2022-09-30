@@ -288,7 +288,7 @@ begin
   end;
 end;
 
-function TLinkedList<T>.FindLast(const value: T): TLinkedListNode<T>;
+function TLinkedList<T>.FindLast(const value: T): TLinkedListNode<T>; //FI:W521
 var
   node1, node2: TLinkedListNode<T>;
   comparer: Pointer;
@@ -473,7 +473,7 @@ begin
   fNode := fList.fHead;
 end;
 
-destructor TLinkedList<T>.TEnumerator.Destroy;
+destructor TLinkedList<T>.TEnumerator.Destroy; //FI:W504
 begin
   fList._Release;
 end;

@@ -1135,7 +1135,7 @@ type
   INotifyEvent<T> = interface(IEvent<TNotifyEvent<T>>)
   end;
 
-  IInvokableNotifyEvent = interface(INotifyEvent)
+  IInvokableNotifyEvent = interface(INotifyEvent) //FI:W523
     function GetInvoke: TNotifyEvent;
     property Invoke: TNotifyEvent read GetInvoke;
   end;
@@ -2574,7 +2574,7 @@ type
 
   {$REGION 'TArray'}
 
-  IComparerRef = interface
+  IComparerRef = interface //FI:W523
     function Compare(const left, right): Integer;
   end;
   TSlice<T> = array[0..2] of T;
@@ -3319,11 +3319,11 @@ function StrToUInt64(const s: string): UInt64;
 
 const
   EmptyValue: TValue = ();
-  caReseted = caReset deprecated 'Use caReset';
+  caReseted = caReset deprecated 'Use caReset'; //FI:O803
 
   ObjCastGUID: TGUID = '{CEDF24DE-80A4-447D-8C75-EB871DC121FD}';
 
-  FieldVisibility = [{$IFDEF FIELD_RTTI}vcPrivate..vcProtected{$ENDIF}];
+  FieldVisibility = [{$IFDEF FIELD_RTTI}vcPrivate..vcProtected{$ENDIF}]; //FI:O803
 
 {$IFNDEF DELPHIXE3_UP}
 {$IF SizeOf(Pointer) = 4}
@@ -4902,8 +4902,8 @@ end;
 
 {$REGION 'TBaseAttribute'}
 
-constructor TBaseAttribute.Create;
-begin
+constructor TBaseAttribute.Create; //FI:W525
+begin //FI:W519
 end;
 
 {$ENDREGION}
@@ -4953,18 +4953,18 @@ end;
 
 {$REGION 'ManagedAttribute'}
 
-constructor ManagedAttribute.Create(createInstance: Boolean);
+constructor ManagedAttribute.Create(createInstance: Boolean); //FI:W525
 begin
   fCreateInstance := createInstance;
 end;
 
-constructor ManagedAttribute.Create(instanceClass: TClass);
+constructor ManagedAttribute.Create(instanceClass: TClass); //FI:W525
 begin
   fCreateInstance := True;
   fInstanceClass := instanceClass;
 end;
 
-constructor ManagedAttribute.Create(const initializer: TFieldInitializer);
+constructor ManagedAttribute.Create(const initializer: TFieldInitializer); //FI:W525
 begin
   fInitializer := initializer;
 end;
@@ -5049,7 +5049,7 @@ begin
   end;
 end;
 
-destructor TInitTable.Destroy;
+destructor TInitTable.Destroy; //FI:W504
 var
   i: NativeInt;
 begin
@@ -5330,7 +5330,7 @@ end;
 
 {$REGION 'TInitTable.TDefaultField<T>'}
 
-constructor TInitTable.TDefaultField<T>.Create(offset: Integer; const value: Variant);
+constructor TInitTable.TDefaultField<T>.Create(offset: Integer; const value: Variant); //FI:W525
 begin
   fOffset := offset;
   TValue.FromVariant(value).AsType(TypeInfo(T), fValue); // TODO
@@ -5346,7 +5346,7 @@ end;
 
 {$REGION 'TInitTable.TDefaultProperty<T>'}
 
-constructor TInitTable.TDefaultProperty<T>.Create(propInfo: PPropInfo; const value: Variant);
+constructor TInitTable.TDefaultProperty<T>.Create(propInfo: PPropInfo; const value: Variant); //FI:W525
 begin
   fPropInfo := propInfo;
   TValue.FromVariant(value).AsType(TypeInfo(T), fValue); // TODO
@@ -5377,7 +5377,7 @@ end;
 
 {$REGION 'TInitTable.TInitializerField'}
 
-constructor TInitTable.TInitializerField.Create(offset: Integer;
+constructor TInitTable.TInitializerField.Create(offset: Integer; //FI:W525
   fieldType: PTypeInfo; const initializer: TFieldInitializer);
 begin
   fOffset := offset;
@@ -6814,28 +6814,28 @@ type
   TConvertFunc = function(const source: TValue; target: PTypeInfo;
     var value: TValue; const formatSettings: TFormatSettings): Boolean;
 
-function ConvFail(const source: TValue; target: PTypeInfo; var value: TValue;
+function ConvFail(const source: TValue; target: PTypeInfo; var value: TValue; //FI:O804
   const formatSettings: TFormatSettings): Boolean; //FI:O804
 begin
   Result := False;
 end;
 
-function ConvClass2Class(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvClass2Class(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 begin
   Result := source.TryCast(target, value);
 end;
 
-function ConvClass2Enum(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvClass2Enum(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 begin
   Result := target = TypeInfo(Boolean);
   if Result then
     value := source.AsObject <> nil;
 end;
 
-function ConvFloat2Ord(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvFloat2Ord(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 begin
   Result := Frac(source.AsExtended) = 0;
   if Result then
@@ -6864,8 +6864,8 @@ begin
   Result := ConvClass2Class(source.AsInterface as TObject, target, value, formatSettings);
 end;
 
-function ConvIntf2Intf(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvIntf2Intf(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   intf: IInterface;
 begin
@@ -6876,15 +6876,15 @@ begin
     value := TValue.Empty;
 end;
 
-function ConvOrd2Float(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvOrd2Float(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 begin
   value := TValue.FromFloat(target, source.AsOrdinal);
   Result := True;
 end;
 
-function ConvOrd2Ord(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvOrd2Ord(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   i: Int64;
 begin
@@ -6896,8 +6896,8 @@ begin
   Result := True;
 end;
 
-function ConvOrd2Str(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvOrd2Str(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   temp: TValue;
 begin
@@ -6905,8 +6905,8 @@ begin
   Result := temp.TryCast(target, value);
 end;
 
-function ConvRec2Meth(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvRec2Meth(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 begin
   Result := source.TypeInfo = TypeInfo(TMethod);
   if Result then
@@ -6916,8 +6916,8 @@ begin
   end
 end;
 
-function ConvStr2Enum(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvStr2Enum(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   temp: Integer;
 begin
@@ -6960,8 +6960,8 @@ begin
   end;
 end;
 
-function ConvStr2Ord(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvStr2Ord(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   s: string;
   i: Int64;
@@ -7026,8 +7026,8 @@ begin
   end;
 end;
 
-function ConvStr2DynArray(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvStr2DynArray(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   s: string;
   values: TStringDynArray;
@@ -7061,8 +7061,8 @@ begin
   Result := True;
 end;
 
-function ConvStr2Array(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvStr2Array(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   s: string;
   values: TStringDynArray;
@@ -7103,8 +7103,8 @@ begin
   Result := True;
 end;
 
-function ConvVariant2Enum(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvVariant2Enum(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   v: Variant;
   temp: TValue;
@@ -7118,8 +7118,8 @@ begin
   Result := temp.TryCast(target, value);
 end;
 
-function ConvDynArray2DynArray(const source: TValue; target: PTypeInfo;
-  var value: TValue; const formatSettings: TFormatSettings): Boolean;
+function ConvDynArray2DynArray(const source: TValue; target: PTypeInfo; var value: TValue;
+  const formatSettings: TFormatSettings): Boolean; //FI:O804
 var
   len, i: Integer;
   res, v1, v2: TValue;
@@ -7445,7 +7445,7 @@ begin
       Exit(True);
     end;
 
-    case Kind of
+    case Kind of //FI:W535
       tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
         if TypeInfo = System.TypeInfo(TValue) then
         begin
@@ -8502,7 +8502,7 @@ begin
   Result := fHasValue <> '';
 end;
 
-function Nullable<T>.GetValue: T;
+function Nullable<T>.GetValue: T; //FI:W521
 begin
   if HasValue then
     Exit(fValue);
@@ -8762,7 +8762,7 @@ procedure TNullableHelper.SetValue(instance: Pointer; const value: TValue);
 
 begin
   value.Cast(fValueType).ExtractRawData(instance);
-  case fHasValueKind of
+  case fHasValueKind of //FI:W535
     tkUString:
       if IsEmpty(value) then
         PUnicodeString(PByte(instance) + fHasValueOffset)^ := ''
@@ -8852,7 +8852,7 @@ end;
 
 {$REGION 'Lazy<T>'}
 
-class function Lazy<T>.Create: Lazy<T>;
+class function Lazy<T>.Create: Lazy<T>; //FI:W521
 begin
   Lazy.MakeFromDefaultCtor(Result.fInstance, TypeInfo(T));
 end;
@@ -8970,7 +8970,7 @@ begin
     Pointer(rec.Value) := nil;
   end;
   rec.RefCount := 1;
-  rec.OwnsObject := False;
+  rec.OwnsObject := ownsObject;
   rec.Factory := nil;
   rec.Value := value;
 end;
@@ -8979,8 +8979,7 @@ class procedure Lazy.Make(const value: IInterface; var result; typeInfo: PTypeIn
 var
   rec: PInterfaceReference absolute result;
 begin
-  if Assigned(rec) and (AtomicDecrement(rec.RefCount) = 0) then
-  else
+  if not Assigned(rec) or (AtomicDecrement(rec.RefCount) <> 0) then
   begin
     GetMem(rec, SizeOf(TInterfaceReference));
     rec.Vtable := @Lazy.InterfaceReferenceVtable;
@@ -9041,8 +9040,7 @@ class procedure Lazy.MakeFromFactory(factory: Pointer; var result; typeInfo: PTy
 var
   rec: PInterfaceReference absolute result;
 begin
-  if Assigned(rec) and (AtomicDecrement(rec.RefCount) = 0) then
-  else
+  if not Assigned(rec) or (AtomicDecrement(rec.RefCount) <> 0) then
   begin
     GetMem(rec, SizeOf(TInterfaceReference));
     rec.Vtable := @Lazy.InterfaceReferenceVtable;
@@ -9427,7 +9425,7 @@ begin
   fFinalizer := finalizer;
 end;
 
-destructor Shared.THandleFinalizer<T>.Destroy;
+destructor Shared.THandleFinalizer<T>.Destroy; //FI:W504
 begin
   fFinalizer(fValue);
 end;
@@ -10122,7 +10120,7 @@ end;
 {$REGION 'TEventArgs'}
 
 constructor TEventArgs.Create;
-begin
+begin //FI:W519
 end;
 
 {$ENDREGION}
@@ -10130,7 +10128,7 @@ end;
 
 {$REGION 'TPropertyChangedEventArgs'}
 
-constructor TPropertyChangedEventArgs.Create(const propertyName: string);
+constructor TPropertyChangedEventArgs.Create(const propertyName: string); //FI:W525
 begin
   fPropertyName := propertyName;
 end;
@@ -10195,7 +10193,7 @@ begin
   fCriticalSection.Enter;
 end;
 
-destructor TInterfacedCriticalSection.TScopedLock.Destroy;
+destructor TInterfacedCriticalSection.TScopedLock.Destroy; //FI:W504
 begin
   fCriticalSection.Leave;
 end;

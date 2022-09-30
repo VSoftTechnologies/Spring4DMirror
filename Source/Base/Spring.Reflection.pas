@@ -1190,7 +1190,7 @@ begin
       if Assigned(table) then
       begin
         p := @table.Entries[table.EntryCount];
-        for i := 0 to table.EntryCount - 1 do
+        for i := 0 to table.EntryCount - 1 do //FI:W528
         begin
           intfType := TType.GetType(p^^).AsInterface;
           list.Add(intfType);
