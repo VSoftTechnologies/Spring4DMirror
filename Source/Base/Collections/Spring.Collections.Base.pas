@@ -634,6 +634,8 @@ type
     function GetEnumerator: IEnumerator<T>;
     function Contains(const value: T): Boolean; overload;
     function ToArray: TArray<T>;
+    function TryGetFirst(var value: T): Boolean; overload;
+    function TryGetLast(var value: T): Boolean; overload;
   {$ENDREGION}
   end;
 
@@ -2664,6 +2666,34 @@ begin
       next := node.Next;
     until not Assigned(next);
   end;
+end;
+
+function TSortedKeyCollection<T>.TryGetFirst(var value: T): Boolean;
+var
+  node: PBinaryTreeNode;
+begin
+  node := fTree.Root.LeftMost;
+  if Assigned(node) then
+  begin
+    value := PNode(node).Key;
+    Exit(True);
+  end;
+  value := Default(T);
+  Result := False;
+end;
+
+function TSortedKeyCollection<T>.TryGetLast(var value: T): Boolean;
+var
+  node: PBinaryTreeNode;
+begin
+  node := fTree.Root.RightMost;
+  if Assigned(node) then
+  begin
+    value := PNode(node).Key;
+    Exit(True);
+  end;
+  value := Default(T);
+  Result := False;
 end;
 
 function TSortedKeyCollection<T>._AddRef: Integer;
