@@ -130,19 +130,25 @@ function TLifetimeManagerBase.TryGetInterfaceWithoutCopy(const instance: TValue;
   end;
 
 var
+  obj: TObject;
   localIntf: Pointer; // weak-reference
 begin
   Guard.CheckFalse(instance.IsEmpty, 'instance should not be empty.');
 
-  case instance.Kind of
+  case TValueData(instance).FTypeInfo.Kind of
     tkClass:
     begin
-      Result := GetInterface(instance.AsObject, IID, intf);
-      Result := Result or (GetInterface(instance.AsObject, IInterface, localIntf)
-        and (IInterface(localIntf).QueryInterface(IID, intf) = S_OK));
+      obj := TValueData(instance).FAsObject;
+      Result := GetInterface(obj, IID, intf);
+      if not Result and GetInterface(obj, IInterface, localIntf) then
+        Result := IInterface(localIntf).QueryInterface(IID, intf) = S_OK;
     end;
     tkInterface:
-      Result := instance.AsInterface.QueryInterface(IID, intf) = S_OK;
+    begin
+      localIntf := nil;
+      TValueData(instance).FValueData.ExtractRawDataNoCopy(@localIntf);
+      Result := IInterface(localIntf).QueryInterface(IID, intf) = S_OK;
+    end;
   else
     Result := False;
   end
