@@ -8866,6 +8866,7 @@ begin
   rec.RefCount := 1;
   rec.Factory := nil;
   rec.Value := value;
+  rec.TypeInfo := typeInfo;
 end;
 
 class procedure Lazy.Make<T>(const value: T; var result);
@@ -8926,8 +8927,8 @@ begin
   end;
   rec.RefCount := 1;
   rec.Factory := IInterface(factory);
-  rec.TypeInfo := typeInfo;
   rec.Value := nil;
+  rec.TypeInfo := typeInfo;
 end;
 
 class procedure Lazy.MakeFromFactory<T>(factory: Pointer; var result);
@@ -9005,7 +9006,7 @@ function Lazy.TObjectReference.GetValue: TValue;
 begin
   if Factory <> nil then
     CreateValue;
-  Result := TValue.From(@Value, Value.ClassInfo);
+  Result := Value;
 end;
 
 function Lazy.TObjectReference.GetObject: TObject;
