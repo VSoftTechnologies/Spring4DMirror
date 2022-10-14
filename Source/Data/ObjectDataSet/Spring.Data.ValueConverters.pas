@@ -82,7 +82,16 @@ begin
   TValueConverterFactory.RegisterConverter(TypeInfo(Variant), TypeInfo(TBcd), TVariantToBcdConverter);
 end;
 
+procedure UnregisterConverters;
+begin
+  TValueConverterFactory.UnregisterConverter(TBcdToVariantConverter);
+  TValueConverterFactory.UnregisterConverter(TVariantToBcdConverter);
+end;
+
 initialization
   RegisterConverters;
+
+finalization
+  UnregisterConverters;
 
 end.

@@ -788,6 +788,8 @@ type
     class var fTypeInfoToTypeKindsRegistry: TDictionary<TTypeMapping<PTypeInfo,TTypeKind>, IValueConverter>;
     class var fTypeKindsToTypeInfoRegistry: TDictionary<TTypeMapping<TTypeKind,PTypeInfo>, IValueConverter>;
     class var fTypeKindsToTypeKindsRegistry: TDictionary<TTypeMapping<TTypeKind,TTypeKind>, IValueConverter>;
+  strict protected
+    class procedure UnregisterConverter<T>(registry: TDictionary<T, IValueConverter>; converterClass: TConverterClass); overload; static;
   public
     class constructor Create;
     class destructor Destroy;
@@ -817,6 +819,8 @@ type
     class procedure RegisterConverter(
       sourceTypeInfo: PTypeInfo; targetTypeKinds: TTypeKinds;
       const converter: IValueConverter); overload; static;
+
+    class procedure UnregisterConverter(converterClass: TConverterClass); overload; static;
 
     class function GetConverter(
       sourceTypeInfo, targetTypeInfo: PTypeInfo): IValueConverter; static;
@@ -2230,6 +2234,32 @@ class procedure TValueConverterFactory.RegisterConverter(
   converterClass: TConverterClass);
 begin
   RegisterConverter(sourceTypeKinds, targetTypeKinds, converterClass.Create);
+end;
+
+class procedure TValueConverterFactory.UnregisterConverter<T>(
+  registry: TDictionary<T, IValueConverter>; converterClass: TConverterClass);
+var
+  registeredConverters: TArray<TPair<T, IValueConverter>>;
+  i: Integer;
+begin
+  System.MonitorEnter(registry);
+  try
+    registeredConverters := registry.ToArray;
+    for i := 0 to High(registeredConverters) do
+      if TObject(registeredConverters[i].Value).ClassType = converterClass then
+        registry.Remove(registeredConverters[i].Key);
+  finally
+    System.MonitorExit(registry);
+  end;
+end;
+
+class procedure TValueConverterFactory.UnregisterConverter(
+  converterClass: TConverterClass);
+begin
+  UnregisterConverter<TTypeMapping<PTypeInfo, PTypeInfo>>(fTypeInfoToTypeInfoRegistry, converterClass);
+  UnregisterConverter<TTypeMapping<PTypeInfo, TTypeKind>>(fTypeInfoToTypeKindsRegistry, converterClass);
+  UnregisterConverter<TTypeMapping<TTypeKind, PTypeInfo>>(fTypeKindsToTypeInfoRegistry, converterClass);
+  UnregisterConverter<TTypeMapping<TTypeKind, TTypeKind>>(fTypeKindsToTypeKindsRegistry, converterClass);
 end;
 
 {$ENDREGION}
