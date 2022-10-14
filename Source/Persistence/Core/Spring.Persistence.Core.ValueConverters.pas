@@ -100,6 +100,13 @@ begin
     TStreamToPictureConverter);
 end;
 
+procedure UnregisterConverters;
+begin
+  TValueConverterFactory.UnregisterConverter(TStreamToVariantConverter);
+  TValueConverterFactory.UnregisterConverter(TPictureToVariantConverter);
+  TValueConverterFactory.UnregisterConverter(TStreamToPictureConverter);
+end;
+
 function TryConvertTo(const value: TValue; const targetTypeInfo: PTypeInfo;
   var targetValue: TValue; const parameter: TValue): Boolean;
 begin
@@ -243,5 +250,8 @@ end;
 initialization
   RegisterConverters;
   InitConverters;
+
+finalization
+  UnregisterConverters;
 
 end.
