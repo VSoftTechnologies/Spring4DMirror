@@ -2446,7 +2446,7 @@ type
     fRuns: TSliceArray;
     fArrayTypeInfo: PTypeInfo;
   private
-    procedure Initialize(const compare: TMethodPointer; const compareFunc: Pointer;
+    procedure Initialize(const comparer: IInterface; const compareFunc: Pointer;
       mergeLo, mergeHi: TMergeFunc; arrayTypeInfo: PTypeInfo; itemSize: Integer);
     procedure Finalize;
     function at(items: Pointer; index: Integer): Pointer; inline;
@@ -2488,6 +2488,7 @@ type
   PInt24 = ^Int24;
   TArray = class
   private type
+    TCompareMethodRef = function(const left, right): Integer of object;
     TCompareMethod<T> = function(const left, right: T): Integer of object;
     TQuickSortPartitionHelper<T> = record
       compare: TCompareMethod<T>;
@@ -2508,14 +2509,14 @@ type
     class procedure DownHeap<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; i: NativeInt); static;
     class procedure HeapSort<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>); static;
 
-    class procedure InsertionSort<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>); static;
+    class procedure InsertionSort<T>(var values: array of T; const comparer: IComparer<T>); static;
     class function QuickSortPartition<T>(var values: array of T; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>): NativeInt; static;
     class procedure IntroSort<T>(var values: array of T; const comparer: IComparer<T>; depthLimit: Integer = -1); static;
 
-    class procedure DownHeap_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; i, size: NativeInt); static;
-    class procedure HeapSort_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; size: NativeInt); static;
-    class procedure InsertionSort_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; size: NativeInt); static;
-    class function QuickSortPartition_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; size: NativeInt): NativeInt; static;
+    class procedure DownHeap_Ref(values: PByte; hi: NativeInt; const compare: TCompareMethodRef; i, size: NativeInt); static;
+    class procedure HeapSort_Ref(values: PByte; hi: NativeInt; const compare: TCompareMethodRef; size: NativeInt); static;
+    class procedure InsertionSort_Ref(values: PByte; hi: NativeInt; const compare: TCompareMethodRef; size: NativeInt); static;
+    class function QuickSortPartition_Ref(values: PByte; hi: NativeInt; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethodRef; size: NativeInt): NativeInt; static;
     class procedure IntroSort_Ref(values: PByte; hi: NativeInt; const comparer: IComparerRef; size: NativeInt; depthLimit: Integer = -1); static;
 
     class procedure IntroSort_Int8(var values: array of Int8; const comparer: IComparer<Int8>); static;
@@ -10605,7 +10606,7 @@ end;
 class function TArray.BinarySearchInternal<T>(const values: array of T; const item: T;
   out foundIndex: Integer; const comparer: IComparer<T>): Boolean;
 var
-  count, left, prevCount, right: NativeInt;
+  count, left, right: NativeInt;
   compareResult: Integer;
   compare: TCompareMethod<T>;
 begin
@@ -10616,9 +10617,9 @@ begin
   left := 0;
   if count > 0 then
   repeat
-    prevCount := count;
+    right := left + ShortInt(Odd(count));
     count := count shr 1;
-    right := prevCount + left - count;
+    right := right + count;
     compareResult := compare(values[left + count], item);
     if compareResult < 0 then
       left := right;
@@ -10696,7 +10697,7 @@ end;
 class function TArray.BinarySearchUpperBoundInternal<T>(const values: array of T;
   const item: T; out foundIndex: Integer; const comparer: IComparer<T>): Boolean;
 var
-  count, left, prevCount, right: NativeInt;
+  count, left, right: NativeInt;
   compareResult: Integer;
   compare: TCompareMethod<T>;
 begin
@@ -10707,17 +10708,15 @@ begin
   left := 0;
   if count > 0 then
   repeat
-    prevCount := count;
+    right := left + ShortInt(Odd(count));
     count := count shr 1;
-    right := prevCount + left - count;
+    right := right + count;
     compareResult := compare(values[left + count], item);
-    if compareResult <= 0 then
-    begin
-      left := right;
-      {$B+}
-      Result := Result or (compareResult = 0);
-      {$B-}
-    end;
+    if compareResult > 0 then Continue;
+    left := right;
+    {$B+}
+    Result := Result or (compareResult = 0);
+    {$B-}
   until count = 0;
   foundIndex := left;
 end;
@@ -11819,26 +11818,43 @@ begin
 end;
 
 class procedure TArray.InsertionSort<T>(var values: array of T;
-  {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>);
+  const comparer: IComparer<T>);
 var
-  i, j: NativeInt;
-  helper: TInsertionSortHelper<T>;
+  index, start: NativeInt;
+  temp: T;
+  compare: TCompareMethod<T>;
 begin
-  i := High(values);
-  helper.hi := i;
-  helper.compare := compare;
-
-  repeat // will always be called with at least 2 elements
-    j := helper.hi - i;
-    helper.temp := values[j + 1];
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  start := 1;
+  repeat
+    index := start;
     repeat
-      if helper.compare(values[j], helper.temp) <= 0 then Break;
-      values[j + 1] := values[j];
-      Dec(j);
-    until j < 0;
-    values[j + 1] := helper.temp;
-    Dec(i);
-  until i = 0;
+      if compare(values[index-1], values[start]) <= 0 then Break;
+      Dec(index);
+    until index = 0;
+
+    if index < start then
+    begin
+      temp := values[start];
+      if TType.HasWeakRef<T> then
+        MoveManaged(@values[index], @values[index+1], TypeInfo(T), start - index)
+      else
+      begin
+        if TType.IsManaged<T> then
+          values[start] := Default(T);
+        Move(values[index], values[index+1], SizeOf(T) * (start - index));
+        if TType.IsManaged<T> then
+          if SizeOf(T) = SizeOf(Pointer) then
+            PPointer(@values[index])^ := nil
+          else
+            System.FillChar(values[index], SizeOf(T), 0);
+      end;
+      values[index] := temp;
+    end;
+
+    Inc(start);
+  until start > High(values);
 end;
 
 class function TArray.QuickSortPartition<T>(var values: array of T;
@@ -11923,7 +11939,7 @@ begin
   begin
     if partitionSize <= IntrosortSizeThreshold then
     begin
-      InsertionSort<T>(Slice(values, partitionSize), compare);
+      InsertionSort<T>(Slice(values, partitionSize), IComparer<T>(TMethod(compare).Data));
       Exit;
     end
     else
@@ -11948,7 +11964,7 @@ begin
 end;
 
 class procedure TArray.DownHeap_Ref(values: PByte; hi: NativeInt;
-  const comparer: IComparerRef; i, size: NativeInt);
+  const compare: TCompareMethodRef; i, size: NativeInt);
 var
   child: NativeInt;
 begin
@@ -11958,9 +11974,9 @@ begin
     if child > hi then
       Break;
 
-    if (child < hi) and (comparer.Compare(values[child*size], values[(child+1)*size]) < 0) then
+    if (child < hi) and (compare(values[child*size], values[(child+1)*size]) < 0) then
       inc(child);
-    if comparer.Compare(values[i*size], values[child*size]) >= 0 then
+    if compare(values[i*size], values[child*size]) >= 0 then
       Break;
 
     BinarySwap(@values[i*size], @values[child*size], size);
@@ -11969,95 +11985,100 @@ begin
 end;
 
 class procedure TArray.HeapSort_Ref(values: PByte; hi: NativeInt;
-  const comparer: IComparerRef; size: NativeInt);
+  const compare: TCompareMethodRef; size: NativeInt);
 var
   i: NativeInt;
 begin
   for i := (hi+1) shr 1 - 1 downto 0 do
-    DownHeap_Ref(values, hi, comparer, i, size);
+    DownHeap_Ref(values, hi, compare, i, size);
   for i := hi downto 1 do
   begin
     BinarySwap(@values[i*size], @values[0], size);
-    DownHeap_Ref(values, i-1, comparer, 0, size);
+    DownHeap_Ref(values, i-1, compare, 0, size);
   end;
 end;
 
 class procedure TArray.InsertionSort_Ref(values: PByte; hi: NativeInt;
-  const comparer: IComparerRef; size: NativeInt);
+  const compare: TCompareMethodRef; size: NativeInt);
 var
   i, j: NativeInt;
 begin
-  for i := 1 to hi do
-  begin
-    j := i - 1;
+  i := size;
+  hi := hi * size;
+  repeat
+    j := i;
     repeat
-      if comparer.Compare(values[j*size], values[(j+1)*size]) <= 0 then Break;
-      BinarySwap(@values[j*size], @values[(j+1)*size], size);
-      Dec(j);
-    until j < 0;
-  end;
+      if compare(values[j-size], values[j]) <= 0 then Break;
+      BinarySwap(@values[j-size], @values[j], size);
+      Dec(j, size);
+    until j = 0;
+    Inc(i, size);
+  until i > hi;
 end;
 
 class function TArray.QuickSortPartition_Ref(values: PByte; hi: NativeInt;
-  const comparer: IComparerRef; size: NativeInt): NativeInt;
+  {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethodRef; size: NativeInt): NativeInt;
 var
   left, right, middle, pivotIndex: NativeInt;
 begin
-  right := hi;
-  middle := right shr 1;
+  middle := (hi shr 1) * size;
+  right := hi * size;
 
-  if comparer.Compare(values[0], values[middle*size]) > 0 then
-    BinarySwap(@values[0], @values[middle*size], size);
-  if comparer.Compare(values[0], values[right*size]) > 0 then
-    BinarySwap(@values[0], @values[right*size], size);
-  if comparer.Compare(values[middle*size], values[right*size]) > 0 then
-    BinarySwap(@values[middle*size], @values[right*size], size);
+  if compare(values[0], values[middle]) > 0 then
+    BinarySwap(@values[0], @values[middle], size);
+  if compare(values[0], values[right]) > 0 then
+    BinarySwap(@values[0], @values[right], size);
+  if compare(values[middle], values[right]) > 0 then
+    BinarySwap(@values[middle], @values[right], size);
 
-  Dec(right);
-  BinarySwap(@values[middle*size], @values[right*size], size);
+  Dec(right, size);
+  BinarySwap(@values[middle], @values[right], size);
 
   pivotIndex := right;
   left := 0;
 
-  while left < right do
-  begin
+  repeat
     repeat
-      Inc(left);
-    until comparer.Compare(values[left*size], values[pivotIndex*size]) >= 0;
+      Inc(left, size);
+    until compare(values[left], values[pivotIndex]) >= 0;
     repeat
-      Dec(right);
-    until comparer.Compare(values[pivotIndex*size], values[right*size]) >= 0;
+      Dec(right, size);
+    until compare(values[pivotIndex], values[right]) >= 0;
 
     if left >= right then
       Break;
 
-    BinarySwap(@values[left*size], @values[right*size], size);
-  end;
+    BinarySwap(@values[left], @values[right], size);
+  until left >= right;
 
   if left <> pivotIndex then
-    BinarySwap(@values[left*size], @values[pivotIndex*size], size);
+    BinarySwap(@values[left], @values[pivotIndex], size);
 
-  Result := left;
+  Result := left div size;
 end;
 
 class procedure TArray.IntroSort_Ref(values: PByte; hi: NativeInt;
   const comparer: IComparerRef; size: NativeInt; depthLimit: Integer);
 var
   partitionSize, pivot: NativeInt;
+  compare: TCompareMethodRef;
 begin
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+
   partitionSize := hi + 1;
   while partitionSize > 1 do
   begin
     if partitionSize <= IntrosortSizeThreshold then
     begin
-      InsertionSort_Ref(values, partitionSize - 1, comparer, size);
+      InsertionSort_Ref(values, partitionSize - 1, compare, size);
       Exit;
     end
     else
     begin
       if depthLimit = 0 then
       begin
-        HeapSort_Ref(values, partitionSize - 1, comparer, size);
+        HeapSort_Ref(values, partitionSize - 1, compare, size);
         Exit;
       end;
 
@@ -12065,9 +12086,9 @@ begin
         depthLimit := GetDepthLimit(partitionSize);
 
       Dec(depthLimit);
-      pivot := QuickSortPartition_Ref(values, partitionSize - 1, comparer, size);
+      pivot := QuickSortPartition_Ref(values, partitionSize - 1, compare, size);
       {$R-}
-      IntroSort_Ref(@values[(pivot + 1) * size], partitionSize - (pivot + 1) - 1, comparer, size, depthLimit);
+      IntroSort_Ref(@values[(pivot + 1) * size], partitionSize - (pivot + 1) - 1, IComparerRef(TMethod(compare).Data), size, depthLimit);
       {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
       partitionSize := pivot;
     end;
@@ -12531,11 +12552,12 @@ end;
 {$REGION 'TTimSort'}
 
 {$IFDEF DELPHIXE7_UP}
-procedure TTimSort.Initialize(const compare: TMethodPointer;
+procedure TTimSort.Initialize(const comparer: IInterface;
   const compareFunc: Pointer; mergeLo, mergeHi: TMergeFunc;
   arrayTypeInfo: PTypeInfo; itemSize: Integer);
 begin
-  fCompare := compare;
+  TMethod(fCompare).Data := Pointer(comparer);
+  TMethod(fCompare).Code := PPVTable(comparer)^[3];
   TMethod(fCompareFunc).Code := compareFunc;
   TMethod(fCompareFunc).Data := @TMethod(fCompare);
   fMergeLo := mergeLo;
@@ -12565,12 +12587,24 @@ end;
 class procedure TTimSort.BinaryInsertionSort<T>(var values: array of T;
   start: NativeInt; const comparer: IComparer<T>);
 var
-  index: Integer;
+  index, count, right: NativeInt;
   pivot: T;
+  compare: TComparerMethod<T>;
 begin
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
   while start <= High(values) do
   begin
-    TArray.BinarySearchUpperBoundInternal<T>(Slice(values, start), values[start], index, comparer);
+    count := start;
+    index := 0;
+    if count > 0 then
+    repeat
+      right := index + ShortInt(Odd(count));
+      count := count shr 1;
+      right := right + count;
+      if compare(values[index + count], values[start]) > 0 then Continue;
+      index := right;
+    until count = 0;
     if index < start then
     begin
       pivot := values[start];
@@ -12580,13 +12614,12 @@ begin
       begin
         if TType.IsManaged<T> then
           values[start] := Default(T);
-        System.Move(values[index], values[index+1], SizeOf(T) * (start - index));
+        Move(values[index], values[index+1], SizeOf(T) * (start - index));
         if TType.IsManaged<T> then
           System.FillChar(values[index], SizeOf(T), 0);
       end;
       values[index] := pivot;
     end;
-
     Inc(start);
   end;
 end;
@@ -12917,7 +12950,7 @@ begin
   if TType.IsManaged<T> then
     MoveManaged(dest, left, TypeInfo(T), leftLen)
   else
-    System.Move(dest^, left^, SizeOf(T) * leftLen);
+    Move(dest^, left^, SizeOf(T) * leftLen);
 
   // move first element of second run and deal with degenerate cases
   dest^ := right^;
@@ -12983,7 +13016,7 @@ begin
         if TType.IsManaged<T> then
           MoveManaged(left, dest, TypeInfo(T), leftCount)
         else
-          System.Move(left^, dest^, SizeOf(T) * leftCount);
+          Move(left^, dest^, SizeOf(T) * leftCount);
         Inc(dest, leftCount);
         Inc(left, leftCount);
         Dec(leftLen, leftCount);
@@ -13009,7 +13042,7 @@ begin
         if TType.IsManaged<T> then
           MoveManaged(right, dest, TypeInfo(T), rightCount)
         else
-          System.Move(right^, dest^, SizeOf(T) * rightCount);
+          Move(right^, dest^, SizeOf(T) * rightCount);
         Inc(dest, rightCount);
         Inc(right, rightCount);
         Dec(rightLen, rightCount);
@@ -13031,7 +13064,7 @@ copyLeft:
     if TType.IsManaged<T> then
       MoveManaged(left, dest, TypeInfo(T), leftLen)
     else
-      System.Move(left^, dest^, SizeOf(T) * leftLen);
+      Move(left^, dest^, SizeOf(T) * leftLen);
   Exit;
 copyRight:
   Assert(leftLen = 1); //FI:W509
@@ -13039,7 +13072,7 @@ copyRight:
   if TType.IsManaged<T> then
     MoveManaged(right, dest, TypeInfo(T), rightLen)
   else
-    System.Move(right^, dest^, SizeOf(T) * rightLen);
+    Move(right^, dest^, SizeOf(T) * rightLen);
   dest[rightLen] := left^;
 end;
 
@@ -13067,7 +13100,7 @@ begin
   if TType.IsManaged<T> then
     MoveManaged(right, rightBase, TypeInfo(T), rightLen)
   else
-    System.Move(right^, rightBase^, SizeOf(T) * rightLen);
+    Move(right^, rightBase^, SizeOf(T) * rightLen);
   leftBase := left;
   right := rightBase + rightLen - 1;
   Inc(left, leftLen - 1);
@@ -13138,7 +13171,7 @@ begin
         if TType.IsManaged<T> then
           MoveManaged(@left[1], @dest[1], TypeInfo(T), leftCount)
         else
-          System.Move(left[1], dest[1], SizeOf(T) * leftCount);
+          Move(left[1], dest[1], SizeOf(T) * leftCount);
         Dec(leftLen, leftCount);
         if leftLen = 0 then
           goto copyRight;
@@ -13162,7 +13195,7 @@ begin
         if TType.IsManaged<T> then
           MoveManaged(@right[1], @dest[1], TypeInfo(T), rightCount)
         else
-          System.Move(right[1], dest[1], SizeOf(T) * rightCount);
+          Move(right[1], dest[1], SizeOf(T) * rightCount);
         Dec(rightLen, rightCount);
         if rightLen = 1 then
           goto copyLeft;
@@ -13184,7 +13217,7 @@ copyRight:
     if TType.IsManaged<T> then
       MoveManaged(rightBase, @dest[-(rightLen - 1)], TypeInfo(T), rightLen)
     else
-      System.Move(rightBase^, dest[-(rightLen - 1)], SizeOf(T) * rightLen);
+      Move(rightBase^, dest[-(rightLen - 1)], SizeOf(T) * rightLen);
   Exit;
 copyLeft:
   Assert(rightLen = 1); //FI:W509
@@ -13194,7 +13227,7 @@ copyLeft:
   if TType.IsManaged<T> then
     MoveManaged(@left[1], @dest[1], TypeInfo(T), leftLen)
   else
-    System.Move(left[1], dest[1], SizeOf(T) * leftLen);
+    Move(left[1], dest[1], SizeOf(T) * leftLen);
   dest^ := right^;
 end;
 
@@ -13207,7 +13240,6 @@ class procedure TTimSort.Sort<T>(items: Pointer; const comparer: IComparer<T>; i
 var
   runLen, minRun: Integer;
   force: Integer;
-  compare: TMethodPointer;
   ts: TTimSort;
 begin
   Assert(index >= 0);
@@ -13217,7 +13249,6 @@ begin
     Exit; // arrays of length 0 and 1 are always sorted
 
   Inc(PByte(items), index * SizeOf(T));
-  compare := MethodReferenceToMethodPointer(comparer);
 
   // if array is small, do a "mini-TimSort" with no merges
   if count < MIN_MERGE then
@@ -13232,7 +13263,7 @@ begin
     Exit;
   end;
 
-  ts.Initialize(compare, @CompareThunk<T>, @TTimSort.MergeLo<T>, @TTimSort.MergeHi<T>, TypeInfo(TArray<T>), Integer(SizeOf(T)));
+  ts.Initialize(comparer, @CompareThunk<T>, @TTimSort.MergeLo<T>, @TTimSort.MergeHi<T>, TypeInfo(TArray<T>), Integer(SizeOf(T)));
   try
     (* March over the array once, left to right, finding natural runs, extending short
        natural runs to minRun elements, and merging runs to maintain stack invariant. *)
