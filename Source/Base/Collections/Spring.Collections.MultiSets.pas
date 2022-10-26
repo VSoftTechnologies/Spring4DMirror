@@ -449,7 +449,7 @@ end;
 procedure THashMultiSet<T>.Clear;
 begin
   if not Assigned(Notify) then
-    THashTable(fHashTable).Clear
+    fHashTable.Clear
   else
     ClearWithNotify;
 end;
@@ -462,7 +462,7 @@ begin
   oldItemCount := fHashTable.ItemCount;
   oldItems := TItems(fHashTable.Items);
 
-  THashTable(fHashTable).Clear;
+  fHashTable.Clear;
 
   for i := 0 to oldItemCount - 1 do
     if oldItems[i].HashCode >= 0 then
@@ -536,13 +536,13 @@ begin
   if count >= 0 then
   begin
     entry.HashCode := IEqualityComparer<T>(fHashTable.Comparer).GetHashCode(item);
-    Result := Ord(THashTable(fHashTable).FindEntry(item, entry));
+    Result := Ord(fHashTable.FindEntry(item, entry));
     if Result = 0 then Exit;
     tableItem := @TItems(fHashTable.Items)[entry.ItemIndex];
     existingCount := tableItem.Count;
     if existingCount <= count then
     begin
-      THashTable(fHashTable).DeleteEntry(entry);
+      fHashTable.DeleteEntry(entry);
       count := existingCount;
     end
     else

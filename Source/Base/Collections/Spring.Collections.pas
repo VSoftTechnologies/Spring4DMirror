@@ -1660,6 +1660,21 @@ type
   end;
 
   /// <summary>
+  ///   Represents a generic read-only collection of key/value pairs that
+  ///   preserves insertion order.
+  /// </summary>
+  IReadOnlyOrderedDictionary<TKey, TValue> = interface(IReadOnlyDictionary<TKey, TValue>)
+    ['{299B7DFB-5104-488E-B299-0622D0B4D605}']
+  {$REGION 'Property Accessors'}
+    function GetItem(index: Integer): TPair<TKey, TValue>;
+  {$ENDREGION}
+
+    function IndexOf(const key: TKey): Integer;
+
+    property Items[index: Integer]: TPair<TKey, TValue> read GetItem;
+  end;
+
+  /// <summary>
   ///   Represents a generic collection of key/value pairs.
   /// </summary>
   /// <typeparam name="TKey">
@@ -1955,6 +1970,22 @@ type
     ///   collection.
     /// </exception>
     property Items[const key: TKey]: TValue read GetItem write SetItem; default;
+  end;
+
+  /// <summary>
+  ///   Represents a generic dictionary that preserves insertion order.
+  /// </summary>
+  IOrderedDictionary<TKey, TValue> = interface(IDictionary<TKey, TValue>)
+    ['{299B7DFB-5104-488E-B299-0622D0B4D605}']
+  {$REGION 'Property Accessors'}
+    function GetItem(index: Integer): TPair<TKey, TValue>;
+  {$ENDREGION}
+
+    function IndexOf(const key: TKey): Integer;
+
+    function AsReadOnly: IReadOnlyOrderedDictionary<TKey, TValue>;
+
+    property Items[index: Integer]: TPair<TKey, TValue> read GetItem;
   end;
 
   IBidiDictionary<TKey, TValue> = interface(IDictionary<TKey, TValue>)
@@ -2534,6 +2565,20 @@ type
     ///   Gets or sets the size of the internal storage.
     /// </summary>
     property Capacity: Integer read GetCapacity write SetCapacity;
+  end;
+
+  /// <summary>
+  ///   Represents a generic set that preserves insertion order.
+  /// </summary>
+  IOrderedSet<T> = interface(ISet<T>)
+    ['{3547BF38-902F-49BA-8BB1-215E6754891D}']
+  {$REGION 'Property Accessors'}
+    function GetItem(index: Integer): T;
+  {$ENDREGION}
+
+    function IndexOf(const key: T): Integer;
+
+    property Items[index: Integer]: T read GetItem;
   end;
 
   TMultiSetEntry<T> = packed record
@@ -3292,13 +3337,13 @@ type
     class function CreateObservableList<T: class>(ownsObjects: Boolean = True): IList<T>; static;
     class function CreateObservableInterfaceList<T: IInterface>: IList<T>; static;
 
-    class function CreateDictionary<TKey, TValue>: IDictionary<TKey, TValue>; overload; static;
-    class function CreateDictionary<TKey, TValue>(ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>; overload; static;
-    class function CreateDictionary<TKey, TValue>(capacity: Integer; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
-    class function CreateDictionary<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
-    class function CreateDictionary<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
-    class function CreateDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
-    class function CreateDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
+    class function CreateDictionary<TKey, TValue>: IOrderedDictionary<TKey, TValue>; overload; static;
+    class function CreateDictionary<TKey, TValue>(ownerships: TDictionaryOwnerships): IOrderedDictionary<TKey, TValue>; overload; static;
+    class function CreateDictionary<TKey, TValue>(capacity: Integer; ownerships: TDictionaryOwnerships = []): IOrderedDictionary<TKey, TValue>; overload; static;
+    class function CreateDictionary<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IOrderedDictionary<TKey, TValue>; overload; static;
+    class function CreateDictionary<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IOrderedDictionary<TKey, TValue>; overload; static;
+    class function CreateDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IOrderedDictionary<TKey, TValue>; overload; static;
+    class function CreateDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IOrderedDictionary<TKey, TValue>; overload; static;
 
     class function CreateMultiMap<TKey, TValue>(ownerships: TDictionaryOwnerships = []): IMultiMap<TKey, TValue>; overload; static;
     class function CreateMultiMap<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IMultiMap<TKey, TValue>; overload; static;
@@ -3360,14 +3405,14 @@ type
     class function CreateEvictingDeque<T>(size: Integer): IDeque<T>; overload; static;
     class function CreateEvictingDeque<T: class>(size: Integer; ownsObjects: Boolean): IDeque<T>; overload; static;
 
-    class function CreateSet<T>: ISet<T>; overload; static;
-    class function CreateSet<T>(capacity: Integer): ISet<T>; overload; static;
-    class function CreateSet<T>(const comparer: IEqualityComparer<T>): ISet<T>; overload; static;
-    class function CreateSet<T>(capacity: Integer; const comparer: IEqualityComparer<T>): ISet<T>; overload; static;
-    class function CreateSet<T>(const values: array of T): ISet<T>; overload; static;
-    class function CreateSet<T>(const values: IEnumerable<T>): ISet<T>; overload; static;
-    class function CreateSet<T>(const values: array of T; const comparer: IEqualityComparer<T>): ISet<T>; overload; static;
-    class function CreateSet<T>(const values: IEnumerable<T>; const comparer: IEqualityComparer<T>): ISet<T>; overload; static;
+    class function CreateSet<T>: IOrderedSet<T>; overload; static;
+    class function CreateSet<T>(capacity: Integer): IOrderedSet<T>; overload; static;
+    class function CreateSet<T>(const comparer: IEqualityComparer<T>): IOrderedSet<T>; overload; static;
+    class function CreateSet<T>(capacity: Integer; const comparer: IEqualityComparer<T>): IOrderedSet<T>; overload; static;
+    class function CreateSet<T>(const values: array of T): IOrderedSet<T>; overload; static;
+    class function CreateSet<T>(const values: IEnumerable<T>): IOrderedSet<T>; overload; static;
+    class function CreateSet<T>(const values: array of T; const comparer: IEqualityComparer<T>): IOrderedSet<T>; overload; static;
+    class function CreateSet<T>(const values: IEnumerable<T>; const comparer: IEqualityComparer<T>): IOrderedSet<T>; overload; static;
 
     class function CreateMultiSet<T>: IMultiSet<T>; overload; static;
     class function CreateMultiSet<T>(const comparer: IEqualityComparer<T>): IMultiSet<T>; overload; static;
@@ -3489,17 +3534,17 @@ type
       const selector: Func<TSource, Currency>): Currency; overload; static;
 
     class function ToDictionary<TSource, TKey>(const source: IEnumerable<TSource>;
-      const keySelector: Func<TSource, TKey>): IDictionary<TKey, TSource>; overload; static;
+      const keySelector: Func<TSource, TKey>): IOrderedDictionary<TKey, TSource>; overload; static;
     class function ToDictionary<TSource, TKey>(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>;
-      const comparer: IEqualityComparer<TKey>): IDictionary<TKey, TSource>; overload; static;
+      const comparer: IEqualityComparer<TKey>): IOrderedDictionary<TKey, TSource>; overload; static;
     class function ToDictionary<TSource, TKey, TElement>(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>;
-      const elementSelector: Func<TSource, TElement>): IDictionary<TKey, TElement>; overload; static;
+      const elementSelector: Func<TSource, TElement>): IOrderedDictionary<TKey, TElement>; overload; static;
     class function ToDictionary<TSource, TKey, TElement>(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>;
       const elementSelector: Func<TSource, TElement>;
-      const comparer: IEqualityComparer<TKey>): IDictionary<TKey, TElement>; overload; static;
+      const comparer: IEqualityComparer<TKey>): IOrderedDictionary<TKey, TElement>; overload; static;
 
     class function ToLookup<T, TKey>(const source: IEnumerable<T>;
       const keySelector: Func<T, TKey>): ILookup<TKey, T>; overload; static;
@@ -3592,6 +3637,7 @@ const
 
   IReadOnlyCollectionOfTGuid: TGUID = '{E1368FD5-02AE-4481-A9DC-96329DFF606C}';
   IReadOnlyListOfTGuid: TGUID = '{82A74ABB-509E-4AC0-9268-A993E7DC3AB3}';
+  IReadOnlyDictionaryGuid: TGUID = '{39F7C68B-373E-4758-808C-705D3978E38F}';
 
   IPartitionOfTGuid: TGUID = '{ACFB79AB-F593-4F2B-9720-E6CE984F6844}';
 
@@ -3682,210 +3728,210 @@ class procedure TCollections.CreateDictionary_Int8_Int8(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int8,Int8>(Result) := TFoldedDictionary<Int8,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
+  IOrderedDictionary<Int8,Int8>(Result) := TFoldedDictionary<Int8,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int8_Int16(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int8,Int16>(Result) := TFoldedDictionary<Int8,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
+  IOrderedDictionary<Int8,Int16>(Result) := TFoldedDictionary<Int8,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int8_Int32(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int8,Int32>(Result) := TFoldedDictionary<Int8,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
+  IOrderedDictionary<Int8,Int32>(Result) := TFoldedDictionary<Int8,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int8_Int64(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int8,Int64>(Result) := TFoldedDictionary<Int8,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
+  IOrderedDictionary<Int8,Int64>(Result) := TFoldedDictionary<Int8,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int8_Interface(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int8,IInterface>(Result) := TFoldedDictionary<Int8,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
+  IOrderedDictionary<Int8,IInterface>(Result) := TFoldedDictionary<Int8,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int8_Object(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int8,TObject>(Result) := TFoldedDictionary<Int8,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
+  IOrderedDictionary<Int8,TObject>(Result) := TFoldedDictionary<Int8,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int8_String(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int8,string>(Result) := TFoldedDictionary<Int8,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
+  IOrderedDictionary<Int8,string>(Result) := TFoldedDictionary<Int8,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int8>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int16_Int8(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int16,Int8>(Result) := TFoldedDictionary<Int16,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
+  IOrderedDictionary<Int16,Int8>(Result) := TFoldedDictionary<Int16,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int16_Int16(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int16,Int16>(Result) := TFoldedDictionary<Int16,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
+  IOrderedDictionary<Int16,Int16>(Result) := TFoldedDictionary<Int16,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int16_Int32(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int16,Int32>(Result) := TFoldedDictionary<Int16,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
+  IOrderedDictionary<Int16,Int32>(Result) := TFoldedDictionary<Int16,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int16_Int64(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int16,Int64>(Result) := TFoldedDictionary<Int16,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
+  IOrderedDictionary<Int16,Int64>(Result) := TFoldedDictionary<Int16,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int16_Interface(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int16,IInterface>(Result) := TFoldedDictionary<Int16,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
+  IOrderedDictionary<Int16,IInterface>(Result) := TFoldedDictionary<Int16,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int16_Object(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int16,TObject>(Result) := TFoldedDictionary<Int16,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
+  IOrderedDictionary<Int16,TObject>(Result) := TFoldedDictionary<Int16,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int16_String(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int16,string>(Result) := TFoldedDictionary<Int16,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
+  IOrderedDictionary<Int16,string>(Result) := TFoldedDictionary<Int16,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int16>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int32_Int8(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int32,Int8>(Result) := TFoldedDictionary<Int32,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
+  IOrderedDictionary<Int32,Int8>(Result) := TFoldedDictionary<Int32,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int32_Int16(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int32,Int16>(Result) := TFoldedDictionary<Int32,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
+  IOrderedDictionary<Int32,Int16>(Result) := TFoldedDictionary<Int32,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int32_Int32(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int32,Int32>(Result) := TFoldedDictionary<Int32,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
+  IOrderedDictionary<Int32,Int32>(Result) := TFoldedDictionary<Int32,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int32_Int64(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int32,Int64>(Result) := TFoldedDictionary<Int32,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
+  IOrderedDictionary<Int32,Int64>(Result) := TFoldedDictionary<Int32,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int32_Interface(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int32,IInterface>(Result) := TFoldedDictionary<Int32,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
+  IOrderedDictionary<Int32,IInterface>(Result) := TFoldedDictionary<Int32,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int32_Object(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int32,TObject>(Result) := TFoldedDictionary<Int32,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
+  IOrderedDictionary<Int32,TObject>(Result) := TFoldedDictionary<Int32,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int32_String(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int32,string>(Result) := TFoldedDictionary<Int32,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
+  IOrderedDictionary<Int32,string>(Result) := TFoldedDictionary<Int32,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int32>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int64_Int8(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int64,Int8>(Result) := TFoldedDictionary<Int64,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
+  IOrderedDictionary<Int64,Int8>(Result) := TFoldedDictionary<Int64,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int64_Int16(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int64,Int16>(Result) := TFoldedDictionary<Int64,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
+  IOrderedDictionary<Int64,Int16>(Result) := TFoldedDictionary<Int64,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int64_Int32(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int64,Int32>(Result) := TFoldedDictionary<Int64,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
+  IOrderedDictionary<Int64,Int32>(Result) := TFoldedDictionary<Int64,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int64_Int64(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int64,Int64>(Result) := TFoldedDictionary<Int64,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
+  IOrderedDictionary<Int64,Int64>(Result) := TFoldedDictionary<Int64,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int64_Interface(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int64,IInterface>(Result) := TFoldedDictionary<Int64,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
+  IOrderedDictionary<Int64,IInterface>(Result) := TFoldedDictionary<Int64,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int64_Object(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int64,TObject>(Result) := TFoldedDictionary<Int64,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
+  IOrderedDictionary<Int64,TObject>(Result) := TFoldedDictionary<Int64,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Int64_String(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<Int64,string>(Result) := TFoldedDictionary<Int64,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
+  IOrderedDictionary<Int64,string>(Result) := TFoldedDictionary<Int64,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<Int64>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Interface_Int8(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<IInterface,Int8>(Result) := TFoldedDictionary<IInterface,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
+  IOrderedDictionary<IInterface,Int8>(Result) := TFoldedDictionary<IInterface,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Interface_Int16(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<IInterface,Int16>(Result) := TFoldedDictionary<IInterface,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
+  IOrderedDictionary<IInterface,Int16>(Result) := TFoldedDictionary<IInterface,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Interface_Int32(capacity: Integer;
@@ -3899,126 +3945,126 @@ class procedure TCollections.CreateDictionary_Interface_Int64(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<IInterface,Int64>(Result) := TFoldedDictionary<IInterface,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
+  IOrderedDictionary<IInterface,Int64>(Result) := TFoldedDictionary<IInterface,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Interface_Interface(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<IInterface,IInterface>(Result) := TFoldedDictionary<IInterface,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
+  IOrderedDictionary<IInterface,IInterface>(Result) := TFoldedDictionary<IInterface,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Interface_Object(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<IInterface,TObject>(Result) := TFoldedDictionary<IInterface,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
+  IOrderedDictionary<IInterface,TObject>(Result) := TFoldedDictionary<IInterface,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Interface_String(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<IInterface,string>(Result) := TFoldedDictionary<IInterface,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
+  IOrderedDictionary<IInterface,string>(Result) := TFoldedDictionary<IInterface,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<IInterface>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Object_Int8(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<TObject,Int8>(Result) := TFoldedDictionary<TObject,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
+  IOrderedDictionary<TObject,Int8>(Result) := TFoldedDictionary<TObject,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Object_Int16(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<TObject,Int16>(Result) := TFoldedDictionary<TObject,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
+  IOrderedDictionary<TObject,Int16>(Result) := TFoldedDictionary<TObject,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Object_Int32(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<TObject,Int32>(Result) := TFoldedDictionary<TObject,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
+  IOrderedDictionary<TObject,Int32>(Result) := TFoldedDictionary<TObject,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Object_Int64(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<TObject,Int64>(Result) := TFoldedDictionary<TObject,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
+  IOrderedDictionary<TObject,Int64>(Result) := TFoldedDictionary<TObject,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Object_Interface(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<TObject,IInterface>(Result) := TFoldedDictionary<TObject,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
+  IOrderedDictionary<TObject,IInterface>(Result) := TFoldedDictionary<TObject,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Object_Object(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<TObject,TObject>(Result) := TFoldedDictionary<TObject,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
+  IOrderedDictionary<TObject,TObject>(Result) := TFoldedDictionary<TObject,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_Object_String(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<TObject,string>(Result) := TFoldedDictionary<TObject,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
+  IOrderedDictionary<TObject,string>(Result) := TFoldedDictionary<TObject,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<TObject>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_String_Int8(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<string,Int8>(Result) := TFoldedDictionary<string,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
+  IOrderedDictionary<string,Int8>(Result) := TFoldedDictionary<string,Int8>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<Int8>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_String_Int16(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<string,Int16>(Result) := TFoldedDictionary<string,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
+  IOrderedDictionary<string,Int16>(Result) := TFoldedDictionary<string,Int16>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<Int16>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_String_Int32(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<string,Int32>(Result) := TFoldedDictionary<string,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
+  IOrderedDictionary<string,Int32>(Result) := TFoldedDictionary<string,Int32>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<Int32>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_String_Int64(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<string,Int64>(Result) := TFoldedDictionary<string,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
+  IOrderedDictionary<string,Int64>(Result) := TFoldedDictionary<string,Int64>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<Int64>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_String_Interface(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<string,IInterface>(Result) := TFoldedDictionary<string,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
+  IOrderedDictionary<string,IInterface>(Result) := TFoldedDictionary<string,IInterface>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<IInterface>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_String_Object(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<string,TObject>(Result) := TFoldedDictionary<string,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
+  IOrderedDictionary<string,TObject>(Result) := TFoldedDictionary<string,TObject>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<TObject>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateDictionary_String_String(capacity: Integer;
   keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
   var result; keyType, valueType, elementType: PTypeInfo);
 begin
-  IDictionary<string,string>(Result) := TFoldedDictionary<string,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
+  IOrderedDictionary<string,string>(Result) := TFoldedDictionary<string,string>.Create(keyType, valueType, elementType, capacity, IEqualityComparer<string>(keyComparer), IEqualityComparer<string>(valueComparer), ownerships);
 end;
 
 class procedure TCollections.CreateBidiDictionary_Int8_Int8(capacity: Integer;
@@ -4798,37 +4844,37 @@ end;
 
 class procedure TCollections.CreateHashSet_Int8(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
-  ISet<Int8>(result) := TFoldedHashSet<Int8>.Create(elementType, capacity, IEqualityComparer<Int8>(comparer));
+  IOrderedSet<Int8>(result) := TFoldedHashSet<Int8>.Create(elementType, capacity, IEqualityComparer<Int8>(comparer));
 end;
 
 class procedure TCollections.CreateHashSet_Int16(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
-  ISet<Int16>(result) := TFoldedHashSet<Int16>.Create(elementType, capacity, IEqualityComparer<Int16>(comparer));
+  IOrderedSet<Int16>(result) := TFoldedHashSet<Int16>.Create(elementType, capacity, IEqualityComparer<Int16>(comparer));
 end;
 
 class procedure TCollections.CreateHashSet_Int32(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
-  ISet<Int32>(result) := TFoldedHashSet<Int32>.Create(elementType, capacity, IEqualityComparer<Int32>(comparer));
+  IOrderedSet<Int32>(result) := TFoldedHashSet<Int32>.Create(elementType, capacity, IEqualityComparer<Int32>(comparer));
 end;
 
 class procedure TCollections.CreateHashSet_Int64(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
-  ISet<Int64>(result) := TFoldedHashSet<Int64>.Create(elementType, capacity, IEqualityComparer<Int64>(comparer));
+  IOrderedSet<Int64>(result) := TFoldedHashSet<Int64>.Create(elementType, capacity, IEqualityComparer<Int64>(comparer));
 end;
 
 class procedure TCollections.CreateHashSet_Interface(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
-  ISet<IInterface>(result) := TFoldedHashSet<IInterface>.Create(elementType, capacity, IEqualityComparer<IInterface>(comparer));
+  IOrderedSet<IInterface>(result) := TFoldedHashSet<IInterface>.Create(elementType, capacity, IEqualityComparer<IInterface>(comparer));
 end;
 
 class procedure TCollections.CreateHashSet_Object(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
-  ISet<TObject>(result) := TFoldedHashSet<TObject>.Create(elementType, capacity, IEqualityComparer<TObject>(comparer));
+  IOrderedSet<TObject>(result) := TFoldedHashSet<TObject>.Create(elementType, capacity, IEqualityComparer<TObject>(comparer));
 end;
 
 class procedure TCollections.CreateHashSet_String(capacity: Integer; comparer: Pointer; var result; elementType: Pointer);
 begin
-  ISet<string>(result) := TFoldedHashSet<string>.Create(elementType, capacity, IEqualityComparer<string>(comparer));
+  IOrderedSet<string>(result) := TFoldedHashSet<string>.Create(elementType, capacity, IEqualityComparer<string>(comparer));
 end;
 
 class procedure TCollections.CreateQueue_Object(capacity: Integer; comparer: Pointer; ownsObjects: Boolean; var result; elementType: Pointer);
@@ -5078,7 +5124,7 @@ begin
   CreateObservableList_Interface(Result, TypeInfo(T));
 end;
 
-class function TCollections.CreateDictionary<TKey, TValue>: IDictionary<TKey, TValue>;
+class function TCollections.CreateDictionary<TKey, TValue>: IOrderedDictionary<TKey, TValue>;
 begin
 {$IFDEF DELPHIXE7_UP}
   if (GetTypeKind(TKey) in FoldedTypeKinds) and (GetTypeKind(TValue) in FoldedTypeKinds) then
@@ -5184,7 +5230,7 @@ begin
 end;
 
 class function TCollections.CreateDictionary<TKey, TValue>(
-  ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>;
+  ownerships: TDictionaryOwnerships): IOrderedDictionary<TKey, TValue>;
 begin
 {$IFDEF DELPHIXE7_UP}
   if (GetTypeKind(TKey) in FoldedTypeKinds) and (GetTypeKind(TValue) in FoldedTypeKinds) then
@@ -5290,7 +5336,7 @@ begin
 end;
 
 class function TCollections.CreateDictionary<TKey, TValue>(capacity: Integer;
-  ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>;
+  ownerships: TDictionaryOwnerships): IOrderedDictionary<TKey, TValue>;
 begin
 {$IFDEF DELPHIXE7_UP}
   if (GetTypeKind(TKey) in FoldedTypeKinds) and (GetTypeKind(TValue) in FoldedTypeKinds) then
@@ -5397,7 +5443,7 @@ end;
 
 class function TCollections.CreateDictionary<TKey, TValue>(
   const keyComparer: IEqualityComparer<TKey>;
-  ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>;
+  ownerships: TDictionaryOwnerships): IOrderedDictionary<TKey, TValue>;
 begin
 {$IFDEF DELPHIXE7_UP}
   if (GetTypeKind(TKey) in FoldedTypeKinds) and (GetTypeKind(TValue) in FoldedTypeKinds) then
@@ -5505,7 +5551,7 @@ end;
 class function TCollections.CreateDictionary<TKey, TValue>(
   const keyComparer: IEqualityComparer<TKey>;
   const valueComparer: IEqualityComparer<TValue>;
-  ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>;
+  ownerships: TDictionaryOwnerships): IOrderedDictionary<TKey, TValue>;
 begin
 {$IFDEF DELPHIXE7_UP}
   if (GetTypeKind(TKey) in FoldedTypeKinds) and (GetTypeKind(TValue) in FoldedTypeKinds) then
@@ -5612,7 +5658,7 @@ end;
 
 class function TCollections.CreateDictionary<TKey, TValue>(capacity: Integer;
   const keyComparer: IEqualityComparer<TKey>;
-  ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>;
+  ownerships: TDictionaryOwnerships): IOrderedDictionary<TKey, TValue>;
 begin
 {$IFDEF DELPHIXE7_UP}
   if (GetTypeKind(TKey) in FoldedTypeKinds) and (GetTypeKind(TValue) in FoldedTypeKinds) then
@@ -5720,7 +5766,7 @@ end;
 class function TCollections.CreateDictionary<TKey, TValue>(capacity: Integer;
   const keyComparer: IEqualityComparer<TKey>;
   const valueComparer: IEqualityComparer<TValue>;
-  ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>;
+  ownerships: TDictionaryOwnerships): IOrderedDictionary<TKey, TValue>;
 begin
 {$IFDEF DELPHIXE7_UP}
   if (GetTypeKind(TKey) in FoldedTypeKinds) and (GetTypeKind(TValue) in FoldedTypeKinds) then
@@ -6992,7 +7038,7 @@ begin
   Result := TEvictingDeque<T>.Create(size, ownsObjects);
 end;
 
-class function TCollections.CreateSet<T>: ISet<T>;
+class function TCollections.CreateSet<T>: IOrderedSet<T>;
 begin
 {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
@@ -7011,7 +7057,7 @@ begin
   end;
 end;
 
-class function TCollections.CreateSet<T>(capacity: Integer): ISet<T>;
+class function TCollections.CreateSet<T>(capacity: Integer): IOrderedSet<T>;
 begin
 {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
@@ -7031,7 +7077,7 @@ begin
 end;
 
 class function TCollections.CreateSet<T>(
-  const comparer: IEqualityComparer<T>): ISet<T>;
+  const comparer: IEqualityComparer<T>): IOrderedSet<T>;
 begin
 {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
@@ -7051,7 +7097,7 @@ begin
 end;
 
 class function TCollections.CreateSet<T>(capacity: Integer;
-  const comparer: IEqualityComparer<T>): ISet<T>;
+  const comparer: IEqualityComparer<T>): IOrderedSet<T>;
 begin
 {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
@@ -7070,27 +7116,27 @@ begin
   end;
 end;
 
-class function TCollections.CreateSet<T>(const values: array of T): ISet<T>;
+class function TCollections.CreateSet<T>(const values: array of T): IOrderedSet<T>;
 begin
   Result := CreateSet<T>;
   Result.AddRange(values);
 end;
 
-class function TCollections.CreateSet<T>(const values: IEnumerable<T>): ISet<T>;
+class function TCollections.CreateSet<T>(const values: IEnumerable<T>): IOrderedSet<T>;
 begin
   Result := CreateSet<T>;
   Result.AddRange(values);
 end;
 
 class function TCollections.CreateSet<T>(const values: array of T;
-  const comparer: IEqualityComparer<T>): ISet<T>;
+  const comparer: IEqualityComparer<T>): IOrderedSet<T>;
 begin
   Result := CreateSet<T>(comparer);
   Result.AddRange(values);
 end;
 
 class function TCollections.CreateSet<T>(const values: IEnumerable<T>;
-  const comparer: IEqualityComparer<T>): ISet<T>;
+  const comparer: IEqualityComparer<T>): IOrderedSet<T>;
 begin
   Result := CreateSet<T>(comparer);
   Result.AddRange(values);
@@ -7824,7 +7870,7 @@ end;
 
 class function TEnumerable.ToDictionary<TSource, TKey>(
   const source: IEnumerable<TSource>;
-  const keySelector: Func<TSource, TKey>): IDictionary<TKey, TSource>;
+  const keySelector: Func<TSource, TKey>): IOrderedDictionary<TKey, TSource>;
 begin
   Result := ToDictionary<TSource, TKey, TSource>(source, keySelector,
     TIdentityFunction<TSource>.Instance, nil);
@@ -7832,7 +7878,7 @@ end;
 
 class function TEnumerable.ToDictionary<TSource, TKey>(
   const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
-  const comparer: IEqualityComparer<TKey>): IDictionary<TKey, TSource>;
+  const comparer: IEqualityComparer<TKey>): IOrderedDictionary<TKey, TSource>;
 begin
   Result := ToDictionary<TSource, TKey, TSource>(source, keySelector,
     TIdentityFunction<TSource>.Instance, comparer);
@@ -7840,7 +7886,7 @@ end;
 
 class function TEnumerable.ToDictionary<TSource, TKey, TElement>(
   const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
-  const elementSelector: Func<TSource, TElement>): IDictionary<TKey, TElement>;
+  const elementSelector: Func<TSource, TElement>): IOrderedDictionary<TKey, TElement>;
 begin
   Result := ToDictionary<TSource, TKey, TElement>(source, keySelector,
     elementSelector, nil);
@@ -7849,7 +7895,7 @@ end;
 class function TEnumerable.ToDictionary<TSource, TKey, TElement>(
   const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
   const elementSelector: Func<TSource, TElement>;
-  const comparer: IEqualityComparer<TKey>): IDictionary<TKey, TElement>;
+  const comparer: IEqualityComparer<TKey>): IOrderedDictionary<TKey, TElement>;
 var
   item: TSource;
 begin

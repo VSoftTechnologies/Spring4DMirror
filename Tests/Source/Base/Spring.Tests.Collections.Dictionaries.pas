@@ -153,6 +153,8 @@ type
   TTestDictionary = class(TTestDictionaryBase)
   protected
     procedure SetUp; override;
+  published
+    procedure TestIndexOf;
   end;
 
   TTestSortedDictionary = class(TTestDictionaryBase)
@@ -1288,6 +1290,49 @@ procedure TTestDictionary.SetUp;
 begin
   inherited;
   SUT := TCollections.CreateDictionary<Integer, string>;
+end;
+
+procedure TTestDictionary.TestIndexOf;
+var
+  SUT: IOrderedDictionary<Integer, string>;
+begin
+  SUT := IOrderedDictionary<Integer, string>(Self.SUT);
+
+  SUT.Add(3, 'c');
+  SUT.Add(1, 'a');
+  SUT.Add(4, 'd');
+  SUT.Add(2, 'b');
+
+  CheckEquals(0, SUT.IndexOf(3));
+  CheckEquals(1, SUT.IndexOf(1));
+  CheckEquals(2, SUT.IndexOf(4));
+  CheckEquals(3, SUT.IndexOf(2));
+
+  CheckEquals('c', SUT.Items[0].Value);
+  CheckEquals('a', SUT.Items[1].Value);
+  CheckEquals('d', SUT.Items[2].Value);
+  CheckEquals('b', SUT.Items[3].Value);
+
+  SUT.Remove(4);
+
+  CheckEquals(0, SUT.IndexOf(3));
+  CheckEquals(1, SUT.IndexOf(1));
+  CheckEquals(-1, SUT.IndexOf(4));
+  CheckEquals(2, SUT.IndexOf(2));
+
+  CheckEquals('c', SUT.Items[0].Value);
+  CheckEquals('a', SUT.Items[1].Value);
+  CheckEquals('b', SUT.Items[2].Value);
+  CheckException(EArgumentOutOfRangeException,
+    procedure
+    begin
+      SUT.Items[3];
+    end);
+  CheckException(EArgumentOutOfRangeException,
+    procedure
+    begin
+      SUT.Items[-1];
+    end);
 end;
 
 {$ENDREGION}

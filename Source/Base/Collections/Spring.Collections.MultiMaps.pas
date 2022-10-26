@@ -1053,7 +1053,7 @@ var
   item: PItem;
   value: TValue;
 begin
-  item := THashTable(fHashTable).DeleteEntry(entry);
+  item := fHashTable.DeleteEntry(entry);
   HandleOnChanged(item.Values);
   for value in item.Values do
   begin
@@ -1117,7 +1117,7 @@ var
 begin
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
   CreateCollection(Result);
-  if THashTable(fHashTable).FindEntry(key, entry) then
+  if fHashTable.FindEntry(key, entry) then
     DoRemove(entry, caExtracted, Result);
 end;
 
@@ -1171,7 +1171,7 @@ var
   item: PItem;
 begin
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
-  Result := THashTable(fHashTable).FindEntry(key, entry);
+  Result := fHashTable.FindEntry(key, entry);
   if not Result then Exit;
   item := @TItems(fHashTable.Items)[entry.ItemIndex];
   Result := item.Values.Remove(value);
@@ -1192,7 +1192,7 @@ var
   entry: THashTableEntry;
 begin
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
-  Result := THashTable(fHashTable).FindEntry(key, entry);
+  Result := fHashTable.FindEntry(key, entry);
   if Result then
   begin
     DoRemove(entry, caRemoved, nil);
