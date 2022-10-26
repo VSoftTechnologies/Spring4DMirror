@@ -722,6 +722,7 @@ type
     function GetValueType: PTypeInfo; virtual;
   {$ENDREGION}
     procedure DoNotify(const key: TKey; const value: TValue; action: TCollectionChangedAction); overload;
+    function AsReadOnly: IReadOnlyDictionary<TKey, TValue>;
   public
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
@@ -3080,6 +3081,11 @@ begin
   inherited AfterConstruction;
   fOnKeyChanged := TCollectionChangedEventImpl<TKey>.Create;
   fOnValueChanged := TCollectionChangedEventImpl<TValue>.Create;
+end;
+
+function TMapBase<TKey, TValue>.AsReadOnly: IReadOnlyDictionary<TKey, TValue>;
+begin
+  GetInterface(IReadOnlyDictionaryGuid, Result);
 end;
 
 procedure TMapBase<TKey, TValue>.BeforeDestruction;

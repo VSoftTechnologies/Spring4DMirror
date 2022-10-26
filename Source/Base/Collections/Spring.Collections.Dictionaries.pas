@@ -49,8 +49,8 @@ type
 
   TDictionary<TKey, TValue> = class(TMapBase<TKey, TValue>, IInterface,
     IEnumerable<TPair<TKey, TValue>>, IReadOnlyCollection<TPair<TKey, TValue>>,
-    IReadOnlyMap<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>,
-    ICollection<TPair<TKey, TValue>>, IMap<TKey, TValue>, IDictionary<TKey, TValue>)
+    IReadOnlyMap<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>, IReadOnlyOrderedDictionary<TKey, TValue>,
+    ICollection<TPair<TKey, TValue>>, IMap<TKey, TValue>, IDictionary<TKey, TValue>, IOrderedDictionary<TKey, TValue>)
   private type
   {$REGION 'Nested Types'}
     TKeyValuePair = TPair<TKey, TValue>;
@@ -85,7 +85,8 @@ type
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
     function GetCountFast: Integer;
-    function GetItem(const key: TKey): TValue;
+    function GetItem(const key: TKey): TValue; overload;
+    function GetItem(index: Integer): TPair<TKey, TValue>; overload;
     function GetKeys: IReadOnlyCollection<TKey>;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
@@ -134,7 +135,11 @@ type
     function TryGetValue(const key: TKey; var value: TValue): Boolean;
     function TryUpdateValue(const key: TKey; const newValue: TValue; var oldValue: TValue): Boolean;
     procedure TrimExcess;
-    function AsReadOnly: IReadOnlyDictionary<TKey, TValue>;
+  {$ENDREGION}
+
+  {$REGION 'Implements IOrderedDictionary<TKey, TValue>'}
+    function IndexOf(const key: TKey): Integer;
+    function AsReadOnly: IReadOnlyOrderedDictionary<TKey, TValue>; overload;
   {$ENDREGION}
   end;
 
@@ -593,7 +598,7 @@ begin
   fHashTable.Ownerships := ownerships;
   fValueComparer := valueComparer;
 
-  THashTable(fHashTable).ItemsInfo := TypeInfo(TItems);
+  fHashTable.ItemsInfo := TypeInfo(TItems);
   SetCapacity(capacity);
 end;
 
@@ -629,12 +634,12 @@ end;
 
 function TDictionary<TKey, TValue>.GetCapacity: Integer;
 begin
-  Result := THashTable(fHashTable).Capacity;
+  Result := fHashTable.Capacity;
 end;
 
 procedure TDictionary<TKey, TValue>.SetCapacity(value: Integer);
 begin
-  THashTable(fHashTable).Capacity := value;
+  fHashTable.Capacity := value;
 end;
 
 function TDictionary<TKey, TValue>.DoRemove(const entry: THashTableEntry;
@@ -642,7 +647,7 @@ function TDictionary<TKey, TValue>.DoRemove(const entry: THashTableEntry;
 var
   item: PItem;
 begin
-  item := THashTable(fHashTable).DeleteEntry(entry);
+  item := fHashTable.DeleteEntry(entry);
 
   if Assigned(Notify) then
     Notify(Self, PKeyValuePair(@item.Key)^, action);
@@ -682,10 +687,10 @@ var
   item: PItem;
   i: Integer;
 begin
-  THashTable(fHashTable).ClearCount;
+  fHashTable.ClearCount;
 
-  item := PItem(THashTable(fHashTable).Items);
-  for i := 1 to THashTable(fHashTable).ItemCount do
+  item := PItem(fHashTable.Items);
+  for i := 1 to fHashTable.ItemCount do
   begin
     if item.HashCode >= 0 then
     begin
@@ -709,7 +714,7 @@ begin
     Inc(item);
   end;
 
-  THashTable(fHashTable).Clear;
+  fHashTable.Clear;
 end;
 
 function TDictionary<TKey, TValue>.Contains(const value: TKeyValuePair;
@@ -728,10 +733,10 @@ var
   source: PItem;
   i: Integer;
 begin
-  SetLength(Result, THashTable(fHashTable).Count);
+  SetLength(Result, fHashTable.Count);
   target := Pointer(Result);
-  source := PItem(THashTable(fHashTable).Items);
-  for i := 1 to THashTable(fHashTable).ItemCount do
+  source := PItem(fHashTable.Items);
+  for i := 1 to fHashTable.ItemCount do
   begin
     if source.HashCode >= 0 then
     begin
@@ -745,12 +750,12 @@ end;
 
 function TDictionary<TKey, TValue>.GetCount: Integer;
 begin
-  Result := THashTable(fHashTable).Count;
+  Result := fHashTable.Count;
 end;
 
 function TDictionary<TKey, TValue>.GetCountFast: Integer;
 begin
-  Result := THashTable(fHashTable).Count;
+  Result := fHashTable.Count;
 end;
 
 procedure TDictionary<TKey, TValue>.Add(const key: TKey; const value: TValue);
@@ -802,7 +807,7 @@ begin
   SetItem(key, value);
 end;
 
-function TDictionary<TKey, TValue>.AsReadOnly: IReadOnlyDictionary<TKey, TValue>;
+function TDictionary<TKey, TValue>.AsReadOnly: IReadOnlyOrderedDictionary<TKey, TValue>;
 begin
   Result := Self;
 end;
@@ -841,9 +846,9 @@ var
   item: PItem;
 begin
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
-  if THashTable(fHashTable).FindEntry(key, entry) then
+  if fHashTable.FindEntry(key, entry) then
   begin
-    item := @TItems(THashTable(fHashTable).Items)[entry.ItemIndex];
+    item := @TItems(fHashTable.Items)[entry.ItemIndex];
     if fValueComparer.Equals(item.Value, value) then
     begin
       Result.Key := item.Key;
@@ -858,7 +863,7 @@ end;
 
 procedure TDictionary<TKey, TValue>.TrimExcess;
 begin
-  THashTable(fHashTable).Capacity := fHashTable.Count;
+  fHashTable.Capacity := fHashTable.Count;
 end;
 
 function TDictionary<TKey, TValue>.TryAdd(const key: TKey; const value: TValue): Boolean;
@@ -871,9 +876,9 @@ var
   entry: THashTableEntry;
 begin
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
-  if THashTable(fHashTable).FindEntry(key, entry) then
+  if fHashTable.FindEntry(key, entry) then
   begin
-    value := TItems(THashTable(fHashTable).Items)[entry.ItemIndex].Value;
+    value := TItems(fHashTable.Items)[entry.ItemIndex].Value;
     Result := DoRemove(entry, caExtracted);
     Exit;
   end;
@@ -883,10 +888,10 @@ end;
 
 function TDictionary<TKey, TValue>.TryGetElementAt(var item: TKeyValuePair; index: Integer): Boolean;
 begin
-  if Cardinal(index) < Cardinal(THashTable(fHashTable).Count) then
+  if Cardinal(index) < Cardinal(fHashTable.Count) then
   begin
-    THashTable(fHashTable).EnsureCompact;
-    with TItems(THashTable(fHashTable).Items)[index] do
+    fHashTable.EnsureCompact;
+    with TItems(fHashTable.Items)[index] do
     begin
       item.Key := Key;
       item.Value := Value;
@@ -921,7 +926,7 @@ begin
   if Assigned(item) then
   begin
     {$Q-}
-    Inc(PInteger(@THashTable(fHashTable).Version)^);
+    Inc(PInteger(@fHashTable.Version)^);
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
 
     if Assigned(Notify) then
@@ -948,7 +953,7 @@ var
   entry: THashTableEntry;
 begin
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
-  Result := THashTable(fHashTable).FindEntry(key, entry);
+  Result := fHashTable.FindEntry(key, entry);
   if not Result then Exit;
   Result := DoRemove(entry, caRemoved);
 end;
@@ -958,9 +963,9 @@ var
   entry: THashTableEntry;
 begin
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
-  Result := THashTable(fHashTable).FindEntry(key, entry);
+  Result := fHashTable.FindEntry(key, entry);
   if not Result then Exit;
-  Result := fValueComparer.Equals(TItems(THashTable(fHashTable).Items)[entry.ItemIndex].Value, value);
+  Result := fValueComparer.Equals(TItems(fHashTable.Items)[entry.ItemIndex].Value, value);
   if not Result then Exit;
   Result := DoRemove(entry, caRemoved);
 end;
@@ -998,12 +1003,34 @@ begin
   Result := fValues;
 end;
 
+function TDictionary<TKey, TValue>.IndexOf(const key: TKey): Integer;
+var
+  entry: THashTableEntry;
+  item: PItem;
+begin
+  entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
+  fHashTable.EnsureCompact;
+  if fHashTable.FindEntry(key, entry) then
+    Exit(entry.ItemIndex);
+  Result := -1;
+end;
+
 function TDictionary<TKey, TValue>.GetItem(const key: TKey): TValue;
 var
   item: PItem;
 begin
   item := IHashTable<TKey>(@fHashTable).Find(key, RaiseOnNonExisting);
   Result := item.Value;
+end;
+
+function TDictionary<TKey, TValue>.GetItem(index: Integer): TPair<TKey, TValue>;
+begin
+  if Cardinal(index) < Cardinal(fHashTable.Count) then
+  begin
+    fHashTable.EnsureCompact;
+    Exit(PKeyValuePair(@TItems(fHashTable.Items)[index].Key)^);
+  end;
+  RaiseHelper.ArgumentOutOfRange_Index;
 end;
 
 procedure TDictionary<TKey, TValue>.SetItem(const key: TKey; const value: TValue);
@@ -2912,8 +2939,8 @@ begin
   fHashTable.Ownerships := ownerships;
   fValueComparer := valueComparer;
 
-  THashTable(fHashTable).ItemsInfo := TypeInfo(TItems);
-  THashTable(fHashTable).Capacity := capacity;
+  fHashTable.ItemsInfo := TypeInfo(TItems);
+  fHashTable.Capacity := capacity;
 
   fElementType := elementType;
   fKeyType := keyType;

@@ -68,7 +68,7 @@ type
   ///   The type of elements in the hash set.
   /// </typeparam>
   THashSet<T> = class(TSetBase<T>, IInterface, IEnumerable<T>,
-    IReadOnlyCollection<T>, ICollection<T>, ISet<T>)
+    IReadOnlyCollection<T>, ICollection<T>, ISet<T>, IOrderedSet<T>)
   private type
   {$REGION 'Nested Types'}
     TItem = THashSetItem<T>;
@@ -81,7 +81,6 @@ type
       RefCount: Integer;
       TypeInfo: PTypeInfo;
       fSource: THashSet<T>;
-      fHashTable: PHashTable;
       fIndex: Integer;
       fVersion: Integer;
       fItem: PItem;
@@ -96,6 +95,7 @@ type
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
     function GetCountFast: Integer;
+    function GetItem(index: Integer): T;
     procedure SetCapacity(value: Integer);
   {$ENDREGION}
   protected
@@ -123,6 +123,10 @@ type
 
   {$REGION 'Implements ISet<T>'}
     procedure TrimExcess;
+  {$ENDREGION}
+
+  {$REGION 'Implements IOrderedSet<T>'}
+    function IndexOf(const key: T): Integer;
   {$ENDREGION}
   end;
 
@@ -367,7 +371,7 @@ procedure THashSet<T>.AfterConstruction;
 begin
   inherited AfterConstruction;
 
-  THashTable(fHashTable).Initialize(@TComparerThunks<T>.Equals, @TComparerThunks<T>.GetHashCode, TypeInfo(T));
+  fHashTable.Initialize(@TComparerThunks<T>.Equals, @TComparerThunks<T>.GetHashCode, TypeInfo(T));
   {$IFDEF DELPHIXE7_UP}
   if fHashTable.DefaultComparer then
     fHashTable.Find := @THashTable<T>.FindWithoutComparer
@@ -389,19 +393,19 @@ end;
 
 procedure THashSet<T>.SetCapacity(value: Integer);
 begin
-  THashTable(fHashTable).Capacity := value;
+  fHashTable.Capacity := value;
 end;
 
 procedure THashSet<T>.TrimExcess;
 begin
-  THashTable(fHashTable).Capacity := THashTable(fHashTable).Count;
+  fHashTable.Capacity := fHashTable.Count;
 end;
 
 function THashSet<T>.TryGetElementAt(var item: T; index: Integer): Boolean;
 begin
   if Cardinal(index) < Cardinal(fHashTable.Count) then
   begin
-    THashTable(fHashTable).EnsureCompact;
+    fHashTable.EnsureCompact;
     item := TItems(fHashTable.Items)[index].Item;
     Exit(True);
   end;
@@ -443,14 +447,14 @@ var
 begin
   if Assigned(Notify) then
   begin
-    THashTable(fHashTable).ClearCount;
+    fHashTable.ClearCount;
     item := PItem(fHashTable.Items);
     for i := 1 to fHashTable.ItemCount do
       if item.HashCode >= 0 then
         Notify(Self, item.Item, caRemoved);
   end;
 
-  THashTable(fHashTable).Clear;
+  fHashTable.Clear;
 end;
 
 function THashSet<T>.Contains(const item: T): Boolean;
@@ -490,7 +494,7 @@ end;
 
 function THashSet<T>.GetCapacity: Integer;
 begin
-  Result := THashTable(fHashTable).Capacity;
+  Result := fHashTable.Capacity;
 end;
 
 function THashSet<T>.GetCount: Integer;
@@ -501,6 +505,28 @@ end;
 function THashSet<T>.GetCountFast: Integer;
 begin
   Result := fHashTable.Count;
+end;
+
+function THashSet<T>.GetItem(index: Integer): T;
+begin
+  if Cardinal(index) < Cardinal(fHashTable.Count) then
+  begin
+    fHashTable.EnsureCompact;
+    Exit(TItems(fHashTable.Items)[index].Item);
+  end;
+  RaiseHelper.ArgumentOutOfRange_Index;
+end;
+
+function THashSet<T>.IndexOf(const key: T): Integer;
+var
+  entry: THashTableEntry;
+  item: PItem;
+begin
+  entry.HashCode := IEqualityComparer<T>(fHashTable.Comparer).GetHashCode(key);
+  fHashTable.EnsureCompact;
+  if fHashTable.FindEntry(key, entry) then
+    Exit(entry.ItemIndex);
+  Result := -1;
 end;
 
 function THashSet<T>.Remove(const item: T): Boolean;
@@ -768,7 +794,7 @@ constructor TFoldedHashSet<T>.Create(elementType: PTypeInfo; capacity: Integer;
   const comparer: IEqualityComparer<T>);
 begin
   fHashTable.Comparer := comparer;
-  THashTable(fHashTable).ItemsInfo := TypeInfo(TItems);
+  fHashTable.ItemsInfo := TypeInfo(TItems);
   SetCapacity(capacity);
   fElementType := elementType;
 end;
