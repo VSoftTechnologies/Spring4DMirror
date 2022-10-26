@@ -79,29 +79,203 @@ uses
   {$IFDEF MSWINDOWS}
   Windows,
   {$ENDIF}
+  {$IFDEF POSIX}
+  Posix.String_,
+  {$ENDIF}
   Spring,
   Spring.HashTable;
 
 function BinaryCompare(left, right: Pointer; size: NativeInt): Integer;
-begin
-  while size > 0 do
-  begin
-    Result := PByte(left)^ - PByte(right)^;
-    if Result <> 0 then
-      Exit;
-    Dec(size);
-    Inc(PByte(left));
-    Inc(PByte(right));
-  end;
-  Result := 0;
+{$IF Defined(ASSEMBLER)}
+{$IFDEF CPUX86}
+asm
+  cmp       eax, edx
+  je        @@equalNoPop
+
+  push      esi
+  push      edi
+  lea       esi, [eax+ecx]
+  lea       edi, [edx+ecx]
+  neg       ecx
+  jnl       @@equal
+
+  mov       edx, $FFFF
+  cmp       ecx, -16
+  ja        @@lessThan16
+
+@@loop:
+  movdqu    xmm1, [esi+ecx]
+  movdqu    xmm2, [edi+ecx]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, edx
+  jnz       @@notEqual
+  add       ecx, 16
+  jz        @@equal
+  cmp       ecx, -16
+  jna       @@loop
+
+@@lessThan16:
+  cmp       ecx, -8
+  ja        @@lessThan8
+  movq      xmm1, [esi+ecx]
+  movq      xmm2, [edi+ecx]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, edx
+  jnz       @@notEqual
+  add       ecx, 8
+  jz        @@equal
+
+@@lessThan8:
+  cmp       ecx, -4
+  ja        @@lessThan4
+  movd      xmm1, [esi+ecx]
+  movd      xmm2, [edi+ecx]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, edx
+  jnz       @@notEqual
+  add       ecx, 4
+  jz        @@equal
+
+@@lessThan4:
+  cmp       ecx, -2
+  ja        @@lessThan2
+  movzx     eax, word ptr [esi+ecx]
+  movzx     edx, word ptr [edi+ecx]
+  sub       eax, edx
+  jnz       @@notEqual2Bytes
+  add       ecx, 2
+  jz        @@equal
+
+@@lessThan2:
+  test      ecx, ecx
+  jz        @@equal
+  jmp       @@compareByte
+
+@@notEqual2Bytes:
+  neg       al
+  sbb       size, -1
+  jmp       @@compareByte
+
+@@notEqual:
+  bsf       eax, eax
+  add       ecx, eax
+@@compareByte:
+  movzx     eax, byte ptr [esi+ecx]
+  movzx     edx, byte ptr [edi+ecx]
+  sub       eax, edx
+  pop       edi
+  pop       esi
+  ret
+
+@@equal:
+  pop       edi
+  pop       esi
+@@equalNoPop:
+  xor       eax, eax
 end;
+{$ELSE}
+asm
+  cmp       left, right
+  je        @@equal
+
+  add       left, size
+  add       right, size
+  neg       size
+  jnl       @@equal
+
+  mov       r9d, $FFFF
+  cmp       size, -16
+  ja        @@lessThan16
+
+@@loop:
+  movdqu    xmm1, dqword [left+size]
+  movdqu    xmm2, dqword [right+size]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, r9d
+  jnz       @@notEqual
+  add       size, 16
+  jz        @@equal
+  cmp       size, -16
+  jna       @@loop
+
+@@lessThan16:
+  cmp       size, -8
+  ja        @@lessThan8
+  movq      xmm1, qword [left+size]
+  movq      xmm2, qword [right+size]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, r9d
+  jnz       @@notEqual
+  add       size, 8
+  jz        @@equal
+
+@@lessThan8:
+  cmp       size, -4
+  ja        @@lessThan4
+  movd      xmm1, dword [left+size]
+  movd      xmm2, dword [right+size]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, r9d
+  jnz       @@notEqual
+  add       size, 4
+  jz        @@equal
+
+@@lessThan4:
+  cmp       size, -2
+  ja        @@lessThan2
+  movzx     eax, word [left+size]
+  movzx     r9d, word [right+size]
+  sub       eax, r9d
+  jnz       @@notEqual2Bytes
+  add       size, 2
+  jz        @@equal
+
+@@lessThan2:
+  test      size, size
+  jz        @@equal
+  jmp       @@compareByte
+
+@@notEqual2Bytes:
+  neg       al
+  sbb       size, -1
+  jmp       @@compareByte
+
+@@notEqual:
+  bsf       eax, eax
+  add       size, rax
+@@compareByte:
+  movzx     eax, byte [left+size]
+  movzx     r9d, byte [right+size]
+  sub       eax, r9d
+  ret
+
+@@equal:
+  xor       eax, eax
+end;
+{$ENDIF}
+{$ELSEIF Defined(POSIX)}
+begin
+  if size > 0 then
+    Result := memcmp(left^, right^, size)
+  else
+    Result := 0;
+end;
+{$ELSE}
+  {$MESSAGE ERROR 'Missing plaform support'}
+{$IFEND}
 
 function SameGuid(const left, right: TGUID): Boolean;
 {$IFDEF ASSEMBLER}
 asm
   movdqu   xmm0, [left]
   movdqu   xmm1, [right]
-  pcmpeqd  xmm0, xmm1
+  pcmpeqb  xmm0, xmm1
   pmovmskb eax, xmm0
   cmp      ax, 65535
   sete     al
@@ -238,11 +412,7 @@ function Compare_Int8(const inst: Pointer; const left, right: ShortInt): Integer
 asm
   xor     eax, eax
   cmp     left, right
-{$IFDEF CPUX86}
-  lea     ecx, [eax-1]
-{$ELSE}
-  lea     ecx, [rax-1]
-{$ENDIF}
+  mov     ecx, -1
   setg    al
   cmovl   eax, ecx
 end;
@@ -267,11 +437,7 @@ function Compare_UInt8(const inst: Pointer; const left, right: Byte): Integer;
 asm
   xor     eax, eax
   cmp     left, right
-{$IFDEF CPUX86}
-  lea     ecx, [eax-1]
-{$ELSE}
-  lea     ecx, [rax-1]
-{$ENDIF}
+  mov     ecx, -1
   seta    al
   cmovb   eax, ecx
 end;
@@ -286,11 +452,7 @@ function Compare_Int16(const inst: Pointer; const left, right: SmallInt): Intege
 asm
   xor     eax, eax
   cmp     left, right
-{$IFDEF CPUX86}
-  lea     ecx, [eax-1]
-{$ELSE}
-  lea     ecx, [rax-1]
-{$ENDIF}
+  mov     ecx, -1
   setg    al
   cmovl   eax, ecx
 end;
@@ -315,11 +477,7 @@ function Compare_UInt16(const inst: Pointer; const left, right: Word): Integer;
 asm
   xor     eax, eax
   cmp     left, right
-{$IFDEF CPUX86}
-  lea     ecx, [eax-1]
-{$ELSE}
-  lea     ecx, [rax-1]
-{$ENDIF}
+  mov     ecx, -1
   seta    al
   cmovb   eax, ecx
 end;
@@ -330,6 +488,17 @@ end;
 {$ENDIF}
 
 function Compare_Bin16(const inst: Pointer; const left, right: UInt16): Integer;
+{$IFDEF ASSEMBLER}
+asm
+  rol     left, 8
+  rol     right, 8
+  xor     eax, eax
+  cmp     left, right
+  mov     ecx, -1
+  seta    al
+  cmovb   eax, ecx
+end;
+{$ELSE}
 var
   leftVal, rightVal: Cardinal;
 begin
@@ -339,6 +508,7 @@ begin
   rightVal := Swap(rightVal);
   Result := Integer(leftVal) - Integer(rightVal);
 end;
+{$ENDIF}
 
 function Compare_Bin24(const inst: Pointer; const left, right: UInt24): Integer;
 var
@@ -352,6 +522,17 @@ begin
 end;
 
 function Compare_Bin32(const inst: Pointer; const left, right: UInt32): Integer;
+{$IFDEF ASSEMBLER}
+asm
+  bswap   left
+  bswap   right
+  xor     eax, eax
+  cmp     left, right
+  mov     ecx, -1
+  seta    al
+  cmovb   eax, ecx
+end;
+{$ELSE}
 var
   leftVal, rightVal: Cardinal;
 begin
@@ -359,8 +540,20 @@ begin
   rightVal := (Swap(right) shl 16) or Swap(right shr 16);
   Result := ShortInt(Byte(leftVal >= rightVal) - Byte(leftVal <= rightVal));
 end;
+{$ENDIF}
 
 function Compare_Bin64(const inst: Pointer; const left, right: UInt64): Integer;
+{$IF Defined(CPUX64) and Defined(ASSEMBLER)}
+asm
+  bswap   left
+  bswap   right
+  xor     eax, eax
+  cmp     left, right
+  mov     ecx, -1
+  seta    al
+  cmovb   eax, ecx
+end;
+{$ELSE}
 var
   leftVal, rightVal: Cardinal;
 begin
@@ -378,6 +571,7 @@ begin
 
   Result := ShortInt(Byte(leftVal >= rightVal) - Byte(leftVal <= rightVal));
 end;
+{$IFEND}
 
 function Equals_Bin24(const inst: Pointer; const left, right: UInt24): Boolean;
 begin
@@ -396,11 +590,7 @@ function Compare_Int32(const inst: Pointer; const left, right: Integer): Integer
 asm
   xor     eax, eax
   cmp     left, right
-{$IFDEF CPUX86}
-  lea     ecx, [eax-1]
-{$ELSE}
-  lea     ecx, [rax-1]
-{$ENDIF}
+  mov     ecx, -1
   setg    al
   cmovl   eax, ecx
 end;
@@ -425,11 +615,7 @@ function Compare_UInt32(const inst: Pointer; const left, right: Cardinal): Integ
 asm
   xor     eax, eax
   cmp     left, right
-{$IFDEF CPUX86}
-  lea     ecx, [eax-1]
-{$ELSE}
-  lea     ecx, [rax-1]
-{$ENDIF}
+  mov     ecx, -1
   seta    al
   cmovb   eax, ecx
 end;
@@ -445,7 +631,7 @@ function Compare_Int64(const inst: Pointer; const left, right: Int64): Integer;
 asm
   xor     eax, eax
   cmp     left, right
-  lea     ecx, [rax-1]
+  mov     ecx, -1
   setg    al
   cmovl   eax, ecx
 end;
@@ -506,7 +692,7 @@ function Compare_UInt64(const inst: Pointer; const left, right: UInt64): Integer
 asm
   xor     eax, eax
   cmp     left, right
-  lea     ecx, [rax-1]
+  mov     ecx, -1
   seta    al
   cmovb   eax, ecx
 end;
@@ -538,11 +724,7 @@ asm
   {$ENDIF}
   xor     eax, eax
   comiss  xmm1, xmm2
-  {$IFDEF CPUX86}
-  lea     ecx, [eax-1]
-  {$ELSE}
-  lea     ecx, [rax-1]
-  {$ENDIF}
+  mov     ecx, -1
   seta    al
   cmovb   eax, ecx
   {$IFDEF CPUX86}
@@ -583,11 +765,7 @@ asm
   {$ENDIF}
   xor     eax, eax
   comisd  xmm1, xmm2
-  {$IFDEF CPUX86}
-  lea     ecx, [eax-1]
-  {$ELSE}
-  lea     ecx, [rax-1]
-  {$ENDIF}
+  mov     ecx, -1
   seta    al
   cmovb   eax, ecx
   {$IFDEF CPUX86}
@@ -876,11 +1054,11 @@ var
   leftPtr, rightPtr: PAnsiChar;
   leftLen, rightLen, i: integer;
 begin
-  leftLen:= Length(left);
-  leftPtr:= PAnsiChar(left);
+  leftLen := Length(left);
+  leftPtr := PAnsiChar(left);
 
-  rightLen:= Length(right);
-  rightPtr:= PAnsiChar(right);
+  rightLen := Length(right);
+  rightPtr := PAnsiChar(right);
 
   i := 0;
   while (i < leftLen) and (i < rightLen) do
@@ -893,7 +1071,7 @@ begin
     Inc(i);
   end;
 
-  Result:= leftLen - rightLen;
+  Result := leftLen - rightLen;
 end;
 
 function Equals_LString(const inst: Pointer; const left, right: RawByteString): Boolean;
@@ -932,7 +1110,7 @@ end;
 
 function Equals_WString(const inst: Pointer; const left, right: WideString): Boolean;
 begin
-  Result := Compare_WString(inst, left, right) = 0;
+  Result := left = right;
 end;
 
 function GetHashCode_WString(const inst: Pointer; const value: WideString): Integer;
@@ -945,23 +1123,80 @@ begin
   Result := Integer(hashCode);
 end;
 
-function Compare_UString(const inst: Pointer; const left, right: string): Integer;
+function Compare_UString(const inst: Pointer; left, right: PByte): Integer;
+label
+  BothStringsNonNil, FoundMismatch;
+var
+  i: NativeInt;
 begin
-  Result := CompareStr(left, right);
+  if left <> right then
+  begin
+    if (NativeInt(left) and NativeInt(right)) = 0 then
+    begin
+BothStringsNonNil:
+      i := 0;
+      if PInteger(@left[0])^ <> PInteger(@right[0])^ then
+        goto FoundMismatch;
+      Result := PInteger(@left[-4])^ - PInteger(@right[-4])^;
+      // set i to -Min(Length(S1), Length(S2) * 2
+      i := (((Result shr 31 - 1) and Result) - PInteger(@left[-4])^) * 2;
+      left := left - i;
+      right := right - i;
+      repeat
+        Inc(i, 4);
+        if i >= 0 then Exit;
+        if PInteger(@left[i])^ <> PInteger(@right[i])^ then
+        begin
+FoundMismatch:
+          Result := PWord(@left[i])^ - PWord(@right[i])^;
+          if Result = 0 then
+            Result := PWord(@left[i+2])^ - PWord(@right[i+2])^;
+          Exit;
+        end;
+      until False;
+    end
+    else if left = nil then
+      Result := -PInteger(@right[-4])^
+    else if right = nil then
+      Result := PInteger(@left[-4])^
+    else
+      goto BothStringsNonNil;
+  end
+  else
+    Result := 0;
 end;
 
-function Equals_UString(const inst: Pointer; const left, right: string): Boolean;
-{$IFDEF CPUX86}
-asm
-  mov  eax, ecx
-  call System.@UStrEqual
-  setz al
-end;
-{$ELSE}
+function Equals_UString(const inst: Pointer; left, right: PByte): Boolean;
+label
+  BothStringsNonNil, FoundMismatch;
+var
+  i: NativeInt;
 begin
-  Result := left = right;
+  if left <> right then
+  begin
+    if NativeInt(left) and NativeInt(right) <> 0 then
+    begin
+BothStringsNonNil:
+      i := PInteger(@left[-4])^;
+      if i <> PInteger(@right[-4])^ then
+        goto FoundMismatch;
+      i := -(i * 2);
+      left := left - i;
+      right := right - i;
+      repeat
+        if PInteger(@left[i])^ <> PInteger(@right[i])^ then
+          goto FoundMismatch;
+        Inc(i, 4);
+      until i >= 0;
+    end
+    else if (left <> nil) and (right <> nil) then
+      goto BothStringsNonNil
+    else
+FoundMismatch:
+      Exit(False);
+  end;
+  Result := True;
 end;
-{$ENDIF}
 
 function GetHashCode_UString(const inst: Pointer; const value: string): Integer;
 var
@@ -1067,7 +1302,7 @@ begin
             varString:
               Exit(Compare_LString(nil, RawByteString(left.VPointer), RawByteString(right.VPointer)));
             varUString:
-              Exit(Compare_UString(nil, string(left.VPointer), string(right.VPointer)));
+              Exit(Compare_UString(nil, left.VPointer, right.VPointer));
             varOleStr:
               Exit(Compare_WString(nil, WideString(left.VPointer), WideString(right.VPointer)));
           end;
@@ -1193,12 +1428,38 @@ begin
   end;
 end;
 
+function Compare_GUID(const inst: Pointer; const left, right: TGUID): Integer;
+{$IFDEF ASSEMBLER}
+asm
+  movdqu   xmm0, [left]
+  movdqu   xmm1, [right]
+  pcmpeqb  xmm0, xmm1
+  pmovmskb eax, xmm0
+  xor      eax, 65535
+  jz       @@done
+  bsf      eax, eax
+  {$IFDEF CPUX86}
+  movzx    ecx, byte [right+eax]
+  movzx    eax, byte [left+eax]
+  {$ELSE}
+  movzx    ecx, byte [right+rax]
+  movzx    eax, byte [left+rax]
+  {$ENDIF}
+  sub      eax, ecx
+@@done:
+end;
+{$ELSE}
+begin
+  Result := BinaryCompare(@left, @right, SizeOf(TGUID));
+end;
+{$ENDIF}
+
 function Equals_GUID(const inst: Pointer; const left, right: TGUID): Boolean;
 {$IFDEF ASSEMBLER}
 asm
   movdqu   xmm0, [left]
   movdqu   xmm1, [right]
-  pcmpeqd  xmm0, xmm1
+  pcmpeqb  xmm0, xmm1
   pmovmskb eax, xmm0
   cmp      ax, 65535
   sete     al
@@ -1224,12 +1485,15 @@ end;
 
 function TComparerInstance.Compare_Binary(const left, right): Integer;
 begin
-  Result := BinaryCompare(@left, @right, Size); // TODO: faster implementation
+  Result := BinaryCompare(@left, @right, Size);
 end;
 
 function TComparerInstance.Equals_Binary(const left, right): Boolean;
+var
+  compareResult: Integer;
 begin
-  Result := CompareMem(@left, @right, Size);
+  compareResult := BinaryCompare(@left, @right, Size);
+  Result := compareResult = 0;
 end;
 
 function TComparerInstance.GetHashCode_Binary(const value): Integer;
@@ -1615,6 +1879,14 @@ const
     GetHashCode: @GetHashCode_Variant
   );
 
+  Comparer_GUID: IComparer = (
+    VTable: @Comparer_GUID.QueryInterface;
+    QueryInterface: @NopQueryInterface;
+    AddRef: @NopRef;
+    Release: @NopRef;
+    Compare: @Compare_GUID
+  );
+
   EqualityComparer_GUID: IEqualityComparer = (
     VTable: @EqualityComparer_GUID.QueryInterface;
     QueryInterface: @NopQueryInterface;
@@ -1837,6 +2109,7 @@ begin
   comparerRegistry.ItemsInfo := TypeInfo(TArray<TRegistryItem>);
   comparerRegistry.Initialize(@Equals_TypeInfo, @GetHashCode_TypeInfo, TypeInfo(PTypeInfo));
 
+  RegisterComparer(giComparer, TypeInfo(TGUID), IInterface(@Comparer_GUID));
   RegisterComparer(giEqualityComparer, TypeInfo(TGUID), IInterface(@EqualityComparer_GUID));
 end;
 
