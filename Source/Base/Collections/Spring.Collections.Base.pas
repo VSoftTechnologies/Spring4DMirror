@@ -945,13 +945,11 @@ end;
 class function TComparerThunks<T>.Equals(instance: Pointer; const left, right): Boolean;
 begin
   Result := IEqualityComparer<T>(instance).Equals(T(left), T(right));
-//  Result := TEqualsMethod<T>(instance^)(T(left), T(right));
 end;
 
 class function TComparerThunks<T>.GetHashCode(instance: Pointer; const value): Integer;
 begin
   Result := IEqualityComparer<T>(instance).GetHashCode(T(value));
-//  Result := TGetHashCodeMethod<T>(instance^)(T(value));
 end;
 
 {$ENDREGION}
