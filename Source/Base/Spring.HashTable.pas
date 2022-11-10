@@ -200,16 +200,19 @@ end;
 {$REGION 'THashTable'}
 
 procedure THashTable.Initialize(const equals, getHashCode: Pointer; typeInfo: PTypeInfo);
+var
+  comparer: Pointer;
 begin
   vTable := @vTable;
   fEquals := equals;
   fGetHashCode := getHashCode;
+  comparer := _LookupVtableInfo(giEqualityComparer, typeInfo, GetTypeSize(typeInfo));
   if not Assigned(fComparer) then
   begin
-    Pointer(fComparer) := _LookupVtableInfo(giEqualityComparer, typeInfo, GetTypeSize(typeInfo));
-    IInterface(fComparer)._AddRef;
-    fDefaultComparer := True;
+    Pointer(fComparer) := comparer;
+    fComparer._AddRef;
   end;
+  fDefaultComparer := Pointer(fComparer) = comparer;
   if PassByRef(typeInfo, ccReg, True) then
   begin
     fEquals := PPVTable(fComparer)^[3];
@@ -516,7 +519,7 @@ deletedFound:
 
     item := @hashTable.Items[NativeInt(hashTable.ItemSize) * (itemIndex and mask)];
 
-    if not THashTable<T>(stackData.hashTable^).Comparer.Equals(TItem<T>(item^).Key, key) then Continue;
+    if not THashTable<T>(stackData.hashTable^).Comparer.Equals(key, TItem<T>(item^).Key) then Continue;
 
     if options and ExistingMask <> 0 then
       if options and IgnoreExisting <> 0 then
@@ -673,8 +676,7 @@ deletedFound:
           {$ENDIF}
         end;
       tkUString:
-        if TItem<Pointer>(item^).Key <> PPointer(@key)^ then
-          if TItem<string>(item^).Key <> PString(@key)^ then Continue;
+        if PString(@key)^ <> TItem<string>(item^).Key then Continue;
       tkRecord:
         if TypeInfo(T) = TypeInfo(TGUID) then
           if not SameGuid(TItem<TGUID>(item^).Key, PGUID(@key)^) then Continue else

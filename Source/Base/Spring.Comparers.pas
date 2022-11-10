@@ -51,10 +51,18 @@ type
     TIStringComparer = record
       class operator Implicit(const value: TIStringComparer): IEqualityComparer<string>;
       class operator Implicit(const value: TIStringComparer): IComparer<string>;
+
+      function Compare(const left, right: string): Integer;
+      function Equals(const left, right: string): Boolean;
+      function GetHashCode(const value: string): Integer;
     end;
   public
     class operator Implicit(const value: TStringComparer): IEqualityComparer<string>;
     class operator Implicit(const value: TStringComparer): IComparer<string>;
+
+    function Compare(const left, right: string): Integer;
+    function Equals(const left, right: string): Boolean;
+    function GetHashCode(const value: string): Integer;
 
     class function Ordinal: TStringComparer; static; //inline;
     class function OrdinalIgnoreCase: TIStringComparer; static; //inline;
@@ -904,89 +912,119 @@ begin
   Result := DefaultHashFunction(PByte(value)[1], PByte(value)[0]);
 end;
 
-function Compare_String_CaseInsensitive(const inst: Pointer; const left, right: string): Integer;
-{$IFDEF MSWINDOWS}
-var
-  leftLen, rightLen: NativeInt;
-{$ENDIF}
+function Compare_UString_CaseInsensitive(const inst: Pointer; const left, right: Pointer): Integer;
 begin
-  Result := 0;
-  if Pointer(left) = Pointer(right) then Exit;
-  {$IFDEF MSWINDOWS}
-  leftLen := IntPtr(left);
-  if leftLen <> 0 then
-    leftLen := PCardinal(@PByte(left)[-4])^;
-  rightLen := IntPtr(right);
-  if rightLen <> 0 then
-    rightLen := PCardinal(@PByte(right)[-4])^;
-  Result := CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, Pointer(left), leftLen, Pointer(right), rightLen);
-  Result := Result - CSTR_EQUAL;
-  {$ELSE}
-  Result := AnsiCompareText(left, right);
-  {$ENDIF}
+  if left <> right then
+    if Assigned(left) then
+      if Assigned(right) then
+      begin
+        {$IFDEF MSWINDOWS}
+        Result := CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, left, -1, right, -1);
+        Result := Result - CSTR_EQUAL;
+        {$ELSE}
+        Result := AnsiCompareText(string(left), string(right));
+        {$ENDIF}
+      end
+      else
+        Result := 1
+    else
+      Result := -1
+  else
+    Result := 0;
 end;
 
-function Equals_String_CaseInsensitive(const inst: Pointer; const left, right: string): Boolean;
-var
-{$IFDEF MSWINDOWS}
-  leftLen, rightLen: NativeInt;
-{$ENDIF}
-  res: Integer;
+function AllCharsInUInt32AreAscii(const value: Cardinal): Boolean; inline;
+const
+  NotAsciiMask = $FF80FF80;
 begin
-  Result := True;
-  if Pointer(left) = Pointer(right) then Exit;
+  Result := value and NotAsciiMask = 0;
+end;
+
+function UInt32OrdinalIgnoreCaseAscii(const left, right: Cardinal): Boolean; inline;
+var
+  differentBits, indicator: Cardinal;
+begin
+  differentBits := (left xor right) shl 2;
+  indicator := left + $00050005;
+  indicator := indicator or $00A000A0;
+  indicator := indicator + $001A001A;
+  indicator := indicator or $FF7FFF7F;
+  Result := differentBits and indicator = 0;
+end;
+
+function Equals_UString_CaseInsensitive(const inst: Pointer; const left, right: Pointer): Boolean;
+label
+  foundMismatch, notAscii;
+var
+  len, i: NativeInt;
+  c1, c2: NativeUInt;
   {$IFDEF MSWINDOWS}
-  leftLen := IntPtr(left);
-  if leftLen <> 0 then
-    leftLen := PCardinal(@PByte(left)[-4])^;
-  rightLen := IntPtr(right);
-  if rightLen <> 0 then
-    rightLen := PCardinal(@PByte(right)[-4])^;
-  res := CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, Pointer(left), leftLen, Pointer(right), rightLen);
+  res: Integer;
+  {$ENDIF}
+begin
+  if left <> right then
+  begin
+    if not Assigned(left) or not Assigned(right) then goto foundMismatch;
+    len := PInteger(@PByte(left)[-4])^;
+    if len <> PInteger(@PByte(right)[-4])^ then goto foundMismatch;
+    i := 0;
+    repeat
+      c1 := PCardinal(@PChar(left)[i])^;
+      c2 := PCardinal(@PChar(right)[i])^;
+      if not AllCharsInUInt32AreAscii(c1 or c2) then goto notAscii;
+      if not UInt32OrdinalIgnoreCaseAscii(c1, c2) then goto foundMismatch;
+      Inc(i, 2);
+    until i >= len;
+  end;
+  Exit(True);
+foundMismatch:
+  Exit(False);
+notAscii:
+  if AllCharsInUInt32AreAscii(c1) or AllCharsInUInt32AreAscii(c2) then goto foundMismatch;
+  {$IFDEF MSWINDOWS}
+  res := CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, left, -1, right, -1);
   Result := res = CSTR_EQUAL;
   {$ELSE}
-  res := AnsiCompareText(left, right);
-  Result := res = 0;
+  Result := AnsiCompareText(string(left), string(right)) = 0;
   {$ENDIF}
 end;
 
-function GetHashCode_String_CaseInsensitive(const inst: Pointer; const value: string): Integer;
+function GetHashCode_UString_CaseInsensitive(const inst: Pointer; const value: Pointer): Integer;
 
-  function GetHashCodeIgnoreCaseSlow(const value: string): Integer;
+  function GetHashCodeIgnoreCaseSlow(const value: Pointer): Integer;
   var
     s: string;
   begin
-    s := AnsiLowerCase(value);
+    s := AnsiLowerCase(string(value));
     Result := DefaultHashFunction(Pointer(s)^, PCardinal(@PByte(s)[-4])^ * SizeOf(Char));
   end;
 
 const
-  NotAsciiMask = $FF80FF80;
   LowerCaseMask = $00200020;
   MaxBufferSize = 2048;
 label
-  NotAscii;
+  notAscii;
 var
-  i: NativeInt;
-  c: Integer;
+  len, i: NativeInt;
+  c: NativeUInt;
   buffer: array[0..MaxBufferSize-1] of Char;
-  len: record value: Cardinal; end;
 begin
-  if value <> '' then
+  if Assigned(value) then
   begin
-    len.value := PCardinal(@PByte(value)[-4])^;
-    if len.value <= MaxBufferSize then
+    len := PInteger(@PByte(value)[-4])^;
+    if len <= MaxBufferSize then
     begin
-      for i := 0 to Pred(len.value) div 2 do
-      begin
-        c := PIntegerArray(value)[i];
-        if c and NotAsciiMask <> 0 then goto NotAscii;
-        PIntegerArray(@buffer)[i] := c or LowerCaseMask;
-      end;
-      Result := DefaultHashFunction(buffer[0], len.value * SizeOf(Char));
+      i := 0;
+      repeat
+        c := PCardinal(@PChar(value)[i])^;
+        if not AllCharsInUInt32AreAscii(c) then goto notAscii;
+        PCardinal(@buffer[i])^ := c or LowerCaseMask;
+        Inc(i, 2);
+      until i >= len;
+      Result := DefaultHashFunction(buffer[0], len * SizeOf(Char));
     end
     else
-    NotAscii:
+    notAscii:
       Result := GetHashCodeIgnoreCaseSlow(value);
   end
   else
@@ -1125,80 +1163,67 @@ end;
 
 function Compare_UString(const inst: Pointer; left, right: PByte): Integer;
 label
-  BothStringsNonNil, FoundMismatch;
+  foundMismatch;
 var
   i: NativeInt;
 begin
   if left <> right then
-  begin
-    if (NativeInt(left) and NativeInt(right)) = 0 then
-    begin
-BothStringsNonNil:
-      i := 0;
-      if PInteger(@left[0])^ <> PInteger(@right[0])^ then
-        goto FoundMismatch;
-      Result := PInteger(@left[-4])^ - PInteger(@right[-4])^;
-      // set i to -Min(Length(S1), Length(S2) * 2
-      i := (((Result shr 31 - 1) and Result) - PInteger(@left[-4])^) * 2;
-      left := left - i;
-      right := right - i;
-      repeat
-        Inc(i, 4);
-        if i >= 0 then Exit;
-        if PInteger(@left[i])^ <> PInteger(@right[i])^ then
-        begin
-FoundMismatch:
-          Result := PWord(@left[i])^ - PWord(@right[i])^;
-          if Result = 0 then
-            Result := PWord(@left[i+2])^ - PWord(@right[i+2])^;
-          Exit;
-        end;
-      until False;
-    end
-    else if left = nil then
-      Result := -PInteger(@right[-4])^
-    else if right = nil then
-      Result := PInteger(@left[-4])^
+    if Assigned(left) then
+      if Assigned(right) then
+      begin
+        i := 0;
+        if PInteger(@left[0])^ <> PInteger(@right[0])^ then
+          goto foundMismatch;
+        Result := PInteger(@left[-4])^ - PInteger(@right[-4])^;
+        // set i to -Min(Length(S1), Length(S2) * 2
+        i := (((Result shr 31 - 1) and Result) - PInteger(@left[-4])^) * 2;
+        left := left - i;
+        right := right - i;
+        repeat
+          Inc(i, 4);
+          if i >= 0 then Exit;
+          if PInteger(@left[i])^ <> PInteger(@right[i])^ then
+          begin
+          foundMismatch:
+            Result := PWord(@left[i])^ - PWord(@right[i])^;
+            if Result = 0 then
+              Result := PWord(@left[i+2])^ - PWord(@right[i+2])^;
+            Exit;
+          end;
+        until False;
+      end
+      else
+        Result := 1
     else
-      goto BothStringsNonNil;
-  end
+      Result := -1
   else
     Result := 0;
 end;
 
-function Equals_UString(const inst: Pointer; left, right: PByte): Boolean;
+function Equals_UString(const inst: Pointer; left, right: Pointer): Boolean;
 label
-  BothStringsNonNil, FoundMismatch;
+  foundMismatch;
 var
-  i: NativeInt;
+  len, i: NativeInt;
 begin
   if left <> right then
   begin
-    if NativeInt(left) and NativeInt(right) <> 0 then
-    begin
-BothStringsNonNil:
-      i := PInteger(@left[-4])^;
-      if i <> PInteger(@right[-4])^ then
-        goto FoundMismatch;
-      i := -(i * 2);
-      left := left - i;
-      right := right - i;
-      repeat
-        if PInteger(@left[i])^ <> PInteger(@right[i])^ then
-          goto FoundMismatch;
-        Inc(i, 4);
-      until i >= 0;
-    end
-    else if (left <> nil) and (right <> nil) then
-      goto BothStringsNonNil
-    else
-FoundMismatch:
-      Exit(False);
+    if not Assigned(left) or not Assigned(right) then goto foundMismatch;
+    len := PInteger(@PByte(left)[-4])^;
+    if len <> PInteger(@PByte(right)[-4])^ then goto foundMismatch;
+    i := 0;
+    repeat
+      if PCardinal(@PChar(left)[i])^ <> PCardinal(@PChar(right)[i])^ then
+        goto foundMismatch;
+      Inc(i, 2);
+    until i >= len;
   end;
-  Result := True;
+  Exit(True);
+foundMismatch:
+  Exit(False);
 end;
 
-function GetHashCode_UString(const inst: Pointer; const value: string): Integer;
+function GetHashCode_UString(const inst: Pointer; const value: Pointer): Integer;
 var
   hashCode: NativeInt;
 begin
@@ -1387,7 +1412,7 @@ var
 begin
   try
     valueAsString := Value^;
-    Result := GetHashCode_UString(nil, valueAsString);
+    Result := GetHashCode_UString(nil, Pointer(valueAsString));
   except
     Result := DefaultHashFunction(value^, SizeOf(Variant));
   end;
@@ -1420,7 +1445,7 @@ begin
       with PShortString(value.VPointer)^ do
         Exit(DefaultHashFunction(Data, Length));
     varUString:
-      Exit(GetHashCode_UString(nil, string(value.VPointer)));
+      Exit(GetHashCode_UString(nil, value.VPointer));
     varOleStr:
       Exit(GetHashCode_WString(nil, WideString(Pointer(value.VOleStr))));
   else
@@ -1760,23 +1785,6 @@ const
     GetHashCode: @GetHashCode_String
   );
 
-  Comparer_String_CaseInsensitive: IComparer = (
-    VTable: @Comparer_String_CaseInsensitive.QueryInterface;
-    QueryInterface: @NopQueryInterface;
-    AddRef: @NopRef;
-    Release: @NopRef;
-    Compare: @Compare_String_CaseInsensitive
-  );
-
-  EqualityComparer_String_CaseInsensitive: IEqualityComparer = (
-    VTable: @EqualityComparer_String_CaseInsensitive.QueryInterface;
-    QueryInterface: @NopQueryInterface;
-    AddRef: @NopRef;
-    Release: @NopRef;
-    Equals: @Equals_String_CaseInsensitive;
-    GetHashCode: @GetHashCode_String_CaseInsensitive
-  );
-
   Comparer_Class: IComparer = (
     VTable: @Comparer_Class.QueryInterface;
     QueryInterface: @NopQueryInterface;
@@ -1860,6 +1868,23 @@ const
     Release: @NopRef;
     Equals: @Equals_UString;
     GetHashCode: @GetHashCode_UString
+  );
+
+  Comparer_UString_CaseInsensitive: IComparer = (
+    VTable: @Comparer_UString_CaseInsensitive.QueryInterface;
+    QueryInterface: @NopQueryInterface;
+    AddRef: @NopRef;
+    Release: @NopRef;
+    Compare: @Compare_UString_CaseInsensitive
+  );
+
+  EqualityComparer_UString_CaseInsensitive: IEqualityComparer = (
+    VTable: @EqualityComparer_UString_CaseInsensitive.QueryInterface;
+    QueryInterface: @NopQueryInterface;
+    AddRef: @NopRef;
+    Release: @NopRef;
+    Equals: @Equals_UString_CaseInsensitive;
+    GetHashCode: @GetHashCode_UString_CaseInsensitive
   );
 
   Comparer_Variant: IComparer = (
@@ -2064,14 +2089,44 @@ begin
     Result := Selector_Binary(intf, info, size);
 end;
 
+function TStringComparer.TIStringComparer.Compare(const left, right: string): Integer;
+begin
+  Result := Compare_UString_CaseInsensitive(@Self, Pointer(left), Pointer(right));
+end;
+
+function TStringComparer.TIStringComparer.Equals(const left, right: string): Boolean;
+begin
+  Result := Equals_UString_CaseInsensitive(@Self, Pointer(left), Pointer(right));
+end;
+
+function TStringComparer.TIStringComparer.GetHashCode(const value: string): Integer;
+begin
+  Result := GetHashCode_UString_CaseInsensitive(@Self, Pointer(value));
+end;
+
 class operator TStringComparer.TIStringComparer.Implicit(const value: TIStringComparer): IComparer<string>;
 begin
-  Result := IComparer<string>(@Comparer_String_CaseInsensitive);
+  Result := IComparer<string>(@Comparer_UString_CaseInsensitive);
 end;
 
 class operator TStringComparer.TIStringComparer.Implicit(const value: TIStringComparer): IEqualityComparer<string>;
 begin
-  Result := IEqualityComparer<string>(@EqualityComparer_String_CaseInsensitive);
+  Result := IEqualityComparer<string>(@EqualityComparer_UString_CaseInsensitive);
+end;
+
+function TStringComparer.Compare(const left, right: string): Integer;
+begin
+  Result := Compare_UString(@Self, Pointer(left), Pointer(right));
+end;
+
+function TStringComparer.Equals(const left, right: string): Boolean;
+begin
+  Result := Equals_UString(@Self, Pointer(left), Pointer(right));
+end;
+
+function TStringComparer.GetHashCode(const value: string): Integer;
+begin
+  Result := GetHashCode_UString(@Self, Pointer(value));
 end;
 
 class operator TStringComparer.Implicit(const value: TStringComparer): IComparer<string>;
