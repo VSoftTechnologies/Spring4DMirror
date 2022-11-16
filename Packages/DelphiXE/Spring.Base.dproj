@@ -50,8 +50,8 @@
 			<DelphiCompile Include="Spring.Base.dpk">
 				<MainSource>MainSource</MainSource>
 			</DelphiCompile>
-			<DCCReference Include="rtl.dcp"/>
 			<DCCReference Include="vcl.dcp"/>
+			<DCCReference Include="rtl.dcp"/>
 			<DCCReference Include="..\..\Source\Base\Spring.pas"/>
 			<DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.pas"/>
 			<DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Base.pas"/>
@@ -88,6 +88,7 @@
 			<DCCReference Include="..\..\Source\Base\Patches\Spring.Patches.QC93646.pas"/>
 			<DCCReference Include="..\..\Source\Base\Patches\Spring.Patches.QC98671.pas"/>
 			<DCCReference Include="..\..\Source\Base\Patches\Spring.Patches.QC107219.pas"/>
+			<DCCReference Include="..\..\Source\Base\Patches\Spring.Patches.RSP13163.pas"/>
 			<DCCReference Include="..\..\Source\Base\Patterns\Spring.Patterns.Specification.pas"/>
 			<DCCReference Include="..\..\Source\Base\Spring.Reflection.pas"/>
 			<DCCReference Include="..\..\Source\Base\Spring.ResourceStrings.pas"/>
