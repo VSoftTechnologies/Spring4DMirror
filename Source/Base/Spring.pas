@@ -818,20 +818,20 @@ type
 
   {$REGION 'TRttiMethodHelper'}
 
-{$IF CompilerVersion < 31}
+{$IFNDEF DELPHIX_BERLIN_UP}
   {$HINTS OFF}
   TRttiMethodHack = class(TRttiMethod)
   private
     function GetParameters: TArray<TRttiParameter>; override;
   end;
   {$HINTS ON}
-{$IFEND}
+{$ENDIF}
 
   TRttiMethodHelper = class helper for TRttiMethod
   private
     function GetIsAbstract: Boolean;
     function GetReturnTypeHandle: PTypeInfo;
-{$IF CompilerVersion < 31}
+{$IFNDEF DELPHIX_BERLIN_UP}
     procedure DispatchValue(const value: TValue; typeInfo: PTypeInfo);
     procedure FixParameters(const parameters: TArray<TRttiParameter>);
   public
@@ -866,7 +866,7 @@ type
     ///   This fixes the missing interface cast support in TValue (QC#123729).
     /// </remarks>
     function Invoke(Instance: TValue; const Args: array of TValue): TValue; overload;
-{$IFEND}
+{$ENDIF}
   public
 
     /// <summary>
@@ -7460,7 +7460,7 @@ begin
     Result := nil;
 end;
 
-{$IF CompilerVersion < 31}
+{$IFNDEF DELPHIX_BERLIN_UP}
 procedure TRttiMethodHelper.DispatchValue(const value: TValue;
   typeInfo: PTypeInfo);
 type
@@ -7531,7 +7531,7 @@ begin
   else
     Result := Self.DispatchInvoke(Instance, Args);
 end;
-{$IFEND}
+{$ENDIF}
 
 {$ENDREGION}
 

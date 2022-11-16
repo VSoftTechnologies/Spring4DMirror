@@ -82,6 +82,7 @@ uses
   Spring.Patches.QC98671,
   Spring.Patches.QC107219,
 {$ENDIF}
+  Spring.Patches.RSP13163,
   RTLConsts;
 
 
