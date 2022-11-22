@@ -230,7 +230,7 @@ end;
 
 function TClassData.GetVirtualMethodCount: Integer;
 begin
-  if Assigned(Parent) and (TypeInfo = Parent^.ClassInfo) then
+  if Assigned(Parent) and (TypeInfo = PPointer(@PByte(Parent^)[vmtTypeInfo])^) then
     Exit(GetClassData(Parent^).VirtualMethodCount);
 
   if InitTable <> nil then
@@ -324,14 +324,14 @@ end;
 
 procedure TVirtualClasses.Proxify(const instance: TObject);
 begin
-  PPointer(instance)^ := GetVirtualClass(instance.ClassType);
+  PPointer(instance)^ := GetVirtualClass(PPointer(instance)^);
 end;
 
 procedure TVirtualClasses.Unproxify(const instance: TObject);
 var
   classType: TClass;
 begin
-  classType := instance.ClassType;
+  classType := PPointer(instance)^;
   if fClasses.IndexOf(classType) > -1 then
     PPointer(instance)^ := classType.ClassParent;
 end;

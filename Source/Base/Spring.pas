@@ -4881,7 +4881,7 @@ begin
     SetLength(types, Length(types) + 1);
     types[High(types)] := t;
     t := t.BaseType;
-  until t.Handle = TObject.ClassInfo;
+  until t.Handle = TypeInfo(TObject);
 
   for i := High(types) downto 0 do
   begin
@@ -9408,7 +9408,7 @@ end;
 procedure RegisterWeakRef(address: Pointer; const instance: TObject);
 begin
   TVirtualClasses.Default.Proxify(instance);
-  GetClassData(TObject(instance).ClassType).FreeInstance := WeakRefFreeInstance;
+  GetClassData(PPointer(instance)^).FreeInstance := WeakRefFreeInstance;
   WeakRefInstances.RegisterWeakRef(address, instance);
 end;
 
