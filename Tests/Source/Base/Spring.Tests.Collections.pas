@@ -861,6 +861,19 @@ type
       procedure Start; override;
       function TryMoveNext(var current: T): Boolean; override;
     end;
+    TDelegateIterator<T> = class(TIterator<T>, IEnumerable<T>)
+    private
+      fMoveNext: Func<Boolean>;
+      fCurrent: Func<T>;
+      fDispose: Action;
+    protected
+      function Clone: TIterator<T>; override;
+      procedure Dispose; override;
+      function TryMoveNext(var current: T): Boolean; override;
+    public
+      constructor Create(const moveNext: Func<Boolean>;
+        const current: Func<T>; const dispose: Action);
+    end;
   protected
     class function BreakingSequence<T>: IEnumerable<T>; static;
     class function BreakingReadOnlyCollection<T>(const collection: IReadOnlyCollection<T>): IReadOnlyCollection<T>; static;
@@ -925,6 +938,24 @@ type
     procedure RepeatEnumerating;
     procedure RepeatEnumeratingNotIList;
     procedure LazySkipMoreThan32Bits;
+  end;
+
+  TSkipTakeData = class
+  public
+    class function EnumerableData: TArray<TArray<TValue>>; static;
+    class function EvaluationBehaviorData: TArray<Integer>; static;
+  end;
+
+  TSkipLastTests = class(TEnumerableTestCase)
+  published
+    [TestCaseSource(TSkipTakeData, 'EnumerableData')]
+    procedure SkipLast(const source: IEnumerable<Integer>; count: Integer);
+    [TestCaseSource(TSkipTakeData, 'EvaluationBehaviorData')]
+    procedure EvaluationBehavior(count: Integer);
+    [TestCaseSource(TSkipTakeData, 'EnumerableData')]
+    procedure RunOnce(const source: IEnumerable<Integer>; count: Integer);
+    procedure List_ChangesAfterSkipLast_ChangesReflectedInResults;
+    procedure List_Skip_ChangesAfterSkipLast_ChangesReflectedInResults;
   end;
 
   TTakeTests = class(TEnumerableTestCase)
@@ -1006,6 +1037,17 @@ type
     procedure ElementAtOfLazySkipTakeChain(const source: TArray<Integer>; skip, take: Integer; indices, expectedValues: TArray<Integer>);
   end;
 
+  TTakeLastTests = class(TEnumerableTestCase)
+  published
+    [TestCaseSource(TSkipTakeData, 'EnumerableData')]
+    procedure TakeLast(const source: IEnumerable<Integer>; count: Integer);
+    [TestCaseSource(TSkipTakeData, 'EvaluationBehaviorData')]
+    procedure EvaluationBehavior(count: Integer);
+    procedure RunOnce(const source: IEnumerable<Integer>; count: Integer);
+    procedure List_ChangesAfterTakeLast_ChangesReflectedInResults;
+    procedure List_Skip_ChangesAfterTakeLast_ChangesReflectedInResults;
+  end;
+
   TAtLeastTests = class(TEnumerableTestCase)
   published
     procedure NegativeCount;
@@ -1075,6 +1117,7 @@ uses
   Spring.Collections.MultiMaps,
   Spring.Collections.MultiSets,
   Spring.Collections.Queues,
+  Math,
   Rtti, // H2443
   StrUtils,
   SysUtils,
@@ -1088,6 +1131,7 @@ type
   TIntQueue = TQueue<Integer>;
 
 const
+  MinInt = Low(Integer);
   MaxItems = 1000;
   ListCountLimit = 1000;//0000;
 
@@ -5785,6 +5829,36 @@ end;
 {$ENDREGION}
 
 
+{$REGION 'TEnumerableTestCase.TDelegateIterator<T>'}
+
+function TEnumerableTestCase.TDelegateIterator<T>.Clone: TIterator<T>;
+begin
+  Result := TDelegateIterator<T>.Create(fMoveNext, fCurrent, fDispose);
+end;
+
+constructor TEnumerableTestCase.TDelegateIterator<T>.Create(
+  const moveNext: Func<Boolean>; const current: Func<T>; const dispose: Action);
+begin
+  fMoveNext := moveNext;
+  fCurrent := current;
+  fDispose := dispose;
+end;
+
+procedure TEnumerableTestCase.TDelegateIterator<T>.Dispose;
+begin
+  fDispose;
+end;
+
+function TEnumerableTestCase.TDelegateIterator<T>.TryMoveNext(var current: T): Boolean;
+begin
+  Result := fMoveNext;
+  if Result then
+    current := fCurrent;
+end;
+
+{$ENDREGION}
+
+
 {$REGION 'TSkipTests'}
 
 procedure TSkipTests.SkipSome;
@@ -5862,7 +5936,7 @@ var
   q: IEnumerable<Integer>;
 begin
   q := ForceNotCollection<Integer>(TEnumerable.From<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345])
-    .Where(function(const x: Integer): Boolean begin Result := x > Low(Integer) end));
+    .Where(function(const x: Integer): Boolean begin Result := x > MinInt end));
   CheckEquals(q.Skip(0), q.Skip(0));
 end;
 
@@ -5871,7 +5945,7 @@ var
   q: IEnumerable<Integer>;
 begin
   q := TCollections.CreateList<Integer>(TEnumerable.From<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345])
-    .Where(function(const x: Integer): Boolean begin Result := x > Low(Integer) end));
+    .Where(function(const x: Integer): Boolean begin Result := x > MinInt end));
   CheckEquals(q.Skip(0), q.Skip(0));
 end;
 
@@ -6201,6 +6275,132 @@ end;
 {$ENDREGION}
 
 
+{$REGION 'TSkipTakeData'}
+
+class function TSkipTakeData.EnumerableData: TArray<TArray<TValue>>;
+var
+  sourceCounts, counts: IEnumerable<Integer>;
+begin
+  sourceCounts := TEnumerable.From<Integer>([0, 1, 2, 3, 5, 8, 13, 55, 100, 250]);
+  counts := TEnumerable.From<Integer>([1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 100, 250, 500, MaxInt]);
+  counts := counts.Concat(TEnumerable.Select<Integer,Integer>(counts, function(const c: Integer): Integer begin Result := -c end)).Concat(TEnumerable.From<Integer>([0, MinInt]));
+
+  Result := TEnumerable.SelectMany<Integer,TArray<TValue>>(sourceCounts,
+    function(const sourceCount: Integer): IEnumerable<TArray<TValue>>
+    var
+      source: IEnumerable<Integer>;
+    begin
+      source := TEnumerable.Range(0, sourceCount);
+      Result := TEnumerable.Select<Integer, TArray<TValue>>(counts,
+        function(const count: Integer): TArray<TValue>
+        begin
+          Result := TArray<TValue>.Create(TValue.From<IEnumerable<Integer>>(source), count);
+        end);
+    end).ToArray;
+  counts := nil;
+end;
+
+class function TSkipTakeData.EvaluationBehaviorData: TArray<Integer>;
+begin
+  Result := TEnumerable.Range(-1, 15).ToArray;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TSkipLastTests'}
+
+procedure TSkipLastTests.SkipLast(const source: IEnumerable<Integer>; count: Integer);
+var
+  expected, actual: IEnumerable<Integer>;
+  index: Integer;
+begin
+  expected := source.Reversed.Skip(count).Reversed;
+  actual := source.SkipLast(count);
+
+  CheckEquals(expected, actual);
+  CheckEquals(expected.Count, actual.Count);
+  CheckEquals(expected.ToArray, actual.ToArray);
+
+  CheckEquals(expected.FirstOrDefault, actual.FirstOrDefault);
+  CheckEquals(expected.LastOrDefault, actual.LastOrDefault);
+
+  for index in TEnumerable.Range(0, expected.Count) do
+    CheckEquals(expected.ElementAt(index), actual.ElementAt(index));
+
+  CheckEquals(0, actual.ElementAtOrDefault(-1));
+  CheckEquals(0, actual.ElementAtOrDefault(actual.Count));
+end;
+
+procedure TSkipLastTests.EvaluationBehavior(count: Integer);
+var
+  index, limit, i: Integer;
+  source: IEnumerable<Integer>;
+  iterator: IEnumerator<Integer>;
+begin
+  index := 0;
+  limit := Max(0, count * 2);
+
+  source := TDelegateIterator<Integer>.Create(
+    function: Boolean begin Result := index <> limit; Inc(index); end,
+    function: Integer begin Result := index; end,
+    procedure begin index := index xor MinInt; end);
+
+  iterator := source.SkipLast(count).GetEnumerator;
+  CheckEquals(0, index);
+
+  for i := 1 to count do
+  begin
+    CheckTrue(iterator.MoveNext);
+    CheckEquals(i, iterator.Current);
+    CheckEquals(count + i, index);
+  end;
+
+  CheckFalse(iterator.MoveNext);
+  CheckEquals(MinInt, index and MinInt);
+end;
+
+procedure TSkipLastTests.RunOnce(const source: IEnumerable<Integer>; count: Integer);
+var
+  expected: IEnumerable<Integer>;
+begin
+  expected := source.SkipLast(count);
+  CheckEquals(expected, GuaranteedRunOnce<Integer>(source.SkipLast(count)));
+end;
+
+procedure TSkipLastTests.List_ChangesAfterSkipLast_ChangesReflectedInResults;
+var
+  list: IList<Integer>;
+  e: IEnumerable<Integer>;
+begin
+  list := TCollections.CreateList<Integer>([1, 2, 3, 4, 5]);
+
+  e := list.SkipLast(2);
+
+  list.Delete(4);
+  list.Delete(3);
+
+  CheckEquals([1], e.ToArray);
+end;
+
+
+procedure TSkipLastTests.List_Skip_ChangesAfterSkipLast_ChangesReflectedInResults;
+var
+  list: IList<Integer>;
+  e: IEnumerable<Integer>;
+begin
+  list := TCollections.CreateList<Integer>([1, 2, 3, 4, 5]);
+
+  e := list.Skip(1).SkipLast(2);
+
+  list.Delete(4);
+
+  CheckEquals([2], e.ToArray);
+end;
+
+{$ENDREGION}
+
+
 {$REGION 'TTakeTests'}
 
 procedure TTakeTests.SameResultsRepeatCallsIntQuery;
@@ -6208,7 +6408,7 @@ var
   q: IEnumerable<Integer>;
 begin
   q := TEnumerable.From<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345])
-    .Where(function(const x: Integer): Boolean begin Result := x > Low(Integer) end);
+    .Where(function(const x: Integer): Boolean begin Result := x > MinInt end);
 
   CheckEquals(q.Take(9), q.Take(9));
 end;
@@ -6218,7 +6418,7 @@ var
   q: IEnumerable<Integer>;
 begin
   q := TCollections.CreateList<Integer>(TEnumerable.From<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345])
-    .Where(function(const x: Integer): Boolean begin Result := x > Low(Integer) end));
+    .Where(function(const x: Integer): Boolean begin Result := x > MinInt end));
 
   CheckEquals(q.Take(9), q.Take(9));
 end;
@@ -6702,6 +6902,102 @@ begin
   CheckEquals(Length(expectedValues), Length(indices));
   for i := 0 to High(indices) do
     CheckEquals(expectedValues[i], partition.ElementAtOrDefault(indices[i]));
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTakeLastTests'}
+
+procedure TTakeLastTests.TakeLast(const source: IEnumerable<Integer>; count: Integer);
+var
+  expected, actual: IEnumerable<Integer>;
+  index: Integer;
+begin
+  expected := source.Reversed.Take(count).Reversed;
+  actual := source.TakeLast(count);
+
+  CheckEquals(expected, actual);
+  CheckEquals(expected.Count, actual.Count);
+  CheckEquals(expected.ToArray, actual.ToArray);
+
+  CheckEquals(expected.FirstOrDefault, actual.FirstOrDefault);
+  CheckEquals(expected.LastOrDefault, actual.LastOrDefault);
+
+  for index in TEnumerable.Range(0, expected.Count) do
+    CheckEquals(expected.ElementAt(index), actual.ElementAt(index));
+
+  CheckEquals(0, actual.ElementAtOrDefault(-1));
+  CheckEquals(0, actual.ElementAtOrDefault(actual.Count));
+end;
+
+procedure TTakeLastTests.EvaluationBehavior(count: Integer);
+var
+  index, limit, i, expected: Integer;
+  source: IEnumerable<Integer>;
+  iterator: IEnumerator<Integer>;
+begin
+  index := 0;
+  limit := count * 2;
+
+  source := TDelegateIterator<Integer>.Create(
+    function: Boolean begin Result := index <> limit; Inc(index) end,
+    function: Integer begin Result := index end,
+    procedure begin index := index xor MinInt end);
+
+  iterator := source.TakeLast(count).GetEnumerator;
+  CheckEquals(0, index);
+
+  for i := 1 to count do
+  begin
+    CheckTrue(iterator.MoveNext);
+    CheckEquals(count + i, iterator.Current);
+
+    CheckEquals(MinInt, index and MinInt);
+    CheckEquals(limit + 1, index and MaxInt);
+  end;
+
+  CheckFalse(iterator.MoveNext);
+
+  expected := IfThen(count <= 0, 0, MinInt);
+  CheckEquals(expected, index and MinInt);
+end;
+
+procedure TTakeLastTests.RunOnce(const source: IEnumerable<Integer>; count: Integer);
+var
+  expected: IEnumerable<Integer>;
+begin
+  expected := source.TakeLast(count);
+  CheckEquals(expected, GuaranteedRunOnce<Integer>(source.TakeLast(count)));
+end;
+
+procedure TTakeLastTests.List_ChangesAfterTakeLast_ChangesReflectedInResults;
+var
+  list: IList<Integer>;
+  e: IEnumerable<Integer>;
+begin
+  list := TCollections.CreateList<Integer>([1, 2, 3, 4, 5]);
+
+  e := list.TakeLast(3);
+
+  list.Delete(0);
+  list.Delete(0);
+
+  CheckEquals([3, 4, 5], e.ToArray);
+end;
+
+procedure TTakeLastTests.List_Skip_ChangesAfterTakeLast_ChangesReflectedInResults;
+var
+  list: IList<Integer>;
+  e: IEnumerable<Integer>;
+begin
+  list := TCollections.CreateList<Integer>([1, 2, 3, 4, 5]);
+
+  e := list.Skip(1).TakeLast(3);
+
+  list.Delete(0);
+
+  CheckEquals([3, 4, 5], e.ToArray);
 end;
 
 {$ENDREGION}
