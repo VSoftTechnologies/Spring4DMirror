@@ -204,12 +204,14 @@ type
     function SingleOrDefault(const predicate: Predicate<T>; const defaultValue: T): T; overload;
 
     function Skip(count: Integer): IEnumerable<T>;
+    function SkipLast(count: Integer): IEnumerable<T>;
     function SkipWhile(const predicate: Predicate<T>): IEnumerable<T>; overload;
     function SkipWhile(const predicate: Func<T, Integer, Boolean>): IEnumerable<T>; overload;
 
     function Sum: T;
 
     function Take(count: Integer): IEnumerable<T>;
+    function TakeLast(count: Integer): IEnumerable<T>;
     function TakeWhile(const predicate: Predicate<T>): IEnumerable<T>; overload;
     function TakeWhile(const predicate: Func<T, Integer, Boolean>): IEnumerable<T>; overload;
 
@@ -262,7 +264,7 @@ type
   end;
 
   TIteratorKind = (
-    Partition, &Array,
+    Partition, PartitionFromEnd, &Array,
     Concat, Memoize, Ordered, Reversed, Shuffled,
     SkipWhile, SkipWhileIndex,
     TakeWhile, TakeWhileIndex,
@@ -296,6 +298,7 @@ type
     function GetEnumerator: Boolean;
     function GetEnumeratorAndSkip: Boolean;
     function GetEnumeratorMemoize: Boolean;
+    function GetEnumeratorPartitionFromEnd: Boolean;
 
     function _Release: Integer; stdcall;
     function MoveNext: Boolean;
@@ -373,10 +376,14 @@ type
 
     function GetCurrent: T;
 
+    function GetEnumeratorSkipLast: Boolean;
+    function GetEnumeratorTakeLast: Boolean;
+
     function MoveNextConcat: Boolean;
     function MoveNextMemoize: Boolean;
     function MoveNextOrdered: Boolean;
     function MoveNextReversed: Boolean;
+    function MoveNextSkipLast: Boolean;
     function MoveNextSkipWhile: Boolean;
     function MoveNextSkipWhileIndex: Boolean;
     function MoveNextTakeWhile: Boolean;
@@ -1779,6 +1786,15 @@ begin
   end;
 end;
 
+function TEnumerableBase<T>.SkipLast(count: Integer): IEnumerable<T>;
+begin
+  if count <= 0 then
+    Result := IEnumerable<T>(this)
+  else
+    Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
+      0, count, nil, TIteratorKind.PartitionFromEnd);
+end;
+
 function TEnumerableBase<T>.SkipWhile(
   const predicate: Predicate<T>): IEnumerable<T>;
 begin
@@ -1828,6 +1844,14 @@ begin
     count := 0;
   Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
     0, count, nil, TIteratorKind.Partition);
+end;
+
+function TEnumerableBase<T>.TakeLast(count: Integer): IEnumerable<T>;
+begin
+  if count <= 0 then
+    count := 0;
+  Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
+    -1, count, nil, TIteratorKind.PartitionFromEnd);
 end;
 
 function TEnumerableBase<T>.TakeWhile(
@@ -3246,7 +3270,7 @@ begin
   Enumerator := Source.GetEnumerator;
 {$ENDIF}
   DoMoveNext := Methods.MoveNext;
-  Result := DoMoveNext(@Self);
+  Result := Methods.MoveNext(@Self);
 end;
 
 function TIteratorBlock.GetEnumeratorAndSkip: Boolean;
@@ -3262,7 +3286,7 @@ begin
   if Result then
   begin
     DoMoveNext := Methods.MoveNext;
-    Result := DoMoveNext(@Self);
+    Result := Methods.MoveNext(@Self);
   end;
 end;
 
@@ -3278,7 +3302,34 @@ begin
     PIteratorBase(Predicate).fCount := PIteratorBase(Predicate).fCount or not CountMask;
   end;
   DoMoveNext := Methods.MoveNext;
-  Result := DoMoveNext(@Self);
+  Result := Methods.MoveNext(@Self);
+end;
+
+function TIteratorBlock.GetEnumeratorPartitionFromEnd: Boolean;
+var
+  count, index: Integer;
+begin
+  count := Source.GetCountFast;
+
+  if Self.Index < 0 then
+  begin
+    index := count - Self.Count;
+    if index < 0 then
+    begin
+      Self.Count := count;
+      index := 0;
+    end;
+    Self.Index := index;
+  end
+  else
+  begin
+    count := count - Self.Count;
+    if count < 0 then
+      Exit(False);
+    Self.Count := count;
+  end;
+  DoMoveNext := Methods.MoveNext;
+  Result := Methods.MoveNext(@Self);
 end;
 
 function TIteratorBlock.MoveNextEmpty: Boolean;
@@ -3353,6 +3404,26 @@ begin
             Methods.MoveNext := @TIteratorBlock<T>.MoveNextEnumerator;
           DoMoveNext := @TIteratorBlock.GetEnumeratorAndSkip;
         end
+      else
+        DoMoveNext := @TIteratorBlock.MoveNextEmpty;
+    TIteratorKind.PartitionFromEnd:
+      if Assigned(Source) then
+        if SupportsIndexedAccess(Source) then
+        begin
+          Methods.MoveNext := @TIteratorBlock<T>.MoveNextIndexed;
+          DoMoveNext := @TIteratorBlock.GetEnumeratorPartitionFromEnd;
+        end
+        else
+          if Index = 0 then
+          begin
+            Methods.MoveNext := @TIteratorBlock<T>.MoveNextSkipLast;
+            DoMoveNext := @TIteratorBlock<T>.GetEnumeratorSkipLast;
+          end
+          else
+          begin
+            Methods.MoveNext := @TIteratorBlock<T>.MoveNextOrdered;
+            DoMoveNext := @TIteratorBlock<T>.GetEnumeratorTakeLast;
+          end
       else
         DoMoveNext := @TIteratorBlock.MoveNextEmpty;
     TIteratorKind.Array:
@@ -3462,6 +3533,105 @@ end;
 function TIteratorBlock<T>.GetCurrent: T;
 begin
   Result := Current;
+end;
+
+function TIteratorBlock<T>.GetEnumeratorSkipLast: Boolean;
+var
+  i, capacity: Integer;
+begin
+{$IFDEF MSWINDOWS}
+  IEnumerableInternal(Source).GetEnumerator(Enumerator);
+{$ELSE}
+  Enumerator := Source.GetEnumerator;
+{$ENDIF}
+
+  i := 0;
+  capacity := 0;
+  repeat
+    if not Enumerator.MoveNext then Exit(False);
+
+    if i >= capacity then
+    begin
+      capacity := GrowCapacity(capacity);
+      SetLength(Items, capacity);
+    end;
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(Enumerator).GetCurrent(Items[i])
+    else
+    {$ENDIF}
+    Items[i] := Enumerator.Current;
+    Inc(i);
+  until i >= Count;
+  DoMoveNext := Methods.MoveNext;
+  Result := Methods.MoveNext(@Self);
+end;
+
+function TIteratorBlock<T>.GetEnumeratorTakeLast: Boolean;
+var
+  count, i, capacity: Integer;
+  wrapAround: Boolean;
+begin
+  if Self.Count = 0 then Exit(False);
+
+{$IFDEF MSWINDOWS}
+  IEnumerableInternal(Source).GetEnumerator(Enumerator);
+{$ELSE}
+  Enumerator := Source.GetEnumerator;
+{$ENDIF}
+  try
+    if not Enumerator.MoveNext then Exit(False);
+
+    i := 0;
+    capacity := 0;
+    wrapAround := False;
+    repeat
+      if i >= capacity then
+      begin
+        capacity := GrowCapacity(capacity);
+        SetLength(Items, capacity);
+      end;
+      {$IFDEF RSP31615}
+      if IsManagedType(T) then
+        IEnumeratorInternal(Enumerator).GetCurrent(Items[i])
+      else
+      {$ENDIF}
+      Items[i] := Enumerator.Current;
+      Inc(i);
+      if i = Self.Count then
+      begin
+        i := 0;
+        wrapAround := True;
+      end;
+    until not Enumerator.MoveNext;
+  finally
+    Enumerator := nil;
+  end;
+
+  if not wrapAround then
+    Self.Count := i
+  else if i > 0 then
+  begin
+    count := Self.Count;
+    if capacity - count < i then
+      SetLength(Items, count + i);
+    if TType.HasWeakRef<T> then
+    begin
+      MoveManaged(@Items[0], @Items[count], TypeInfo(T), i);
+      MoveManaged(@Items[i], @Items[0], TypeInfo(T), count);
+    end
+    else
+    begin
+      Move(Items[0], Items[count], SizeOf(T) * i);
+      Move(Items[i], Items[0], SizeOf(T) * count);
+      if TType.IsManaged<T> then
+        FillChar(Items[count], SizeOf(T) * i, 0);
+    end;
+    SetLength(Items, count);
+  end;
+  Index := 0;
+  DoMoveNext := Methods.MoveNext;
+  Result := Methods.MoveNext(@Self);
 end;
 
 function TIteratorBlock<T>.MoveNextConcat: Boolean;
@@ -3602,6 +3772,26 @@ begin
     Result := False;
 end;
 
+function TIteratorBlock<T>.MoveNextSkipLast: Boolean;
+var
+  items: Pointer;
+  i: Integer;
+begin
+  items := Self.Items;
+  if Enumerator.MoveNext then
+  begin
+    i := Index;
+    if i >= Count then
+      i := 0;
+    Index := i + 1;
+    Current := TArray<T>(items)[i];
+    TArray<T>(items)[i] := Enumerator.Current;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
 function TIteratorBlock<T>.MoveNextSkipWhile: Boolean;
 begin
   repeat
@@ -3724,7 +3914,7 @@ begin
       TArray.Shuffle<T>(Items, DynArrayHigh(Items));
   end;
   DoMoveNext := Methods.MoveNext;
-  Result := DoMoveNext(@Self);
+  Result := Methods.MoveNext(@Self);
 end;
 
 {$ENDREGION}
@@ -3765,12 +3955,36 @@ begin
       if Result > 0 then
       begin
         Result := fSource.GetCountFast;
-        if Result >= 0 then
+        if Result > 0 then
         begin
           Dec(Result, fIndex);
           if Result < 0 then
             Result := 0
           else if Cardinal(Result) > Cardinal(fCount) then
+            Result := fCount;
+        end;
+      end;
+      Exit;
+    end;
+    TIteratorKind.PartitionFromEnd:
+    begin
+      if fIndex = 0 then
+      begin
+        Result := fSource.GetCountFast;
+        if Result > 0 then
+        begin
+          Dec(Result, fCount);
+          if Result < 0 then
+            Result := 0;
+        end;
+      end
+      else
+      begin
+        Result := fCount;
+        if Result > 0 then
+        begin
+          Result := fSource.GetCountFast;
+          if Result > fCount then
             Result := fCount;
         end;
       end;

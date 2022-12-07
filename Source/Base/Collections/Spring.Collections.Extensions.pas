@@ -264,7 +264,9 @@ type
     function GetEnumerator: IEnumerator<Integer>;
     function Ordered: IEnumerable<Integer>; overload;
     function Skip(count: Integer): IEnumerable<Integer>;
+    function SkipLast(count: Integer): IEnumerable<Integer>;
     function Take(count: Integer): IEnumerable<Integer>;
+    function TakeLast(count: Integer): IEnumerable<Integer>;
     function ToArray: TArray<Integer>;
     function TryGetElementAt(var value: Integer; index: Integer): Boolean;
     function TryGetFirst(var value: Integer): Boolean; overload;
@@ -1601,6 +1603,16 @@ begin
     Result := TRangeIterator.Create(fStart + count, fCount - count);
 end;
 
+function TRangeIterator.SkipLast(count: Integer): IEnumerable<Integer>;
+begin
+  if count < 0 then
+    count := 0;
+  if count >= fCount then
+    Result := TEnumerable.Empty<Integer>
+  else
+    Result := TRangeIterator.Create(fStart, fCount - count);
+end;
+
 function TRangeIterator.Take(count: Integer): IEnumerable<Integer>;
 begin
   if count <= 0 then
@@ -1609,6 +1621,16 @@ begin
     Result := IEnumerable<Integer>(this)
   else
     Result := TRangeIterator.Create(fStart, count);
+end;
+
+function TRangeIterator.TakeLast(count: Integer): IEnumerable<Integer>;
+begin
+  if count <= 0 then
+    Result := TEnumerable.Empty<Integer>
+  else if count >= fCount then
+    Result := IEnumerable<Integer>(this)
+  else
+    Result := TRangeIterator.Create(fStart + fCount - count, count);
 end;
 
 function TRangeIterator.ToArray: TArray<Integer>;

@@ -148,7 +148,9 @@ begin
       TTestSortedSet.Suite,
 
       TSkipTests.Suite,
+      TSkipLastTests.Suite,
       TTakeTests.Suite,
+      TTakeLastTests.Suite,
 
       TAtLeastTests.Suite,
       TAtMostTests.Suite,

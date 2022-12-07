@@ -1241,6 +1241,104 @@ type
     property IsEmpty: Boolean read GetIsEmpty;
   end;
 
+  /// <summary>
+  ///   Supports a simple iteration over a non-generic collection.
+  /// </summary>
+  IEnumerator = interface(IInvokable)
+    ['{A2AD52DC-FA9F-4121-9B54-5C427DA5E62C}']
+  {$REGION 'Property Accessors'}
+    function GetCurrent: TValue;
+  {$ENDREGION}
+
+    /// <summary>
+    ///   Advances the enumerator to the next element of the collection.
+    /// </summary>
+    /// <returns>
+    ///   <b>True</b> if the enumerator was successfully advanced to the next
+    ///   element; <b>False</b> if the enumerator has passed the end of the
+    ///   collection.
+    /// </returns>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The collection was modified after the enumerator was created.
+    /// </exception>
+    function MoveNext: Boolean;
+
+    /// <summary>
+    ///   Gets the current element in the collection.
+    /// </summary>
+    /// <value>
+    ///   The current element in the collection.
+    /// </value>
+    property Current: TValue read GetCurrent;
+  end;
+
+  /// <summary>
+  ///   Exposes an enumerator, which supports a simple iteration over a
+  ///   non-generic collection.
+  /// </summary>
+  IEnumerable = interface(IInvokable)
+    ['{6BC97F33-C0A8-4770-8E1C-C2017527B7E7}']
+
+    /// <summary>
+    ///   Returns an enumerator that iterates through a collection.
+    /// </summary>
+    /// <returns>
+    ///   An <see cref="IEnumerator" /> object that can be used to iterate
+    ///   through the collection.
+    /// </returns>
+    function GetEnumerator: IEnumerator;
+
+  {$REGION 'Property Accessors'}
+    function GetCount: Integer;
+    function GetElementType: PTypeInfo;
+    function GetIsEmpty: Boolean;
+
+    /// <summary>
+    ///   Attempts to retrieve the count without calling the enumerator; returns
+    ///   -1 otherwise.
+    /// </summary>
+    /// <remarks>
+    ///   This method is primarily for internal use to provide count based
+    ///   results as efficient as possible.
+    /// </remarks>
+    function GetCountFast: Integer;
+  {$ENDREGION}
+
+    /// <summary>
+    ///   Returns the reference to this instance.
+    /// </summary>
+    /// <returns>
+    ///   The <see cref="TObject" /> instance behind this IEnumerable
+    ///   reference.
+    /// </returns>
+    function AsObject: TObject;
+
+    /// <summary>
+    ///   Returns the number of elements in a sequence.
+    /// </summary>
+    /// <value>
+    ///   The number of elements in the sequence.
+    /// </value>
+    property Count: Integer read GetCount;
+
+    /// <summary>
+    ///   Returns the type of the elements in the sequence.
+    /// </summary>
+    /// <value>
+    ///   The type of the elements in the sequence.
+    /// </value>
+    property ElementType: PTypeInfo read GetElementType;
+
+    /// <summary>
+    ///   Determines whether the sequence contains no elements.
+    /// </summary>
+    /// <value>
+    ///   <b>True</b> if the source sequence contains no elements; otherwise, <b>
+    ///   False</b>.
+    /// </value>
+    property IsEmpty: Boolean read GetIsEmpty;
+  end;
+
   {$ENDREGION}
 
 
@@ -3386,13 +3484,33 @@ function FormatValue(const value: TValue): string;
     Result := Result + ')';
   end;
 
+  function FormatEnumerable(const enumerable: IEnumerable): string;
+  var
+    i: Integer;
+    value: TValue;
+  begin
+    Result := '[';
+    i := 0;
+    for value in enumerable do
+    begin
+      if i > 0 then
+        Result := Result + ',';
+      Inc(i);
+      Result := Result + FormatValue(value);
+    end;
+    Result := Result + ']';
+  end;
+
   function StripUnitName(const s: string): string;
   begin
     Result := ReplaceText(s, 'System.', '');
   end;
 
+const
+  IEnumerableGuid: TGUID = '{6BC97F33-C0A8-4770-8E1C-C2017527B7E7}'; // copy from Spring.Collections
 var
   intf: IInterface;
+  enumerable: IEnumerable;
   obj: TObject;
 begin
   case value.Kind of
@@ -3413,9 +3531,14 @@ begin
     tkInterface:
     begin
       intf := value.AsInterface;
-      obj := intf as TObject;
-      Result := Format('%s($%x) as %s', [StripUnitName(obj.ClassName),
-        NativeInt(intf), StripUnitName(value.TypeInfo.TypeName)]);
+      if Supports(intf, IEnumerableGuid, enumerable) then
+        Result := FormatEnumerable(enumerable)
+      else
+      begin
+        obj := intf as TObject;
+        Result := Format('%s($%x) as %s', [StripUnitName(obj.ClassName),
+          NativeInt(intf), StripUnitName(value.TypeInfo.TypeName)]);
+      end;
     end;
     tkArray, tkDynArray:
       Result := FormatArray(value);
