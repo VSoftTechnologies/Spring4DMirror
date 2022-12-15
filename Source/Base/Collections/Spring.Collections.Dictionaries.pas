@@ -85,8 +85,8 @@ type
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
     function GetCountFast: Integer;
-    function GetItem(const key: TKey): TValue; overload;
-    function GetItem(index: Integer): TPair<TKey, TValue>; overload;
+    function GetItem(const key: TKey): TValue;
+    function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
     function GetKeys: IReadOnlyCollection<TKey>;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
@@ -1023,7 +1023,7 @@ begin
   Result := item.Value;
 end;
 
-function TDictionary<TKey, TValue>.GetItem(index: Integer): TPair<TKey, TValue>;
+function TDictionary<TKey, TValue>.GetItemByIndex(index: Integer): TPair<TKey, TValue>;
 begin
   if Cardinal(index) < Cardinal(fHashTable.Count) then
   begin

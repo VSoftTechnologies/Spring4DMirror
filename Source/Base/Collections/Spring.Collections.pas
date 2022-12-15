@@ -1576,12 +1576,12 @@ type
   IReadOnlyOrderedDictionary<TKey, TValue> = interface(IReadOnlyDictionary<TKey, TValue>)
     ['{299B7DFB-5104-488E-B299-0622D0B4D605}']
   {$REGION 'Property Accessors'}
-    function GetItem(index: Integer): TPair<TKey, TValue>;
+    function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
   {$ENDREGION}
 
     function IndexOf(const key: TKey): Integer;
 
-    property Items[index: Integer]: TPair<TKey, TValue> read GetItem;
+    property Items[index: Integer]: TPair<TKey, TValue> read GetItemByIndex;
   end;
 
   /// <summary>
@@ -1888,14 +1888,14 @@ type
   IOrderedDictionary<TKey, TValue> = interface(IDictionary<TKey, TValue>)
     ['{299B7DFB-5104-488E-B299-0622D0B4D605}']
   {$REGION 'Property Accessors'}
-    function GetItem(index: Integer): TPair<TKey, TValue>;
+    function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
   {$ENDREGION}
 
     function IndexOf(const key: TKey): Integer;
 
     function AsReadOnly: IReadOnlyOrderedDictionary<TKey, TValue>;
 
-    property Items[index: Integer]: TPair<TKey, TValue> read GetItem;
+    property Items[index: Integer]: TPair<TKey, TValue> read GetItemByIndex;
   end;
 
   IBidiDictionary<TKey, TValue> = interface(IDictionary<TKey, TValue>)
@@ -2483,12 +2483,12 @@ type
   IOrderedSet<T> = interface(ISet<T>)
     ['{3547BF38-902F-49BA-8BB1-215E6754891D}']
   {$REGION 'Property Accessors'}
-    function GetItem(index: Integer): T;
+    function GetItemByIndex(index: Integer): T;
   {$ENDREGION}
 
     function IndexOf(const key: T): Integer;
 
-    property Items[index: Integer]: T read GetItem;
+    property Items[index: Integer]: T read GetItemByIndex;
   end;
 
   TMultiSetEntry<T> = packed record

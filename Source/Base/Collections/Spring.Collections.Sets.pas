@@ -95,7 +95,7 @@ type
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
     function GetCountFast: Integer;
-    function GetItem(index: Integer): T;
+    function GetItemByIndex(index: Integer): T;
     procedure SetCapacity(value: Integer);
   {$ENDREGION}
   protected
@@ -507,7 +507,7 @@ begin
   Result := fHashTable.Count;
 end;
 
-function THashSet<T>.GetItem(index: Integer): T;
+function THashSet<T>.GetItemByIndex(index: Integer): T;
 begin
   if Cardinal(index) < Cardinal(fHashTable.Count) then
   begin
