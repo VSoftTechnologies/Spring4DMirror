@@ -94,6 +94,12 @@
   {.$DEFINE IMPLICIT_NULLABLE_WARN}
 {$ENDIF}
 
+{$IFDEF DELPHI28_UP} // Delphi 11.0
+  // Use this define to use custom managed record for Nullable<T> which stores the HasValue state as Boolean
+  //{$DEFINE NULLABLE_CMR}
+{$ENDIF}
+//{$DEFINE NULLABLE_PACKED}
+
 // This will disable the execution of guard code when assertions are turned off
 {$IFNDEF ASSERTIONS_ON}
   {$IFNDEF SPRING_ENABLE_GUARD}

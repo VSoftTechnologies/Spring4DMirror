@@ -1658,7 +1658,9 @@ type
     class var HasValue: string;
     type Null = interface end;
   public
+    {$IFNDEF NULLABLE_CMR}
     class constructor Create;
+    {$ENDIF}
   end;
 
   /// <summary>
@@ -1669,10 +1671,10 @@ type
   ///   The underlying value type of the <see cref="Nullable&lt;T&gt;" />
   ///   generic type.
   /// </typeparam>
-  Nullable<T> = record
+  Nullable<T> = {$IFDEF NULLABLE_PACKED}packed {$ENDIF}record
   private
     fValue: T;
-    fHasValue: string;
+    fHasValue: {$IFNDEF NULLABLE_CMR}string{$ELSE}Boolean{$ENDIF};
     class var
       fComparer: Pointer;
       fEquals: function(const left, right: T): Boolean;
@@ -1772,6 +1774,10 @@ type
 {$IFDEF IMPLICIT_NULLABLE}
     class operator Implicit(const value: Nullable<T>): T; inline;
       {$IFDEF IMPLICIT_NULLABLE_WARN}inline; deprecated 'Possible unsafe operation involving implicit operator - use Value property';{$ENDIF}
+{$ENDIF}
+
+{$IFDEF NULLABLE_CMR}
+    class operator Initialize(out value: Nullable<T>);
 {$ENDIF}
 
     class operator Explicit(const value: Variant): Nullable<T>;
@@ -8468,16 +8474,18 @@ end;
 
 {$REGION 'Nullable<T>'}
 
+{$IFNDEF NULLABLE_CMR}
 class constructor Nullable.Create;
 begin
   HasValue := 'True';
   UniqueString(HasValue);
 end;
+{$ENDIF}
 
 constructor Nullable<T>.Create(const value: T);
 begin
   fValue := value;
-  fHasValue := Nullable.HasValue;
+  fHasValue := {$IFNDEF NULLABLE_CMR}Nullable.HasValue{$ELSE}True{$ENDIF};
 end;
 
 constructor Nullable<T>.Create(const value: Variant);
@@ -8488,18 +8496,18 @@ begin
   begin
     v := TValue.FromVariant(value);
     v.AsType(TypeInfo(T), fValue);
-    fHasValue := Nullable.HasValue;
+    fHasValue := {$IFNDEF NULLABLE_CMR}Nullable.HasValue{$ELSE}True{$ENDIF};
   end
   else
   begin
-    fHasValue := '';
+    fHasValue := {$IFNDEF NULLABLE_CMR}''{$ELSE}False{$ENDIF};
     fValue := Default(T);
   end;
 end;
 
 function Nullable<T>.GetHasValue: Boolean;
 begin
-  Result := fHasValue <> '';
+  Result := fHasValue{$IFNDEF NULLABLE_CMR} <> ''{$ENDIF};
 end;
 
 function Nullable<T>.GetValue: T; //FI:W521
@@ -8599,10 +8607,17 @@ begin
   Result := EqualsInternal(fValue, other.fValue);
 end;
 
+{$IFDEF NULLABLE_CMR}
+class operator Nullable<T>.Initialize(out value: Nullable<T>);
+begin
+  value.fHasValue := False;
+end;
+{$ENDIF}
+
 class operator Nullable<T>.Implicit(const value: T): Nullable<T>;
 begin
   Result.fValue := value;
-  Result.fHasValue := Nullable.HasValue;
+  Result.fHasValue := {$IFNDEF NULLABLE_CMR}Nullable.HasValue{$ELSE}True{$ENDIF};
 end;
 
 {$IFDEF IMPLICIT_NULLABLE}
@@ -8620,7 +8635,7 @@ begin
   begin
     v := TValue.FromVariant(value);
     v.AsType(TypeInfo(T), Result.fValue);
-    Result.fHasValue := Nullable.HasValue;
+    Result.fHasValue := {$IFNDEF NULLABLE_CMR}Nullable.HasValue{$ELSE}True{$ENDIF};
   end
   else
     Result := Default(Nullable<T>);
@@ -8634,7 +8649,7 @@ end;
 class operator Nullable<T>.Implicit(const value: Nullable.Null): Nullable<T>;
 begin
   Result.fValue := Default(T);
-  Result.fHasValue := '';
+  Result.fHasValue := {$IFNDEF NULLABLE_CMR}''{$ELSE}False{$ENDIF};
 end;
 
 class operator Nullable<T>.Equal(const left, right: Nullable<T>): Boolean;
@@ -8645,7 +8660,7 @@ end;
 class operator Nullable<T>.Equal(const left: Nullable<T>;
   const right: T): Boolean;
 begin
-  if left.fHasValue = '' then
+  if {$IFDEF NULLABLE_CMR}not {$ENDIF}left.fHasValue{$IFNDEF NULLABLE_CMR} = ''{$ENDIF} then
     Exit(False);
   Result := EqualsInternal(left.fValue, right);
 end;
@@ -8653,7 +8668,7 @@ end;
 class operator Nullable<T>.Equal(const left: Nullable<T>;
   const right: Nullable.Null): Boolean;
 begin
-  Result := left.fHasValue = '';
+  Result := {$IFDEF NULLABLE_CMR}not {$ENDIF}left.fHasValue{$IFNDEF NULLABLE_CMR} = ''{$ENDIF};
 end;
 
 class operator Nullable<T>.NotEqual(const left, right: Nullable<T>): Boolean;
@@ -8664,13 +8679,13 @@ end;
 class operator Nullable<T>.NotEqual(const left: Nullable<T>;
   const right: Nullable.Null): Boolean;
 begin
-  Result := left.fHasValue <> '';
+  Result := left.fHasValue{$IFNDEF NULLABLE_CMR} <> ''{$ENDIF};
 end;
 
 class operator Nullable<T>.NotEqual(const left: Nullable<T>;
   const right: T): Boolean;
 begin
-  if left.fHasValue = '' then
+  if {$IFDEF NULLABLE_CMR}not {$ENDIF}left.fHasValue{$IFNDEF NULLABLE_CMR} = ''{$ENDIF} then
     Exit(True);
   Result := not EqualsInternal(left.fValue, right);
 end;
@@ -8706,7 +8721,7 @@ end;
 
 function Nullable<T>.TryGetValue(out value: T): Boolean;
 begin
-  Result := fHasValue <> '';
+  Result := fHasValue{$IFNDEF NULLABLE_CMR} <> ''{$ENDIF};
   if Result then
     value := fValue;
 end;
