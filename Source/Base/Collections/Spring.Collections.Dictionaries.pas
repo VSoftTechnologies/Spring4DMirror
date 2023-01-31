@@ -2400,10 +2400,11 @@ begin
     fKeyComparer := IComparer<TKey>(_LookupVtableInfo(giComparer, TypeInfo(TKey), SizeOf(TKey)));
   if not Assigned(fValueComparer) then
     fValueComparer := IEqualityComparer<TValue>(_LookupVtableInfo(giEqualityComparer, TypeInfo(TValue), SizeOf(TValue)));
+  PPairComparer(fComparer).KeyComparer := fKeyComparer;
 
   fTree := TRedBlackTreeBase<TKey,TValue>.Create(fKeyComparer);
 
-  fKeys := TKeyCollection.Create(Self, fTree, @fVersion);
+  fKeys := TKeyCollection.Create(Self, fKeyComparer, fTree, @fVersion);
   fValues := TValueCollection.Create(Self);
 end;
 

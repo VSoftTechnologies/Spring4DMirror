@@ -629,8 +629,8 @@ type
     function GetCountFast: Integer;
   {$ENDREGION}
   public
-    constructor Create(const source: TRefCountedObject; const tree: TBinaryTree;
-      const version: PInteger);
+    constructor Create(const source: TRefCountedObject; const comparer: IComparer<T>;
+      const tree: TBinaryTree; const version: PInteger);
 
   {$REGION 'Implements IInterface'}
     function _AddRef: Integer; stdcall;
@@ -2622,9 +2622,10 @@ end;
 {$REGION 'TSortedKeyCollection<T>'}
 
 constructor TSortedKeyCollection<T>.Create(const source: TRefCountedObject;
-  const tree: TBinaryTree; const version: PInteger);
+  const comparer: IComparer<T>; const tree: TBinaryTree; const version: PInteger);
 begin
   fSource := source;
+  fComparer := comparer;
   fTree := tree;
   fVersion := version;
 end;
