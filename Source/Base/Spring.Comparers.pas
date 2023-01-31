@@ -49,20 +49,26 @@ type
   TStringComparer = record
   private type
     TIStringComparer = record
-      class operator Implicit(const value: TIStringComparer): IEqualityComparer<string>;
       class operator Implicit(const value: TIStringComparer): IComparer<string>;
+      class operator Implicit(const value: TIStringComparer): IEqualityComparer<string>;
 
       function Compare(const left, right: string): Integer;
       function Equals(const left, right: string): Boolean;
       function GetHashCode(const value: string): Integer;
+
+      function Comparer: IComparer<string>;
+      function EqualityComparer: IEqualityComparer<string>;
     end;
   public
-    class operator Implicit(const value: TStringComparer): IEqualityComparer<string>;
     class operator Implicit(const value: TStringComparer): IComparer<string>;
+    class operator Implicit(const value: TStringComparer): IEqualityComparer<string>;
 
     function Compare(const left, right: string): Integer;
     function Equals(const left, right: string): Boolean;
     function GetHashCode(const value: string): Integer;
+
+    function Comparer: IComparer<string>;
+    function EqualityComparer: IEqualityComparer<string>;
 
     class function Ordinal: TStringComparer; static; //inline;
     class function OrdinalIgnoreCase: TIStringComparer; static; //inline;
@@ -2119,6 +2125,16 @@ begin
   Result := Compare_UString_CaseInsensitive(@Self, Pointer(left), Pointer(right));
 end;
 
+function TStringComparer.TIStringComparer.Comparer: IComparer<string>;
+begin
+  Result := IComparer<string>(@Comparer_UString_CaseInsensitive);
+end;
+
+function TStringComparer.TIStringComparer.EqualityComparer: IEqualityComparer<string>;
+begin
+  Result := IEqualityComparer<string>(@EqualityComparer_UString_CaseInsensitive);
+end;
+
 function TStringComparer.TIStringComparer.Equals(const left, right: string): Boolean;
 begin
   Result := Equals_UString_CaseInsensitive(@Self, Pointer(left), Pointer(right));
@@ -2142,6 +2158,16 @@ end;
 function TStringComparer.Compare(const left, right: string): Integer;
 begin
   Result := Compare_UString(@Self, Pointer(left), Pointer(right));
+end;
+
+function TStringComparer.Comparer: IComparer<string>;
+begin
+  Result := IComparer<string>(_LookupVtableInfo(giComparer, TypeInfo(string), Integer(SizeOf(string))));
+end;
+
+function TStringComparer.EqualityComparer: IEqualityComparer<string>;
+begin
+  Result := IEqualityComparer<string>(_LookupVtableInfo(giEqualityComparer, TypeInfo(string), Integer(SizeOf(string))));
 end;
 
 function TStringComparer.Equals(const left, right: string): Boolean;
