@@ -1332,7 +1332,7 @@ begin
   inherited AfterConstruction;
 
   fTree := TRedBlackTreeBase<TKey,IInterface>.Create(fKeyComparer);
-  fKeys := TKeyCollection.Create(Self, fTree, @fVersion);
+  fKeys := TKeyCollection.Create(Self, fKeyComparer, fTree, @fVersion);
   fValues := TValueCollection.Create(Self, fTree, @fVersion, @fCount, SizeOf(TKey));
   fOnDestroy := TNotifyEventImpl.Create;
   fOnDestroy.UseFreeNotification := False;
