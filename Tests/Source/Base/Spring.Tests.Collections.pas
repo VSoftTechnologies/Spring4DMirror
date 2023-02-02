@@ -2130,7 +2130,7 @@ end;
 
 procedure TTestStringList.TestCaseInsensitive;
 begin
-  SUT := TCollections.CreateList<string>(TStringComparer.OrdinalIgnoreCase());
+  SUT := TCollections.CreateList<string>(TStringComparer.OrdinalIgnoreCase);
   SUT.AddRange(['AAA', 'BBB', 'CCC']);
   CheckTrue(SUT.Contains('aaa'));
 end;

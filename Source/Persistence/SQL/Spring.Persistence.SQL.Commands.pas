@@ -524,7 +524,7 @@ constructor TCreateTableCommand.Create(const table: TSQLTable);
 begin
   inherited Create(table);
   fColumns := TCollections.CreateObjectList<TSQLCreateField>(True);
-  fColumnNames := TCollections.CreateList<string>(TStringComparer.OrdinalIgnoreCase());
+  fColumnNames := TCollections.CreateList<string>(TStringComparer.OrdinalIgnoreCase);
 end;
 
 procedure TCreateTableCommand.SetCommandFieldsFromColumns(
