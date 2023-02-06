@@ -197,6 +197,7 @@ begin
   begin
     fSource := Self;
     fVersion := Self.fVersion;
+    fIndex := -1;
   end;
 end;
 
@@ -375,15 +376,17 @@ end;
 
 function TAbstractStack<T>.TEnumerator.GetCurrent: T;
 begin
-  Result := fSource.fItems[fIndex - 1];
+  Result := fSource.fItems[fIndex];
 end;
 
 function TAbstractStack<T>.TEnumerator.MoveNext: Boolean;
 begin
   if fVersion = fSource.fVersion then
   begin
-    Result := fIndex < fSource.Count;
-    Inc(fIndex, Ord(Result));
+    if fIndex < 0 then
+      fIndex := fSource.Count;
+    Result := fIndex > 0;
+    Dec(fIndex, Ord(Result));
   end
   else
     Result := RaiseHelper.EnumFailedVersion;
