@@ -2334,11 +2334,12 @@ end;
 procedure TTestStackOfInteger.TestStackCreate;
 const
   values: array[0..9] of Integer = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+  expected: array[0..9] of Integer = (9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
 begin
   SUT := TCollections.CreateStack<Integer>(values);
-  CheckTrue(SUT.EqualsTo(values));
+  CheckTrue(SUT.EqualsTo(expected));
   SUT := TCollections.CreateStack<Integer>(TEnumerable.Range(0, 10));
-  CheckTrue(SUT.EqualsTo(values));
+  CheckTrue(SUT.EqualsTo(expected));
 end;
 
 procedure TTestStackOfInteger.TestStackInitializesEmpty;
