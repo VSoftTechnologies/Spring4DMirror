@@ -236,7 +236,7 @@ type
     TEnumerator = record
       Vtable: Pointer;
       RefCount: Integer;
-      fCurrent, fEnd: Integer;
+      fState, fCurrent, fEnd: Integer;
       function GetCurrent: Integer;
       function MoveNext: Boolean;
       function _Release: Integer; stdcall;
@@ -1691,6 +1691,7 @@ begin
   begin
     Vtable := @Enumerator_Vtable;
     RefCount := 1;
+    fState := 0;
     {$Q-}
     fCurrent := start - 1;
     fEnd := start + count;
@@ -1707,12 +1708,18 @@ function TRangeIterator.TEnumerator.MoveNext: Boolean;
 var
   current: Integer;
 begin
-  current := fCurrent;
-  {$Q-}
-  Inc(current);
-  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-  fCurrent := current;
-  Result := current <> fEnd;
+  if fState = 0 then
+  begin
+    current := fCurrent;
+    {$Q-}
+    Inc(current);
+    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    fCurrent := current;
+    if current <> fEnd then
+      Exit(True);
+  end;
+  fState := -1;
+  Result := False;
 end;
 
 function TRangeIterator.TEnumerator._Release: Integer;
