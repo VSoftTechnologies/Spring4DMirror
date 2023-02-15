@@ -1111,6 +1111,22 @@ type
     procedure MemoizeWithMemoizedSourceReturnsSame;
   end;
 
+  TTestChunk = class(TEnumerableTestCase)
+  published
+    [TestCase('0')]
+    [TestCase('-1')]
+    procedure RaisesWhenSizeIsNonPositive(size: Integer);
+    procedure ChunkSourceLazily;
+    procedure ChunkSourceRepeatCalls;
+    procedure ChunkSourceEvenly;
+    procedure ChunkSourceUnevenly;
+    procedure ChunkSourceSmallerThanMaxSize;
+    procedure EmptySourceYieldsNoChunks;
+    procedure RemovingFromSourceBeforeIterating;
+    procedure AddingToSourceBeforeIterating;
+    procedure DoesNotPrematurelyAllocateHugeArray;
+  end;
+
 implementation
 
 uses
@@ -5631,6 +5647,7 @@ end;
 procedure TEnumerableTestCase.CheckEquals(const expected, actual: IInterface);
 var
   e1, e2: IEnumerator;
+  v1, v2: TValue;
 begin
   e1 := (actual as IEnumerable).GetEnumerator;
   e2 := (expected as IEnumerable).GetEnumerator;
@@ -5638,7 +5655,12 @@ begin
   while e1.MoveNext do
   begin
     Check(e2.MoveNext);
-    Check((e1.Current = e2.Current), 'collections not equal');
+    v1 := e1.Current;
+    v2 := e2.Current;
+    if (v1.Kind = tkInterface) and (v1.Kind = tkInterface) then
+      CheckEquals(v1.AsInterface, v2.AsInterface)
+    else
+      Check(v1 = v2, 'collections not equal');
   end;
   Check(not e2.MoveNext, 'collections not equal');
 end;
@@ -7281,6 +7303,139 @@ begin
   memoizedAgain := memoized.Memoize;
 
   CheckSame(memoized, memoizedAgain);
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestChunk'}
+
+procedure TTestChunk.RaisesWhenSizeIsNonPositive(size: Integer);
+var
+  source: IEnumerable<Integer>;
+begin
+  source := TEnumerable.From<Integer>([1]);
+  CheckException(EArgumentOutOfRangeException,
+    procedure
+    begin
+      TEnumerable.Chunk<Integer>(source, size);
+    end);
+end;
+
+procedure TTestChunk.ChunkSourceLazily;
+var
+  chunks: IEnumerator<TArray<Integer>>;
+begin
+  chunks := TEnumerable.Chunk<Integer>(FastInfiniteEnumerator<Integer>, 5).GetEnumerator;
+  chunks.MoveNext;
+  CheckEquals([0, 0, 0, 0, 0], chunks.Current);
+  CheckTrue(chunks.MoveNext);
+end;
+
+procedure TTestChunk.ChunkSourceRepeatCalls;
+var
+  source: IEnumerable<Integer>;
+begin
+  source := TEnumerable.From<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345]);
+  CheckEquals(TEnumerable.Chunk<Integer>(source, 3), TEnumerable.Chunk<Integer>(source, 3));
+end;
+
+procedure TTestChunk.ChunkSourceEvenly;
+var
+  source: IEnumerable<Integer>;
+  chunks: IEnumerator<TArray<Integer>>;
+begin
+  source := TEnumerable.From<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345]);
+  chunks := TEnumerable.Chunk<Integer>(source, 3).GetEnumerator;
+  chunks.MoveNext;
+  CheckEquals([9999, 0, 888], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([-1, 66, -777], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([1, 2, -12345], chunks.Current);
+  CheckFalse(chunks.MoveNext);
+end;
+
+procedure TTestChunk.ChunkSourceUnevenly;
+var
+  source: IEnumerable<Integer>;
+  chunks: IEnumerator<TArray<Integer>>;
+begin
+  source := TEnumerable.From<Integer>([9999, 0, 888, -1, 66, -777, 1, 2]);
+  chunks := TEnumerable.Chunk<Integer>(source, 3).GetEnumerator;
+  chunks.MoveNext;
+  CheckEquals([9999, 0, 888], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([-1, 66, -777], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([1, 2], chunks.Current);
+  CheckFalse(chunks.MoveNext);
+end;
+
+procedure TTestChunk.ChunkSourceSmallerThanMaxSize;
+var
+  source: IEnumerable<Integer>;
+  chunks: IEnumerator<TArray<Integer>>;
+begin
+  source := TEnumerable.From<Integer>([9999, 0]);
+  chunks := TEnumerable.Chunk<Integer>(source, 3).GetEnumerator;
+  chunks.MoveNext;
+  CheckEquals([9999, 0], chunks.Current);
+  CheckFalse(chunks.MoveNext);
+end;
+
+procedure TTestChunk.EmptySourceYieldsNoChunks;
+var
+  source: IEnumerable<Integer>;
+  chunks: IEnumerator<TArray<Integer>>;
+begin
+  source := TEnumerable.From<Integer>([]);
+  chunks := TEnumerable.Chunk<Integer>(source, 3).GetEnumerator;
+  CheckFalse(chunks.MoveNext);
+end;
+
+procedure TTestChunk.RemovingFromSourceBeforeIterating;
+var
+  list: IList<Integer>;
+  chunks: IEnumerator<TArray<Integer>>;
+begin
+  list := TCollections.CreateList<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345]);
+  chunks := TEnumerable.Chunk<Integer>(list, 3).GetEnumerator;
+  list.Remove(66);
+  chunks.MoveNext;
+  CheckEquals([9999, 0, 888], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([-1, -777, 1], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([2, -12345], chunks.Current);
+  CheckFalse(chunks.MoveNext);
+end;
+
+procedure TTestChunk.AddingToSourceBeforeIterating;
+var
+  list: IList<Integer>;
+  chunks: IEnumerator<TArray<Integer>>;
+begin
+  list := TCollections.CreateList<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345]);
+  chunks := TEnumerable.Chunk<Integer>(list, 3).GetEnumerator;
+  list.Add(10);
+  chunks.MoveNext;
+  CheckEquals([9999, 0, 888], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([-1, 66, -777], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([1, 2, -12345], chunks.Current);
+  chunks.MoveNext;
+  CheckEquals([10], chunks.Current);
+  CheckFalse(chunks.MoveNext);
+end;
+
+procedure TTestChunk.DoesNotPrematurelyAllocateHugeArray;
+var
+  chunks: TArray<TArray<Integer>>;
+begin
+  chunks := TEnumerable.Chunk<Integer>(TEnumerable.Range(0, 10), MaxInt).ToArray;
+  CheckEquals(TEnumerable.Range(0, 10).ToArray, chunks[0]);
 end;
 
 {$ENDREGION}

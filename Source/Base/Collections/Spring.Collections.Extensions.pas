@@ -832,6 +832,20 @@ type
     constructor Create(const element: T; count: Integer);
   end;
 
+  TChunkIterator<T> = class(TIterator<TArray<T>>, IEnumerable<TArray<T>>)
+  private
+    fSource: IEnumerable<T>;
+    fEnumerator: IEnumerator<T>;
+    fSize, fCapacity: Integer;
+  protected
+    function Clone: TIterator<TArray<T>>; override;
+    procedure Dispose; override;
+    procedure Start; override;
+    function TryMoveNext(var current: TArray<T>): Boolean; override;
+  public
+    constructor Create(const source: IEnumerable<T>; size: Integer);
+  end;
+
   TAnonymousIterator<T> = class(TIterator<T>, IEnumerable<T>)
   private
     fCount: Func<Integer>;
@@ -3270,6 +3284,74 @@ begin
     Inc(fIndex);
     current := fElement;
   end;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TChunkIterator<T>'}
+
+constructor TChunkIterator<T>.Create(const source: IEnumerable<T>; size: Integer);
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if size <= 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.size);
+
+  fSource := source;
+  fSize := size;
+  fCapacity := 4;
+  if fCapacity > fSize then
+    fCapacity := fSize;
+end;
+
+
+function TChunkIterator<T>.Clone: TIterator<TArray<T>>;
+begin
+  Result := TChunkIterator<T>.Create(fSource, fSize);
+end;
+
+procedure TChunkIterator<T>.Dispose;
+begin
+  fEnumerator := nil;
+end;
+
+procedure TChunkIterator<T>.Start;
+begin
+  fEnumerator := fSource.GetEnumerator;
+end;
+
+function TChunkIterator<T>.TryMoveNext(var current: TArray<T>): Boolean;
+var
+  i: Integer;
+begin
+  if Assigned(fEnumerator) and fEnumerator.MoveNext then
+  begin
+    SetLength(current, fCapacity);
+
+    i := 0;
+    repeat
+      current[i] := fEnumerator.Current;
+      Inc(i);
+      if i >= fSize then Break
+      else if fEnumerator.MoveNext then
+      begin
+        if i >= fCapacity then
+        begin
+          fCapacity := GrowCapacity(fCapacity);
+          if fCapacity > fSize then
+            fCapacity := fSize;
+          SetLength(current, fCapacity);
+        end;
+      end
+      else
+      begin
+        SetLength(current, i);
+        Break;
+      end;
+    until False;
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 {$ENDREGION}

@@ -157,7 +157,9 @@ begin
       TBetweenTests.Suite,
       TExactlyTests.Suite,
 
-      TMemoizeTests.Suite
+      TMemoizeTests.Suite,
+
+      TTestChunk.Suite
     ]);
 
     RegisterTests('Spring.Base.Collections.Dictionaries', [

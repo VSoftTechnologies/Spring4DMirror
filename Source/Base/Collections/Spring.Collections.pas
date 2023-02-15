@@ -3469,6 +3469,27 @@ type
       const elementSelector: Func<T, TElement>;
       const comparer: IEqualityComparer<TKey>): ILookup<TKey, TElement>; overload; static;
 
+    /// <summary>
+    ///   Splits the elements of a sequence into chunks of size at most <c>size</c> .
+    /// </summary>
+    /// <param name="source">
+    ///   An <see cref="Spring.Collections|IEnumerable&lt;T&gt;" /> whose elements to chunk.
+    /// </param>
+    /// <param name="size">
+    ///   The maximum size of each chunk.
+    /// </param>
+    /// <returns>
+    ///   An <see cref="Spring.Collections|IEnumerable&lt;TArray&lt;T&gt;&gt;" /> that contains the
+    ///   elements the input sequence split into chunks of size <c>size</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNullException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>size</c> is below 1.
+    /// </exception>
+    class function Chunk<T>(const source: IEnumerable<T>; size: Integer): IEnumerable<TArray<T>>; static;
+
     class function Distinct<T>(const source: IEnumerable<T>): IEnumerable<T>; overload; static;
     class function Distinct<T>(const source: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
@@ -7411,6 +7432,12 @@ begin
   while enumerator.MoveNext do
     res := func(res, enumerator.Current);
   Result := resultSelector(res);
+end;
+
+class function TEnumerable.Chunk<T>(const source: IEnumerable<T>;
+  size: Integer): IEnumerable<TArray<T>>;
+begin
+  Result := TChunkIterator<T>.Create(source, size);
 end;
 
 class function TEnumerable.CombinePredicates<T>(const predicate1,
