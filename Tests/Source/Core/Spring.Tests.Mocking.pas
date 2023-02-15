@@ -34,6 +34,8 @@ uses
 
 type
   TParameterMatchingTests = class(TTestCase)
+  private
+    procedure Notify(Sender: TObject);
   published
     procedure ArgsEvaluationOrder;
     procedure ArgsStackProperlyCleaned;
@@ -48,6 +50,11 @@ type
     procedure TestRegex;
     procedure TestEnum;
     procedure TestSet;
+    procedure TestClass;
+    procedure TestMethod;
+    {$IFDEF DELPHIX_SYDNEY_UP}
+    procedure TestMRecord;
+    {$ENDIF}
 
     procedure ReturnsMultipleValues;
     procedure WrapperObjectsNotLeaking;
@@ -88,6 +95,7 @@ type
 implementation
 
 uses
+  Classes,
   SysUtils,
   Spring,
   Spring.Mocking;
@@ -96,6 +104,16 @@ type
   TTestEnum = (One, Two, Three);
   ShortEnum = 0..31;
   TTestSet = set of {$IFNDEF DELPHIX_RIO_UP}ShortEnum{$ELSE}Byte{$ENDIF}; // see RSP-16153
+  {$IFDEF DELPHIX_SYDNEY_UP}
+  TTestMRec = record
+    value: Integer;
+    class operator Initialize(out value: TTestMRec);
+  end;
+  {$M+}
+  IMockTestMRec = interface
+    procedure Test(const rec: TTestMRec);
+  end;
+  {$ENDIF}
 
   {$M+}
   IMockTest = interface
@@ -109,6 +127,8 @@ type
     procedure TestEnum(const value: TTestEnum);
     procedure TestSet(const n: Integer; const value: TTestSet; const i: Integer = 0);
     procedure TestObject(const obj: TObject);
+    procedure TestClass(const cls: TClass);
+    procedure TestMethod(const event: TNotifyEvent);
     function GetNext: Integer;
 
     function GetEvent: IInvokableNotifyEvent<Integer>;
@@ -148,6 +168,17 @@ type
   public
     function Method(const rec: TRec): Integer; virtual; abstract;
   end;
+
+
+{$REGION 'TTestMRec'}
+
+{$IFDEF DELPHIX_SYDNEY_UP}
+class operator TTestMRec.Initialize(out value: TTestMRec);
+begin
+end;
+{$ENDIF}
+
+{$ENDREGION}
 
 
 {$REGION 'TParameterMatchingTests'}
@@ -237,6 +268,10 @@ begin
   Pass;
 end;
 
+procedure TParameterMatchingTests.Notify(Sender: TObject);
+begin
+end;
+
 procedure TParameterMatchingTests.OutParameterCanBePassed;
 {$IFDEF DELPHIXE8_UP}
 var
@@ -306,6 +341,19 @@ begin
   mock.Instance.GetNumber;
 end;
 
+procedure TParameterMatchingTests.TestClass;
+var
+  mock: Mock<IMockTest>;
+begin
+  mock.Setup.Executes.When.TestClass(TObject);
+  mock.Instance.TestClass(TObject);
+  mock.Received.TestClass(TObject);
+  mock.Setup.Executes.When.TestClass(Arg.IsAny<TClass>);
+  mock.Instance.TestClass(nil);
+  mock.Received.TestClass(nil);
+  Pass;
+end;
+
 procedure TParameterMatchingTests.TestDynArray;
 var
   mock: Mock<IMockTest>;
@@ -331,6 +379,35 @@ begin
   mock.Received(0).TestEnum(Two);
   Pass;
 end;
+
+procedure TParameterMatchingTests.TestMethod;
+var
+  mock: Mock<IMockTest>;
+begin
+  mock.Setup.Executes.When.TestMethod(Notify);
+  mock.Instance.TestMethod(Notify);
+  mock.Received.TestMethod(Notify);
+  mock.Setup.Executes.When.TestMethod(Arg.IsAny<TNotifyEvent>());
+  mock.Instance.TestMethod(nil);
+  mock.Received.TestMethod(nil);
+  Pass;
+end;
+
+{$IFDEF DELPHIX_SYDNEY_UP}
+procedure TParameterMatchingTests.TestMRecord;
+var
+  mock: Mock<IMockTestMRec>;
+  rec: TTestMRec;
+begin
+  mock.Setup.Executes.When.Test(rec);
+  mock.Instance.Test(rec);
+  mock.Received.Test(rec);
+  mock.Setup.Executes.When.Test(Arg.IsAny<TTestMRec>);
+  mock.Instance.Test(rec);
+  mock.Received(2).Test(Arg.IsAny<TTestMRec>);
+  Pass;
+end;
+{$ENDIF}
 
 procedure TParameterMatchingTests.TestRecord;
 var
