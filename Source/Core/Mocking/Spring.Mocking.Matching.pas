@@ -383,10 +383,10 @@ class function TMatcherFactory.GetIndex(const v: TValue): Integer;
 const
   Handlers: array[TTypeKind] of function(const v: TValue): Integer = (
     GetIndexFail, GetIndexOrdinal, GetIndexOrdinal, GetIndexOrdinal, GetIndexFloat,
-    GetIndexFail, GetIndexOrdinal, GetIndexObject, GetIndexFail, GetIndexString,
+    GetIndexFail, GetIndexOrdinal, GetIndexObject, GetIndexPointer, GetIndexString,
     GetIndexString, GetIndexString, GetIndexVariant, GetIndexArray, GetIndexRecord,
-    GetIndexInterface, GetIndexOrdinal, GetIndexArray, GetIndexString, GetIndexFail,
-    GetIndexObject, GetIndexFail {$IF Declared(tkMRecord)}, GetIndexFail{$IFEND});
+    GetIndexInterface, GetIndexOrdinal, GetIndexArray, GetIndexString, GetIndexPointer,
+    GetIndexObject, GetIndexPointer {$IF Declared(tkMRecord)}, GetIndexRecord{$IFEND});
 begin
   Result := Handlers[TValueData(v).FTypeInfo.Kind](v) - 1;
 end;
@@ -395,10 +395,10 @@ class procedure TMatcherFactory.SetIndex(typeInfo: PTypeInfo; index: Integer; va
 const
   Handlers: array[TTypeKind] of procedure (typeInfo: PTypeInfo; index: Integer; var Result) = (
     SetIndexFail, SetIndexOrdinal, SetIndexOrdinal, SetIndexOrdinal, SetIndexFloat,
-    SetIndexFail, SetIndexOrdinal, SetIndexObject, SetIndexFail, SetIndexString,
+    SetIndexFail, SetIndexOrdinal, SetIndexObject, SetIndexPointer, SetIndexString,
     SetIndexString, SetIndexString, SetIndexVariant, SetIndexArray, SetIndexRecord,
-    SetIndexInterface, SetIndexOrdinal, SetIndexArray, SetIndexString, SetIndexFail,
-    SetIndexObject, SetIndexFail {$IF Declared(tkMRecord)}, SetIndexFail{$IFEND});
+    SetIndexInterface, SetIndexOrdinal, SetIndexArray, SetIndexString, SetIndexPointer,
+    SetIndexObject, SetIndexPointer {$IF Declared(tkMRecord)}, SetIndexRecord{$IFEND});
 begin
   Handlers[typeInfo.Kind](typeInfo, index + 1, Result);
 end;

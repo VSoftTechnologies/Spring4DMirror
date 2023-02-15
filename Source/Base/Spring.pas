@@ -5974,6 +5974,13 @@ begin
   Result := left.AsObject = right.AsObject;
 end;
 
+function EqualsMeth2Meth(const left, right: TValue): Boolean;
+begin
+  Result := (left.TypeInfo = right.TypeInfo)
+    and (TValueData(left).FAsMethod.Code = TValueData(right).FAsMethod.Code)
+    and (TValueData(left).FAsMethod.Data = TValueData(right).FAsMethod.Data);
+end;
+
 function EqualsPointer2Pointer(const left, right: TValue): Boolean;
 begin
   Result := left.AsPointer = right.AsPointer;
@@ -6190,7 +6197,7 @@ const
       // tkUnknown, tkInteger, tkChar, tkEnumeration, tkFloat,
       EqualsFail, EqualsFail, EqualsFail, EqualsFail, EqualsFail,
       // tkString, tkSet, tkClass, tkMethod, tkWChar,
-      EqualsFail, EqualsFail, EqualsFail, EqualsFail, EqualsFail, // TODO: tkMethod
+      EqualsFail, EqualsFail, EqualsFail, EqualsMeth2Meth, EqualsFail, // TODO: tkMethod
       // tkLString, tkWString, tkVariant, tkArray, tkRecord,
       EqualsFail, EqualsFail, EqualsFail, EqualsFail, EqualsFail,
       // tkInterface, tkInt64, tkDynArray, tkUString, tkClassRef
