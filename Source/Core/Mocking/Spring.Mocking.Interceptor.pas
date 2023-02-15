@@ -408,6 +408,7 @@ begin
       fMatch := CreateArgMatch(invocation.Arguments, invocation.Method.GetParameters);
     fExpectedCalls.AddRange(invocation.Method, CreateMethodCalls(invocation.Method));
   finally
+    CleanupArguments(invocation.Arguments);
     fState := TMockState.Act;
     fMatch := nil;
   end;
@@ -432,6 +433,7 @@ begin
     else
       callCount := 0;
   finally
+    CleanupArguments(invocation.Arguments);
     fState := TMockState.Act;
     fMatch := nil;
   end;

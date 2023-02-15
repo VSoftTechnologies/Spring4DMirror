@@ -130,6 +130,8 @@ type
     class operator Implicit(const value: TAny): string; overload;
   end;
 
+procedure CleanupArguments(const arguments: TArray<TValue>);
+
 implementation
 
 uses
@@ -167,20 +169,17 @@ end;
 
 function GetIndexObject(const v: TValue): Integer;
 begin
-  Result := v.AsType<TIndexWrapper>.fIndex;
-  v.AsType<TIndexWrapper>.Free;
+  Result := TIndexWrapper(TValueData(v).FAsObject).fIndex;
 end;
 
 function GetIndexInterface(const v: TValue): Integer;
 begin
-  Result := (v.AsType<IInterface> as TIndexWrapper).fIndex;
-  PValue(@v)^ := TValue.Empty;
+  Result := (PInterface(TValueData(v).FValueData.GetReferenceToRawData)^ as TIndexWrapper).fIndex;
 end;
 
 function GetIndexPointer(const v: TValue): Integer;
 begin
-  Result := v.AsType<TIndexWrapper>.fIndex;
-  v.AsType<TIndexWrapper>.Free;
+  Result := Integer(TValueData(v).FAsPointer);
 end;
 
 function GetIndexRecord(const v: TValue): Integer;
@@ -255,7 +254,7 @@ end;
 procedure SetIndexObject(typeInfo: PTypeInfo; //FI:O804
   index: Integer; var Result);
 begin
-  TObject(PPointer(@Result)^) := TIndexWrapper.Create(index);
+  TObject(Result) := TIndexWrapper.Create(index);
 end;
 
 procedure SetIndexInterface(typeInfo: PTypeInfo; //FI:O804
@@ -267,7 +266,7 @@ end;
 procedure SetIndexPointer(typeInfo: PTypeInfo; //FI:O804
   index: Integer; var Result);
 begin
-  Pointer(Result) := TIndexWrapper.Create(index);
+  NativeInt(Result) := index;
 end;
 
 procedure SetIndexRecord(typeInfo: PTypeInfo; index: Integer; var Result);
@@ -299,6 +298,18 @@ procedure SetIndexVariant(typeInfo: PTypeInfo; //FI:O804
   index: Integer; var Result);
 begin
   PVariant(@Result)^ := index;
+end;
+
+procedure CleanupArguments(const arguments: TArray<TValue>);
+var
+  i: Integer;
+begin
+  for i := 0 to High(arguments) do
+    if arguments[i].IsType(TypeInfo(TIndexWrapper)) then
+    begin
+      TObject(TValueData(arguments[i]).FAsObject).Free;
+      TValueData(arguments[i]).FAsObject := nil;
+    end;
 end;
 
 
@@ -375,7 +386,7 @@ const
     GetIndexFail, GetIndexOrdinal, GetIndexObject, GetIndexFail, GetIndexString,
     GetIndexString, GetIndexString, GetIndexVariant, GetIndexArray, GetIndexRecord,
     GetIndexInterface, GetIndexOrdinal, GetIndexArray, GetIndexString, GetIndexFail,
-    GetIndexPointer, GetIndexFail {$IF Declared(tkMRecord)}, GetIndexFail{$IFEND});
+    GetIndexObject, GetIndexFail {$IF Declared(tkMRecord)}, GetIndexFail{$IFEND});
 begin
   Result := Handlers[TValueData(v).FTypeInfo.Kind](v) - 1;
 end;
@@ -387,7 +398,7 @@ const
     SetIndexFail, SetIndexOrdinal, SetIndexObject, SetIndexFail, SetIndexString,
     SetIndexString, SetIndexString, SetIndexVariant, SetIndexArray, SetIndexRecord,
     SetIndexInterface, SetIndexOrdinal, SetIndexArray, SetIndexString, SetIndexFail,
-    SetIndexPointer, SetIndexFail {$IF Declared(tkMRecord)}, SetIndexFail{$IFEND});
+    SetIndexObject, SetIndexFail {$IF Declared(tkMRecord)}, SetIndexFail{$IFEND});
 begin
   Handlers[typeInfo.Kind](typeInfo, index + 1, Result);
 end;
@@ -469,7 +480,7 @@ begin
   Result := TMatcherFactory.CreateMatcher<T>(
     function(const arg: TValue): Boolean
     begin
-      Result := arg.Convert<T>.Equals(TValue.From<T>(value));
+      Result := arg.Convert(TypeInfo(T)).Equals(TValue.From(@value, TypeInfo(T)));
     end);
 end;
 
