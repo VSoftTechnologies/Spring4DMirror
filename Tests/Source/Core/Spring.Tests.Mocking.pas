@@ -50,6 +50,7 @@ type
     procedure TestSet;
 
     procedure ReturnsMultipleValues;
+    procedure WrapperObjectsNotLeaking;
   end;
 
   ReceivedChecksForInputValueOfVarParams = class(TTestCase)
@@ -107,6 +108,7 @@ type
     procedure TestDynArray(const v: TArray<string>);
     procedure TestEnum(const value: TTestEnum);
     procedure TestSet(const n: Integer; const value: TTestSet; const i: Integer = 0);
+    procedure TestObject(const obj: TObject);
     function GetNext: Integer;
 
     function GetEvent: IInvokableNotifyEvent<Integer>;
@@ -394,6 +396,16 @@ begin
     begin
       mock.Setup.Returns<string>('foobar').When.GetNext;
     end);
+end;
+
+procedure TParameterMatchingTests.WrapperObjectsNotLeaking;
+var
+  mock: Mock<IMockTest>;
+begin
+  mock.Setup.Executes.When(Args.Any).TestObject(Arg.IsAny<TObject>);
+  mock.Instance.TestObject(nil);
+  mock.Received.TestObject(Arg = nil);
+  Pass;
 end;
 
 {$ENDREGION}
