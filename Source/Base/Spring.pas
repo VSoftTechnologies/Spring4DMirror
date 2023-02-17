@@ -1314,7 +1314,7 @@ type
     ///   This method is primarily for internal use to provide count based
     ///   results as efficient as possible.
     /// </remarks>
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
 
     /// <summary>

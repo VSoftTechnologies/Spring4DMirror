@@ -146,11 +146,8 @@ type
   ///   collection of a specified type.
   /// </summary>
   /// <typeparam name="T">
-  ///   The type of objects to enumerate.
+  ///   The type of elements to enumerate.
   /// </typeparam>
-  /// <seealso href="http://msdn.microsoft.com/en-us/magazine/cc700332.aspx">
-  ///   The LINQ Enumerable Class
-  /// </seealso>
   IEnumerable<T> = interface //FI:W524
     ['{A6B46D30-5B0F-495F-B7EC-46FBC5A75D24}']
 
@@ -158,8 +155,7 @@ type
     ///   Returns an enumerator that iterates through the collection.
     /// </summary>
     /// <returns>
-    ///   An <see cref="IEnumerator&lt;T&gt;" /> that can be used to iterate
-    ///   through the collection.
+    ///   An enumerator that can be used to iterate through the collection.
     /// </returns>
     function GetEnumerator: IEnumerator<T>;
 
@@ -176,7 +172,7 @@ type
     ///   This method is primarily for internal use to provide count based
     ///   results as efficient as possible.
     /// </remarks>
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
 
     /// <summary>
@@ -300,6 +296,20 @@ type
     /// </returns>
     function Contains(const value: T; const comparer: IEqualityComparer<T>): Boolean; overload;
 
+    /// <summary>
+    ///   Determines whether a sequence contains a specified element by using a
+    ///   specified <see cref="TEqualityComparison&lt;T&gt;" />.
+    /// </summary>
+    /// <param name="value">
+    ///   The value to locate in the sequence.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparison to compare values.
+    /// </param>
+    /// <returns>
+    ///   <b>True</b> if the source sequence contains an element that has the
+    ///   specified value; otherwise, <b>False</b>.
+    /// </returns>
     function Contains(const value: T; const comparer: TEqualityComparison<T>): Boolean; overload;
 
     /// <summary>
