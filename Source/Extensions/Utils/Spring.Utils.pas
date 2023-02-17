@@ -823,7 +823,7 @@ type
   /// <param name="threadProc">
   ///   An anonymous method that will be executed.
   /// </param>
-  /// <exception cref="EArgumentNullException">
+  /// <exception cref="Spring|EArgumentNilException">
   ///   Raised if <paramref name="threadProc" /> was not assigned.
   /// </exception>
   procedure Synchronize(threadProc: TThreadProcedure);
@@ -834,7 +834,7 @@ type
   /// <param name="threadProc">
   ///   An anonymous method that will be executed.
   /// </param>
-  /// <exception cref="EArgumentNullException">
+  /// <exception cref="Spring|EArgumentNilException">
   ///   Raised if threadProc was not assigned.
   /// </exception>
   procedure Queue(threadProc: TThreadProcedure);
@@ -846,7 +846,7 @@ type
   ///   Returns true if the instance has the specified property and the
   ///   property has property information.
   /// </returns>
-  /// <exception cref="EArgumentNullException">
+  /// <exception cref="Spring|EArgumentNilException">
   ///   if instance is nil.
   /// </exception>
   function TryGetPropInfo(instance: TObject; const propertyName: string;
@@ -866,7 +866,7 @@ type
   /// <param name="proc">
   ///   the procedure that will be invoked.
   /// </param>
-  /// <exception cref="Spring|EArgumentNullException">
+  /// <exception cref="Spring|EArgumentNilException">
   ///   Raised if <paramref name="obj" /> is nil or <paramref name="proc" /> is
   ///   unassigned.
   /// </exception>
@@ -880,7 +880,7 @@ type
   /// <param name="strings">
   ///   an instance of TStrings.
   /// </param>
-  /// <exception cref="EArgumentNullException">
+  /// <exception cref="Spring|EArgumentNilException">
   ///   Raised if <paramref name="strings" /> is nil or <paramref name="proc" />
   ///    is not assigned.
   /// </exception>

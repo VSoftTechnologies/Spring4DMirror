@@ -117,7 +117,7 @@ type
     /// <summary>
     ///   Executes a procedure during batch updating of the list.
     /// </summary>
-    /// <exception cref="Spring|EArgumentNullException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   Raised if the<paramref name="strings" /> is nil or the <paramref name="proc" />
     ///    is not assigned.
     /// </exception>
@@ -127,7 +127,7 @@ type
     ///   Extract all name entries and add them to the <paramref name="strings" />
     ///    list.
     /// </summary>
-    /// <exception cref="Spring|EArgumentNullException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   Raised if the <paramref name="strings" /> is nil.
     /// </exception>
     /// <seealso cref="ExtractValues(TStrings)">
@@ -139,7 +139,7 @@ type
     ///   Extract all value entries and add them to the <paramref name="strings" />
     ///    list.
     /// </summary>
-    /// <exception cref="Spring|EArgumentNullException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   Raised if the <paramref name="strings" /> is nil.
     /// </exception>
     /// <seealso cref="ExtractNames(TStrings)" />
