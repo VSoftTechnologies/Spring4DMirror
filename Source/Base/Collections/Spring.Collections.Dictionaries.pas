@@ -84,10 +84,10 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItem(const key: TKey): TValue;
     function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
     function GetKeys: IReadOnlyCollection<TKey>;
+    function GetNonEnumeratedCount: Integer;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
     procedure SetItem(const key: TKey; const value: TValue);
@@ -177,11 +177,11 @@ type
     {$REGION 'Property Accessors'}
       function GetCapacity: Integer;
       function GetCount: Integer;
-      function GetCountFast: Integer;
       function GetInverse: IBidiDictionary<TKey, TValue>;
       function GetItem(const value: TValue): TKey;
       function GetKeys: IReadOnlyCollection<TValue>;
       function GetKeyType: PTypeInfo;
+      function GetNonEnumeratedCount: Integer;
       function GetOnKeyChanged: ICollectionChangedEvent<TValue>;
       function GetOnValueChanged: ICollectionChangedEvent<TKey>;
       function GetValues: IReadOnlyCollection<TKey>;
@@ -266,7 +266,7 @@ type
       fSource: TBidiDictionary<TKey, TValue>;
     {$REGION 'Property Accessors'}
       function GetCount: Integer;
-      function GetCountFast: Integer;
+      function GetNonEnumeratedCount: Integer;
     {$ENDREGION}
     public
       constructor Create(const source: TBidiDictionary<TKey, TValue>);
@@ -290,7 +290,7 @@ type
       fSource: TBidiDictionary<TKey, TValue>;
     {$REGION 'Property Accessors'}
       function GetCount: Integer;
-      function GetCountFast: Integer;
+      function GetNonEnumeratedCount: Integer;
     {$ENDREGION}
     public
       constructor Create(const source: TBidiDictionary<TKey, TValue>);
@@ -324,10 +324,10 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetInverse: IBidiDictionary<TValue, TKey>;
     function GetItem(const key: TKey): TValue;
     function GetKeys: IReadOnlyCollection<TKey>;
+    function GetNonEnumeratedCount: Integer;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
     procedure SetItem(const key: TKey; const value: TValue);
@@ -440,7 +440,7 @@ type
       fSource: TSortedDictionary<TKey, TValue>;
     {$REGION 'Property Accessors'}
       function GetCount: Integer;
-      function GetCountFast: Integer;
+      function GetNonEnumeratedCount: Integer;
     {$ENDREGION}
     public
       constructor Create(const source: TSortedDictionary<TKey, TValue>);
@@ -468,9 +468,9 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItem(const key: TKey): TValue;
     function GetKeys: IReadOnlyCollection<TKey>;
+    function GetNonEnumeratedCount: Integer;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
     procedure SetItem(const key: TKey; const value: TValue);
@@ -753,7 +753,7 @@ begin
   Result := fHashTable.Count;
 end;
 
-function TDictionary<TKey, TValue>.GetCountFast: Integer;
+function TDictionary<TKey, TValue>.GetNonEnumeratedCount: Integer;
 begin
   Result := fHashTable.Count;
 end;
@@ -1574,7 +1574,7 @@ begin
   Result := fCount;
 end;
 
-function TBidiDictionary<TKey, TValue>.GetCountFast: Integer;
+function TBidiDictionary<TKey, TValue>.GetNonEnumeratedCount: Integer;
 begin
   Result := fCount;
 end;
@@ -1959,11 +1959,6 @@ begin
   Result := fSource.fCount;
 end;
 
-function TBidiDictionary<TKey, TValue>.TInverse.GetCountFast: Integer;
-begin
-  Result := fSource.fCount;
-end;
-
 function TBidiDictionary<TKey, TValue>.TInverse.GetEnumerator: IEnumerator<TValueKeyPair>; //FI:W521
 begin
   fSource._AddRef;
@@ -1998,6 +1993,11 @@ end;
 function TBidiDictionary<TKey, TValue>.TInverse.GetKeyType: PTypeInfo;
 begin
   Result := fSource.GetValueType;
+end;
+
+function TBidiDictionary<TKey, TValue>.TInverse.GetNonEnumeratedCount: Integer;
+begin
+  Result := fSource.fCount;
 end;
 
 function TBidiDictionary<TKey, TValue>.TInverse.GetOnKeyChanged: ICollectionChangedEvent<TValue>;
@@ -2250,11 +2250,6 @@ begin
   Result := fSource.fCount;
 end;
 
-function TBidiDictionary<TKey, TValue>.TKeyCollection.GetCountFast: Integer;
-begin
-  Result := fSource.fCount;
-end;
-
 function TBidiDictionary<TKey, TValue>.TKeyCollection.GetEnumerator: IEnumerator<TKey>; //FI:W521
 begin
   fSource._AddRef;
@@ -2265,6 +2260,11 @@ begin
     fItemIndex := -1;
     fVersion := fSource.fVersion;
   end;
+end;
+
+function TBidiDictionary<TKey, TValue>.TKeyCollection.GetNonEnumeratedCount: Integer;
+begin
+  Result := fSource.fCount;
 end;
 
 function TBidiDictionary<TKey, TValue>.TKeyCollection.ToArray: TArray<TKey>;
@@ -2323,11 +2323,6 @@ begin
   Result := fSource.fCount;
 end;
 
-function TBidiDictionary<TKey, TValue>.TValueCollection.GetCountFast: Integer;
-begin
-  Result := fSource.fCount;
-end;
-
 function TBidiDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>; //FI:W521
 begin
   fSource._AddRef;
@@ -2338,6 +2333,11 @@ begin
     fItemIndex := -1;
     fVersion := fSource.fVersion;
   end;
+end;
+
+function TBidiDictionary<TKey, TValue>.TValueCollection.GetNonEnumeratedCount: Integer;
+begin
+  Result := fSource.fCount;
 end;
 
 function TBidiDictionary<TKey, TValue>.TValueCollection.ToArray: TArray<TValue>;
@@ -2581,11 +2581,6 @@ begin
   Result := fTree.Count;
 end;
 
-function TSortedDictionary<TKey, TValue>.GetCountFast: Integer;
-begin
-  Result := fTree.Count;
-end;
-
 function TSortedDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //FI:W521
 begin
   _AddRef;
@@ -2606,6 +2601,11 @@ end;
 function TSortedDictionary<TKey, TValue>.GetKeys: IReadOnlyCollection<TKey>;
 begin
   Result := fKeys;
+end;
+
+function TSortedDictionary<TKey, TValue>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fTree.Count;
 end;
 
 function TSortedDictionary<TKey, TValue>.GetValueOrDefault(const key: TKey): TValue;
@@ -2876,11 +2876,6 @@ begin
   Result := fSource.fTree.Count;
 end;
 
-function TSortedDictionary<TKey, TValue>.TValueCollection.GetCountFast: Integer;
-begin
-  Result := fSource.fTree.Count;
-end;
-
 function TSortedDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>; //FI:W521
 begin
   _AddRef;
@@ -2890,6 +2885,11 @@ begin
     fSource := Self.fSource;
     fVersion := fSource.fVersion;
   end;
+end;
+
+function TSortedDictionary<TKey, TValue>.TValueCollection.GetNonEnumeratedCount: Integer;
+begin
+  Result := fSource.fTree.Count;
 end;
 
 function TSortedDictionary<TKey, TValue>.TValueCollection.ToArray: TArray<TValue>;

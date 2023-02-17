@@ -74,7 +74,7 @@ type
     fCount: PInteger;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     constructor Create(const source: TRefCountedObject;
@@ -128,7 +128,7 @@ type
     fOffset: Integer;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     constructor Create(const source: TRefCountedObject; const tree: TBinaryTree;
@@ -170,7 +170,7 @@ type
     fOnDestroy: TNotifyEventImpl;
     fUpdateValues: TNotifyEvent;
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
     procedure RefreshIfEmpty;
     procedure HandleDestroy(Sender: TObject);
   public
@@ -226,9 +226,9 @@ type
   protected
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItems(const key: TKey): IReadOnlyCollection<TValue>;
     function GetKeys: IReadOnlyCollection<TKey>;
+    function GetNonEnumeratedCount: Integer;
     function GetValues: IReadOnlyCollection<TValue>;
   {$ENDREGION}
     procedure CreateCollection(var result: ICollection<TValue>); virtual; abstract;
@@ -320,9 +320,9 @@ type
   protected
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItems(const key: TKey): IReadOnlyCollection<TValue>;
     function GetKeys: IReadOnlyCollection<TKey>;
+    function GetNonEnumeratedCount: Integer;
     function GetValues: IReadOnlyCollection<TValue>;
   {$ENDREGION}
     procedure CreateCollection(var result: ICollection<TValue>); virtual; abstract;
@@ -528,11 +528,6 @@ begin
   Result := fCount^;
 end;
 
-function TValueCollection<T>.GetCountFast: Integer;
-begin
-  Result := fCount^;
-end;
-
 function TValueCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
@@ -543,6 +538,11 @@ begin
     fHashTable := Self.fHashTable;
     fVersion := fHashTable.Version;
   end;
+end;
+
+function TValueCollection<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fCount^;
 end;
 
 function TValueCollection<T>.ToArray: TArray<T>;
@@ -675,11 +675,6 @@ begin
   Result := fCount^;
 end;
 
-function TTreeValueCollection<T>.GetCountFast: Integer;
-begin
-  Result := fCount^;
-end;
-
 function TTreeValueCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
@@ -692,6 +687,11 @@ begin
     fVersion := Self.fVersion^;
     fOffset := Self.fOffset;
   end;
+end;
+
+function TTreeValueCollection<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fCount^;
 end;
 
 function TTreeValueCollection<T>.ToArray: TArray<T>;
@@ -811,12 +811,6 @@ begin
   Result := fCollection.Count;
 end;
 
-function TCollectionWrapper<T>.GetCountFast: Integer;
-begin
-  RefreshIfEmpty;
-  Result := fCollection.Count;
-end;
-
 function TCollectionWrapper<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   RefreshIfEmpty;
@@ -828,6 +822,12 @@ begin
     fCollection := Self.fCollection;
     fEnumerator := fCollection.GetEnumerator;
   end;
+end;
+
+function TCollectionWrapper<T>.GetNonEnumeratedCount: Integer;
+begin
+  RefreshIfEmpty;
+  Result := fCollection.Count;
 end;
 
 procedure TCollectionWrapper<T>.HandleDestroy(Sender: TObject);
@@ -1126,11 +1126,6 @@ begin
   Result := fCount;
 end;
 
-function TMultiMapBase<TKey, TValue>.GetCountFast: Integer;
-begin
-  Result := fCount;
-end;
-
 function TMultiMapBase<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //FI:W521
 begin
   _AddRef;
@@ -1157,6 +1152,11 @@ end;
 function TMultiMapBase<TKey, TValue>.GetKeys: IReadOnlyCollection<TKey>;
 begin
   Result := fKeys;
+end;
+
+function TMultiMapBase<TKey, TValue>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fCount;
 end;
 
 function TMultiMapBase<TKey, TValue>.GetValues: IReadOnlyCollection<TValue>;
@@ -1556,11 +1556,6 @@ begin
   Result := fCount;
 end;
 
-function TSortedMultiMapBase<TKey, TValue>.GetCountFast: Integer;
-begin
-  Result := fCount;
-end;
-
 function TSortedMultiMapBase<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //FI:W521
 begin
   _AddRef;
@@ -1587,6 +1582,11 @@ end;
 function TSortedMultiMapBase<TKey, TValue>.GetKeys: IReadOnlyCollection<TKey>;
 begin
   Result := fKeys;
+end;
+
+function TSortedMultiMapBase<TKey, TValue>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fCount;
 end;
 
 function TSortedMultiMapBase<TKey, TValue>.GetValues: IReadOnlyCollection<TValue>;

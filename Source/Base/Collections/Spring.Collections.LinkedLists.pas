@@ -76,9 +76,9 @@ type
     fHead: TLinkedListNode<T>;
   {$REGION 'Property Accessors'}
     function GetCount: Integer; 
-    function GetCountFast: Integer;
     function GetFirst: TLinkedListNode<T>;
     function GetLast: TLinkedListNode<T>;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
     function TryGetFirst(var value: T): Boolean; overload;
     function TryGetLast(var value: T): Boolean; overload;
@@ -315,11 +315,6 @@ begin
   Result := fCount;
 end;
 
-function TLinkedList<T>.GetCountFast: Integer;
-begin
-  Result := fCount;
-end;
-
 function TLinkedList<T>.GetEnumerator: IEnumerator<T>;
 begin
   Result := TEnumerator.Create(Self);
@@ -336,6 +331,11 @@ begin
     Result := fHead.fPrev
   else
     Result := nil;
+end;
+
+function TLinkedList<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fCount;
 end;
 
 procedure TLinkedList<T>.InternalInsertNodeBefore(

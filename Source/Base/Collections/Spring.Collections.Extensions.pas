@@ -48,8 +48,8 @@ type
     function GetCurrent: T;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItem(index: Integer): T;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     class constructor Create;
@@ -254,8 +254,8 @@ type
     fStart, fCount: Integer;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItem(index: Integer): Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     constructor Create(start, count: Integer);
@@ -339,7 +339,7 @@ type
     fSource: IEnumerable<TSource>;
     fSelector: Func<TSource, TResult>;
     fEnumerator: IEnumerator<TSource>;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   protected
     function Clone: TIterator<TResult>; override;
     procedure Dispose; override;
@@ -464,8 +464,8 @@ type
         fElements: IList<TElement>;
       {$REGION 'Property Accessors'}
         function GetCount: Integer;
-        function GetCountFast: Integer;
         function GetKey: TKey;
+        function GetNonEnumeratedCount: Integer;
       {$ENDREGION}
         procedure Add(const item: TElement);
       public
@@ -490,9 +490,9 @@ type
     fGroupingKeys: IDictionary<TKey, TGrouping>;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetGrouping(const key: TKey; create: Boolean): TGrouping;
     function GetItem(const key: TKey): IReadOnlyCollection<TElement>;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     constructor Create; reintroduce; overload;
@@ -699,7 +699,7 @@ type
     fSource: IEnumerable<T>;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   protected
     function GetElementType: PTypeInfo; override;
@@ -823,7 +823,7 @@ type
     fIndex: Integer;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   protected
     function Clone: TIterator<T>; override;
@@ -853,7 +853,7 @@ type
     fIndex: Integer;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   protected
     function Clone: TIterator<T>; override;
@@ -892,8 +892,8 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItem(index: Integer): string;
+    function GetNonEnumeratedCount: Integer;
     function GetOwnsObjects: Boolean;
     procedure SetCapacity(value: Integer);
     procedure SetCount(value: Integer);
@@ -995,11 +995,6 @@ begin
   Result := 0;
 end;
 
-function TEmptyEnumerable<T>.GetCountFast: Integer;
-begin
-  Result := 0;
-end;
-
 function TEmptyEnumerable<T>.GetCurrent: T; //FI:W521
 begin
   RaiseHelper.NoElements;
@@ -1013,6 +1008,11 @@ end;
 function TEmptyEnumerable<T>.GetItem(index: Integer): T; //FI:W521
 begin
   RaiseHelper.ArgumentOutOfRange_Index;
+end;
+
+function TEmptyEnumerable<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := 0;
 end;
 
 function TEmptyEnumerable<T>.MoveNext: Boolean;
@@ -1558,11 +1558,6 @@ begin
   Result := fCount;
 end;
 
-function TRangeIterator.GetCountFast: Integer;
-begin
-  Result := fCount;
-end;
-
 function TRangeIterator.GetEnumerator: IEnumerator<Integer>;
 begin
   Result := TEnumerator.Create(fStart, fCount);
@@ -1573,6 +1568,11 @@ begin
   CheckIndex(index, fCount);
 
   Result := fStart + index;
+end;
+
+function TRangeIterator.GetNonEnumeratedCount: Integer;
+begin
+  Result := fCount;
 end;
 
 function TRangeIterator.IndexOf(const item: Integer): Integer;
@@ -1931,9 +1931,9 @@ begin
   fEnumerator := nil;
 end;
 
-function TSelectIterator<TSource, TResult>.GetCountFast: Integer;
+function TSelectIterator<TSource, TResult>.GetNonEnumeratedCount: Integer;
 begin
-  Result := fSource.GetCountFast;
+  Result := fSource.GetNonEnumeratedCount;
 end;
 
 function TSelectIterator<TSource, TResult>.TryGetElementAt(var value: TResult;
@@ -2251,11 +2251,6 @@ begin
   Result := fGroupings.Count;
 end;
 
-function TLookup<TKey, TElement>.GetCountFast: Integer;
-begin
-  Result := fGroupings.Count;
-end;
-
 function TLookup<TKey, TElement>.GetEnumerator: IEnumerator<IInterface>;
 begin
   Result := TEnumerator.Create(Self);
@@ -2285,6 +2280,11 @@ begin
     Result := TEnumerable.Empty<TElement>;
 end;
 
+function TLookup<TKey, TElement>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fGroupings.Count;
+end;
+
 {$ENDREGION}
 
 
@@ -2306,11 +2306,6 @@ begin
   Result := fElements.Count;
 end;
 
-function TLookup<TKey, TElement>.TGrouping.GetCountFast: Integer;
-begin
-  Result := fElements.Count;
-end;
-
 function TLookup<TKey, TElement>.TGrouping.GetEnumerator: IEnumerator<TElement>;
 begin
   Result := fElements.GetEnumerator;
@@ -2319,6 +2314,11 @@ end;
 function TLookup<TKey, TElement>.TGrouping.GetKey: TKey;
 begin
   Result := fKey;
+end;
+
+function TLookup<TKey, TElement>.TGrouping.GetNonEnumeratedCount: Integer;
+begin
+  Result := fElements.Count;
 end;
 
 {$ENDREGION}
@@ -2878,11 +2878,6 @@ begin
   Result := fSource.Count;
 end;
 
-function TOrderedEnumerable<T>.GetCountFast: Integer;
-begin
-  Result := fSource.GetCountFast;
-end;
-
 function TOrderedEnumerable<T>.GetElementType: PTypeInfo;
 begin
   Result := fSource.ElementType;
@@ -2891,6 +2886,11 @@ end;
 function TOrderedEnumerable<T>.GetEnumerator: IEnumerator<T>;
 begin
   Result := TEnumerator.Create(fSource, GetEnumerableSorter(nil));
+end;
+
+function TOrderedEnumerable<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fSource.GetNonEnumeratedCount;
 end;
 
 {$ENDREGION}
@@ -3272,7 +3272,7 @@ begin
   Result := fCount;
 end;
 
-function TRepeatIterator<T>.GetCountFast: Integer;
+function TRepeatIterator<T>.GetNonEnumeratedCount: Integer;
 begin
   Result := fCount;
 end;
@@ -3379,7 +3379,7 @@ begin
   Result := fCount;
 end;
 
-function TAnonymousIterator<T>.GetCountFast: Integer;
+function TAnonymousIterator<T>.GetNonEnumeratedCount: Integer;
 begin
   Result := fCount;
 end;
@@ -3579,11 +3579,6 @@ begin
   Result := fStrings.Count;
 end;
 
-function TStringsAdapter.GetCountFast: Integer;
-begin
-  Result := fStrings.Count;
-end;
-
 function TStringsAdapter.GetEnumerator: IEnumerator<string>; //FI:W521
 var
   getCurrent: Pointer;
@@ -3612,6 +3607,11 @@ begin
     {$POINTERMATH OFF}
   else
     Result := fStrings[index];
+end;
+
+function TStringsAdapter.GetNonEnumeratedCount: Integer;
+begin
+  Result := fStrings.Count;
 end;
 
 function TStringsAdapter.GetOwnsObjects: Boolean;

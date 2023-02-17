@@ -97,8 +97,8 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer; inline;
-    function GetCountFast: Integer;
     function GetItem(index: Integer): T;
+    function GetNonEnumeratedCount: Integer;
     function GetOwnsObjects: Boolean; inline;
     procedure SetCapacity(value: Integer);
     procedure SetCount(value: Integer);
@@ -260,8 +260,8 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItem(index: Integer): T;
+    function GetNonEnumeratedCount: Integer;
     function GetOwnsObjects: Boolean;
     procedure SetCapacity(value: Integer);
     procedure SetCount(value: Integer);
@@ -335,8 +335,8 @@ type
     fIterator: IEnumerable<T>;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItem(index: Integer): T;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     constructor Create(const count: Func<Integer>; const items: Func<Integer, T>;
@@ -480,7 +480,7 @@ begin
   Result := fCount and CountMask;
 end;
 
-function TAbstractArrayList<T>.GetCountFast: Integer;
+function TAbstractArrayList<T>.GetNonEnumeratedCount: Integer;
 begin
   {$IFDEF DELPHIXE7_UP}
   if GetTypeKind(T) <> tkClass then
@@ -1959,11 +1959,6 @@ begin
   Result := fCollection.Count;
 end;
 
-function TCollectionList<T>.GetCountFast: Integer;
-begin
-  Result := fCollection.Count;
-end;
-
 function TCollectionList<T>.GetElementType: PTypeInfo;
 begin
   Result := fCollection.ItemClass.ClassInfo;
@@ -1979,6 +1974,11 @@ begin
   CheckIndex(index, fCollection.Count);
 
   Result := T(fCollection.Items[index]);
+end;
+
+function TCollectionList<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fCollection.Count;
 end;
 
 function TCollectionList<T>.GetOwnsObjects: Boolean;
@@ -2249,11 +2249,6 @@ begin
   Result := fCount;
 end;
 
-function TAnonymousReadOnlyList<T>.GetCountFast: Integer;
-begin
-  Result := fCount;
-end;
-
 function TAnonymousReadOnlyList<T>.GetEnumerator: IEnumerator<T>;
 begin
   Result := fIterator.GetEnumerator;
@@ -2262,6 +2257,11 @@ end;
 function TAnonymousReadOnlyList<T>.GetItem(index: Integer): T;
 begin
   Result := fItems(index);
+end;
+
+function TAnonymousReadOnlyList<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fCount;
 end;
 
 function TAnonymousReadOnlyList<T>.GetRange(index, count: Integer): IList<T>;

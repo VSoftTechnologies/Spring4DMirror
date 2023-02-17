@@ -70,7 +70,7 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer; inline;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
     function GetOnChanged: ICollectionChangedEvent<T>;
     function GetOwnsObjects: Boolean; inline;
     procedure SetCapacity(value: Integer);
@@ -179,16 +179,6 @@ begin
   Result := fCount and CountMask;
 end;
 
-function TAbstractStack<T>.GetCountFast: Integer;
-begin
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(T) <> tkClass then
-    Result := fCount
-  else
-  {$ENDIF}
-  Result := fCount and CountMask;
-end;
-
 function TAbstractStack<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
@@ -199,6 +189,16 @@ begin
     fVersion := Self.fVersion;
     fIndex := -1;
   end;
+end;
+
+function TAbstractStack<T>.GetNonEnumeratedCount: Integer;
+begin
+  {$IFDEF DELPHIXE7_UP}
+  if GetTypeKind(T) <> tkClass then
+    Result := fCount
+  else
+  {$ENDIF}
+  Result := fCount and CountMask;
 end;
 
 function TAbstractStack<T>.GetOnChanged: ICollectionChangedEvent<T>;

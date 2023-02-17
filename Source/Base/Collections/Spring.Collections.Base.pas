@@ -49,7 +49,7 @@ type
     function GetCount: Integer;
     function GetElementType: PTypeInfo;
     function GetIsEmpty: Boolean;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
     function AsObject: TObject;
     procedure ToArray(var result);
   end;
@@ -101,8 +101,8 @@ type
     this: Pointer;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetIsEmpty: Boolean;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     class function NewInstance: TObject; override;
@@ -238,9 +238,9 @@ type
     fSource: IEnumerable;
     fGetCurrent: TGetCurrentFunc;
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetElementType: PTypeInfo;
     function GetIsEmpty: Boolean;
+    function GetNonEnumeratedCount: Integer;
   protected
     function QueryInterface(const IID: TGUID; out obj): HResult; stdcall;
   public
@@ -313,7 +313,7 @@ type
     fIndex, fCount: Integer;
     fKind: TIteratorKind;
 
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   end;
 
   TMemoizeIterator<T> = record
@@ -403,7 +403,7 @@ type
 
   TEnumerableIterator<T> = class sealed(TIteratorBase<T>, IInterface, IEnumerable<T>)
   private
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   public
     class function Create(const source: IEnumerable<T>; index, count: Integer;
       predicate: Pointer; kind: TIteratorKind): IEnumerable<T>; overload; static;
@@ -431,8 +431,8 @@ type
     fItems: TArray<T>;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItem(index: Integer): T;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     class function Create(const values: TArray<T>): IReadOnlyList<T>; overload; static;
@@ -573,7 +573,7 @@ type
     fOffset: Integer;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   protected
     function GetElementType: PTypeInfo; override;
@@ -626,7 +626,7 @@ type
     fVersion: PInteger;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
     constructor Create(const source: TRefCountedObject; const comparer: IComparer<T>;
@@ -678,7 +678,7 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer; inline;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
     function GetOnChanged: ICollectionChangedEvent<T>;
     function GetOwnsObjects: Boolean; inline;
     procedure SetCapacity(value: Integer);
@@ -825,7 +825,7 @@ begin
   if not Result then
   begin
     entry := obj.GetInterfaceEntry(IPartitionOfTGuid);
-    Result := Assigned(entry) and (IEnumerable(PByte(obj) + entry.IOffset).GetCountFast >= 0);
+    Result := Assigned(entry) and (IEnumerable(PByte(obj) + entry.IOffset).GetNonEnumeratedCount >= 0);
   end;
 end;
 
@@ -987,7 +987,7 @@ function IsCountInRange(const this: IEnumerable; min, max, limit: Integer): Bool
 var
   count: Integer;
 begin
-  count := this.GetCountFast;
+  count := this.GetNonEnumeratedCount;
   if count < 0 then
     count := SkipAndCountSlow(this, limit);
   Result := {$B+}(count >= min) and (count <= max);{$B-}
@@ -1005,7 +1005,7 @@ function TEnumerableBase.Any: Boolean;
 var
   count: Integer;
 begin
-  count := IEnumerable(this).GetCountFast;
+  count := IEnumerable(this).GetNonEnumeratedCount;
   if count >= 0 then
     Result := count > 0
   else
@@ -1049,7 +1049,7 @@ end;
 
 function TEnumerableBase.GetCount: Integer;
 
-  function GetCountSlow(const this: IEnumerable): Integer;
+  function GetEnumeratedCount(const this: IEnumerable): Integer;
   var
     enumerator: IEnumerator;
   begin
@@ -1060,23 +1060,23 @@ function TEnumerableBase.GetCount: Integer;
   end;
 
 begin
-  Result := IEnumerable(this).GetCountFast;
+  Result := IEnumerable(this).GetNonEnumeratedCount;
   if Result < 0 then
-    Result := GetCountSlow(IEnumerable(this));
+    Result := GetEnumeratedCount(IEnumerable(this));
 end;
 
 function TEnumerableBase.GetIsEmpty: Boolean;
 var
   count: Integer;
 begin
-  count := IEnumerable(this).GetCountFast;
+  count := IEnumerable(this).GetNonEnumeratedCount;
   if count >= 0 then
     Result := count = 0
   else
     Result := not HasAnyItems(IEnumerable(this));
 end;
 
-function TEnumerableBase.GetCountFast: Integer;
+function TEnumerableBase.GetNonEnumeratedCount: Integer;
 begin
   // implementing IReadOnlyCollection is an indicator for having its own count
   if GetInterfaceEntry(IReadOnlyCollectionOfTGuid) <> nil then
@@ -1778,7 +1778,7 @@ begin
     Result := IEnumerable<T>(this)
   else
   begin
-    maxCount := IEnumerable<T>(this).GetCountFast;
+    maxCount := IEnumerable<T>(this).GetNonEnumeratedCount;
     if maxCount >= 0 then
       maxCount := MaxInt - count;
     Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
@@ -2099,16 +2099,16 @@ begin
   Result := fSource.IsEmpty;
 end;
 
+function TEnumerableWrapper.GetNonEnumeratedCount: Integer;
+begin
+  Result := fSource.GetNonEnumeratedCount;
+end;
+
 function TEnumerableWrapper.QueryInterface(const IID: TGUID; out obj): HResult;
 begin
   Result := inherited QueryInterface(IID, obj);
   if Result <> S_OK then
     Result := fSource.QueryInterface(IID, obj);
-end;
-
-function TEnumerableWrapper.GetCountFast: Integer;
-begin
-  Result := fSource.GetCountFast;
 end;
 
 {$ENDREGION}
@@ -2509,11 +2509,6 @@ begin
   Result := fHashTable.Count;
 end;
 
-function TInnerCollection<T>.GetCountFast: Integer;
-begin
-  Result := fHashTable.Count;
-end;
-
 function TInnerCollection<T>.GetElementType: PTypeInfo;
 begin
   Result := fElementType;
@@ -2529,6 +2524,11 @@ begin
     fSource := Self;
     fVersion := Self.fHashTable.Version;
   end;
+end;
+
+function TInnerCollection<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fHashTable.Count;
 end;
 
 function TInnerCollection<T>.ToArray: TArray<T>;
@@ -2653,11 +2653,6 @@ begin
   Result := fTree.Count;
 end;
 
-function TSortedKeyCollection<T>.GetCountFast: Integer;
-begin
-  Result := fTree.Count;
-end;
-
 function TSortedKeyCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
@@ -2668,6 +2663,11 @@ begin
     fSource := Self;
     fVersion := Self.fVersion^;
   end;
+end;
+
+function TSortedKeyCollection<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fTree.Count;
 end;
 
 function TSortedKeyCollection<T>.ToArray: TArray<T>;
@@ -2813,16 +2813,6 @@ begin
   Result := fCount and CountMask;
 end;
 
-function TCircularArrayBuffer<T>.GetCountFast: Integer;
-begin
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(T) <> tkClass then
-    Result := fCount
-  else
-  {$ENDIF}
-  Result := fCount and CountMask;
-end;
-
 function TCircularArrayBuffer<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
@@ -2834,6 +2824,16 @@ begin
     fIndex := Self.fHead - 1;
     fVersion := Self.fVersion;
   end;
+end;
+
+function TCircularArrayBuffer<T>.GetNonEnumeratedCount: Integer;
+begin
+  {$IFDEF DELPHIXE7_UP}
+  if GetTypeKind(T) <> tkClass then
+    Result := fCount
+  else
+  {$ENDIF}
+  Result := fCount and CountMask;
 end;
 
 function TCircularArrayBuffer<T>.GetOnChanged: ICollectionChangedEvent<T>;
@@ -3310,7 +3310,7 @@ function TIteratorBlock.GetEnumeratorPartitionFromEnd: Boolean;
 var
   count, index: Integer;
 begin
-  count := Source.GetCountFast;
+  count := Source.GetNonEnumeratedCount;
 
   if Self.Index < 0 then
   begin
@@ -3923,18 +3923,18 @@ end;
 
 {$REGION 'TIteratorFields'}
 
-function TIteratorBase.GetCountFast: Integer;
+function TIteratorBase.GetNonEnumeratedCount: Integer;
 var
   count: Integer;
 begin
   case fKind of //FI:W535
     TIteratorKind.Concat:
     begin
-      Result := fSource.GetCountFast;
+      Result := fSource.GetNonEnumeratedCount;
       if Result >= 0 then
       begin
         count := Result;
-        Result := IEnumerable(fPredicate).GetCountFast;
+        Result := IEnumerable(fPredicate).GetNonEnumeratedCount;
         if Result >= 0 then
           {$Q+}
           Inc(Result, count);
@@ -3949,13 +3949,13 @@ begin
         Exit(Result and CountMask)
     end;
     TIteratorKind.Ordered, TIteratorKind.Reversed, TIteratorKind.Shuffled:
-      Exit(fSource.GetCountFast);
+      Exit(fSource.GetNonEnumeratedCount);
     TIteratorKind.Partition:
     begin
       Result := fCount;
       if Result > 0 then
       begin
-        Result := fSource.GetCountFast;
+        Result := fSource.GetNonEnumeratedCount;
         if Result > 0 then
         begin
           Dec(Result, fIndex);
@@ -3971,7 +3971,7 @@ begin
     begin
       if fIndex = 0 then
       begin
-        Result := fSource.GetCountFast;
+        Result := fSource.GetNonEnumeratedCount;
         if Result > 0 then
         begin
           Dec(Result, fCount);
@@ -3984,7 +3984,7 @@ begin
         Result := fCount;
         if Result > 0 then
         begin
-          Result := fSource.GetCountFast;
+          Result := fSource.GetNonEnumeratedCount;
           if Result > fCount then
             Result := fCount;
         end;
@@ -4286,9 +4286,9 @@ begin
   Result := iterator;
 end;
 
-function TEnumerableIterator<T>.GetCountFast: Integer;
+function TEnumerableIterator<T>.GetNonEnumeratedCount: Integer;
 begin
-  Result := PIteratorBase(@fSource).GetCountFast;
+  Result := PIteratorBase(@fSource).GetNonEnumeratedCount;
 end;
 
 {$ENDREGION}
@@ -4338,11 +4338,6 @@ begin
   Result := DynArrayLength(fItems);
 end;
 
-function TArrayIterator<T>.GetCountFast: Integer;
-begin
-  Result := DynArrayLength(fItems);
-end;
-
 function TArrayIterator<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
@@ -4358,6 +4353,11 @@ begin
   CheckIndex(index, DynArrayLength(fItems));
 
   Result := fItems[index];
+end;
+
+function TArrayIterator<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := DynArrayLength(fItems);
 end;
 
 function TArrayIterator<T>.IndexOf(const item: T): Integer;

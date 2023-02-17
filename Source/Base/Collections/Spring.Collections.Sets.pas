@@ -94,8 +94,8 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
-    function GetCountFast: Integer;
     function GetItemByIndex(index: Integer): T;
+    function GetNonEnumeratedCount: Integer;
     procedure SetCapacity(value: Integer);
   {$ENDREGION}
   protected
@@ -159,7 +159,7 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
     function GetCount: Integer;
-    function GetCountFast: Integer;
+    function GetNonEnumeratedCount: Integer;
     procedure SetCapacity(value: Integer);
   {$ENDREGION}
   protected
@@ -505,11 +505,6 @@ begin
   Result := fHashTable.Count;
 end;
 
-function THashSet<T>.GetCountFast: Integer;
-begin
-  Result := fHashTable.Count;
-end;
-
 function THashSet<T>.GetItemByIndex(index: Integer): T; //FI:W521
 begin
   if Cardinal(index) < Cardinal(fHashTable.Count) then
@@ -518,6 +513,11 @@ begin
     Exit(TItems(fHashTable.Items)[index].Item);
   end;
   RaiseHelper.ArgumentOutOfRange_Index;
+end;
+
+function THashSet<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fHashTable.Count;
 end;
 
 function THashSet<T>.IndexOf(const key: T): Integer;
@@ -695,11 +695,6 @@ begin
   Result := fTree.Count;
 end;
 
-function TSortedSet<T>.GetCountFast: Integer;
-begin
-  Result := fTree.Count;
-end;
-
 function TSortedSet<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   _AddRef;
@@ -709,6 +704,11 @@ begin
     fSource := Self;
     fVersion := Self.fVersion;
   end;
+end;
+
+function TSortedSet<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fTree.Count;
 end;
 
 function TSortedSet<T>.Remove(const item: T): Boolean;
