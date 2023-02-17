@@ -28,9 +28,21 @@
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Linux64' and '$(Cfg_1)'=='true') or '$(Cfg_1_Linux64)'!=''">
+        <Cfg_1_Linux64>true</Cfg_1_Linux64>
+        <CfgParent>Cfg_1</CfgParent>
+        <Cfg_1>true</Cfg_1>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_2)'!=''">
         <Cfg_2>true</Cfg_2>
         <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Linux64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Linux64)'!=''">
+        <Cfg_2_Linux64>true</Cfg_2_Linux64>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
@@ -65,10 +77,18 @@
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_1_Linux64)'!=''">
+        <Debugger_Launcher>/usr/bin/gnome-terminal -- &quot;%debuggee%&quot;</Debugger_Launcher>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
         <DCC_Optimize>false</DCC_Optimize>
         <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
+        <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+        <DCC_RangeChecking>true</DCC_RangeChecking>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_Linux64)'!=''">
+        <Debugger_Launcher>/usr/bin/gnome-terminal -- &quot;%debuggee%&quot;</Debugger_Launcher>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
