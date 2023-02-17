@@ -76,6 +76,10 @@ type
     function GetOnChanged: ICollectionChangedEvent<T>;
   {$ENDREGION}
 
+    /// <summary>
+    ///   Occurs when an item is added, removed, or moved, or the entire list
+    ///   is refreshed.
+    /// </summary>
     property OnChanged: ICollectionChangedEvent<T> read GetOnChanged;
   end;
 
@@ -85,7 +89,7 @@ type
   ///   Supports a simple iteration over a generic collection.
   /// </summary>
   /// <typeparam name="T">
-  ///   The type of objects to enumerate.
+  ///   The type of elements to enumerate.
   /// </typeparam>
   IEnumerator<T> = interface //FI:W524
     ['{E6525A22-15EF-46EB-8A68-8CB202DA7D67}']
@@ -97,20 +101,28 @@ type
     ///   Advances the enumerator to the next element of the collection.
     /// </summary>
     /// <returns>
-    ///   <b>True</b> if the enumerator was successfully advanced to the next
-    ///   element; <b>False</b> if the enumerator has passed the end of the
+    ///   <c>True</c> if the enumerator was successfully advanced to the next
+    ///   element; <c>False</c> if the enumerator has passed the end of the
     ///   collection.
     /// </returns>
     /// <exception cref="Spring|EInvalidOperationException">
     ///   The collection was modified after the enumerator was created.
     /// </exception>
+    /// <remarks>
+    ///   If MoveNext passes the end of the collection, the enumerator is
+    ///   positioned after the last element in the collection and MoveNext
+    ///   returns <c>False</c>. When the enumerator is at this position,
+    ///   subsequent calls to MoveNext also return <c>False</c>.
+    /// </remarks>
     function MoveNext: Boolean;
 
     /// <summary>
-    ///   Gets the current element in the collection.
+    ///   Gets the element in the collection at the current position of the
+    ///   enumerator.
     /// </summary>
     /// <value>
-    ///   The current element in the collection.
+    ///   The element in the collection at the current position of the
+    ///   enumerator.
     /// </value>
     property Current: T read GetCurrent;
   end;
@@ -142,8 +154,9 @@ type
   end;
 
   /// <summary>
-  ///   Exposes the enumerator, which supports a simple iteration over a
-  ///   collection of a specified type.
+  ///   Represents a read-only sequence of elements. Exposes the enumerator,
+  ///   which supports a simple iteration over a collection of a specified
+  ///   type.
   /// </summary>
   /// <typeparam name="T">
   ///   The type of elements to enumerate.
@@ -165,9 +178,13 @@ type
     function GetIsEmpty: Boolean;
 
     /// <summary>
-    ///   Attempts to retrieve the count without calling the enumerator; returns
-    ///   -1 otherwise.
+    ///   Attempts to determine the number of elements in the sequence without
+    ///   forcing an enumeration.
     /// </summary>
+    /// <returns>
+    ///   When this method returns, contains the number of elements, or -1 if
+    ///   the count couldn't be determined without enumeration.
+    /// </returns>
     /// <remarks>
     ///   This method is primarily for internal use to provide count based
     ///   results as efficient as possible.
@@ -179,8 +196,7 @@ type
     ///   Returns the reference to this instance.
     /// </summary>
     /// <returns>
-    ///   The <see cref="TObject" /> instance behind this IEnumerable
-    ///   reference.
+    ///   The instance behind this reference.
     /// </returns>
     function AsObject: TObject;
 
@@ -188,65 +204,105 @@ type
     ///   Creates a new array which is filled with the elements in the
     ///   collection.
     /// </summary>
+    /// <returns>
+    ///   An array that contains the elements from the sequence.
+    /// </returns>
     function ToArray: TArray<T>;
 
     /// <summary>
     ///   Returns the specified comparer for this instance.
     /// </summary>
     /// <returns>
-    ///   Returns the specified IComparer&lt;T&gt; for this instance.
+    ///   The specified comparer for this instance.
     /// </returns>
     function GetComparer: IComparer<T>;
 
     /// <summary>
-    ///   Applies an accumulator function over a sequence.
+    ///   Applies an accumulator function over the sequence.
     /// </summary>
+    /// <param name="func">
+    ///   An accumulator function to be invoked on each element.
+    /// </param>
+    /// <returns>
+    ///   The final accumulator value.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>func</c> is <c>nil</c>.
+    /// </exception>
     function Aggregate(const func: Func<T, T, T>): T;
 
     /// <summary>
-    ///   Determines whether all elements of a sequence satisfy a condition.
+    ///   Determines whether all elements of the sequence satisfy a condition.
     /// </summary>
     /// <param name="predicate">
     ///   A function to test each element for a condition.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if every element of the source sequence passes the test
-    ///   in the specified predicate, or if the sequence is empty; otherwise, <b>
-    ///   False</b>.
+    ///   <c>True</c> if every element of the source sequence passes the test
+    ///   in the specified predicate, or if the sequence is empty; otherwise, <c>
+    ///   False</c>.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function All(const predicate: Predicate<T>): Boolean;
 
     /// <summary>
-    ///   Determines whether a sequence contains any elements.
+    ///   Determines whether the sequence contains any elements.
     /// </summary>
     /// <returns>
-    ///   <b>True</b> if the source sequence contains any elements; otherwise, <b>
-    ///   False</b>.
+    ///   <c>True</c> if the source sequence contains any elements; otherwise, <c>
+    ///   False</c>.
     /// </returns>
     function Any: Boolean; overload;
 
     /// <summary>
-    ///   Determines whether any element of a sequence satisfies a condition.
+    ///   Determines whether any element of the sequence satisfies a condition.
     /// </summary>
     /// <param name="predicate">
     ///   A function to test each element for a condition.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if any elements in the source sequence pass the test in
-    ///   the specified predicate; otherwise, <b>False</b>.
+    ///   <c>True</c> if any elements in the source sequence pass the test in
+    ///   the specified predicate; otherwise, <c>False</c>.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function Any(const predicate: Predicate<T>): Boolean; overload;
 
     /// <summary>
     ///   Determines whether or not the number of elements in the sequence is
-    ///   greater than or equal to the given integer.
+    ///   greater than or equal to the given count.
     /// </summary>
+    /// <param name="count">
+    ///   The minimum number of items the sequence must have for this function
+    ///   to return true.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the number of elements in the sequence is greater than
+    ///   or equal to the given count; otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>count</c> is negative.
+    /// </exception>
     function AtLeast(count: Integer): Boolean;
 
     /// <summary>
     ///   Determines whether or not the number of elements in the sequence is
-    ///   lesser than or equal to the given integer.
+    ///   lesser than or equal to the given count.
     /// </summary>
+    /// <param name="count">
+    ///   The maximun number of items the sequence must have for this function
+    ///   to return true.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the number of elements in the sequence is lesser than
+    ///   or equal to the given count; otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>count</c> is negative.
+    /// </exception>
     function AtMost(count: Integer): Boolean;
 
     /// <summary>
@@ -368,36 +424,54 @@ type
     ///   Determines whether or not the number of elements in the sequence is
     ///   between an inclusive range of minimum and maximum integers.
     /// </summary>
+    /// <param name="min">
+    ///   The minimum number of items the sequence must have for this function
+    ///   to return true.
+    /// </param>
+    /// <param name="max">
+    ///   The maximun number of items the sequence must have for this function
+    ///   to return true.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the number of elements in the sequence is between
+    ///   (inclusive) the min and max given integers; otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>min</c> is negative or <c>max</c> is less than min.
+    /// </exception>
     function Between(min, max: Integer): Boolean;
 
     /// <summary>
     ///   Concatenates two sequences.
     /// </summary>
     /// <param name="second">
-    ///   The sequence to concatenate to the first sequence.
+    ///   The sequence to concatenate to this sequence.
     /// </param>
     /// <returns>
-    ///   An IEnumerable&lt;T&gt; that contains the concatenated elements of
-    ///   the two input sequences.
+    ///   A sequence that contains the concatenated elements of the two input
+    ///   sequences.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>second</c> is <c>nil</c>.
+    /// </exception>
     function Concat(const second: IEnumerable<T>): IEnumerable<T>;
 
     /// <summary>
-    ///   Determines whether a sequence contains a specified element by using
+    ///   Determines whether the sequence contains a specified element by using
     ///   the default equality comparer.
     /// </summary>
     /// <param name="value">
     ///   The value to locate in the sequence.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the source sequence contains an element that has the
-    ///   specified value; otherwise, <b>False</b>.
+    ///   <c>True</c> if the source sequence contains an element that has the
+    ///   specified value; otherwise, <c>False</c>.
     /// </returns>
     function Contains(const value: T): Boolean; overload;
 
     /// <summary>
-    ///   Determines whether a sequence contains a specified element by using a
-    ///   specified <see cref="IEqualityComparer&lt;T&gt;" />.
+    ///   Determines whether the sequence contains a specified element by using
+    ///   a specified equality comparer.
     /// </summary>
     /// <param name="value">
     ///   The value to locate in the sequence.
@@ -406,14 +480,17 @@ type
     ///   An equality comparer to compare values.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the source sequence contains an element that has the
-    ///   specified value; otherwise, <b>False</b>.
+    ///   <c>True</c> if the source sequence contains an element that has the
+    ///   specified value; otherwise, <c>False</c>.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
     function Contains(const value: T; const comparer: IEqualityComparer<T>): Boolean; overload;
 
     /// <summary>
-    ///   Determines whether a sequence contains a specified element by using a
-    ///   specified <see cref="TEqualityComparison&lt;T&gt;" />.
+    ///   Determines whether the sequence contains a specified element by using
+    ///   a specified equality comparison.
     /// </summary>
     /// <param name="value">
     ///   The value to locate in the sequence.
@@ -422,38 +499,44 @@ type
     ///   An equality comparison to compare values.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the source sequence contains an element that has the
-    ///   specified value; otherwise, <b>False</b>.
+    ///   <c>True</c> if the source sequence contains an element that has the
+    ///   specified value; otherwise, <c>False</c>.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
     function Contains(const value: T; const comparer: TEqualityComparison<T>): Boolean; overload;
 
     /// <summary>
-    ///   Returns the element at a specified index in a sequence.
+    ///   Returns the element at a specified index in the sequence.
     /// </summary>
     /// <param name="index">
     ///   The zero-based index of the element to retrieve.
     /// </param>
     /// <returns>
-    ///   The element at the specified position in the source sequence.
+    ///   The element at the specified position in the sequence.
     /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is less than 0 or greater than or equal to the number of
+    ///   elements in the sequence.
+    /// </exception>
     function ElementAt(index: Integer): T;
 
     /// <summary>
-    ///   Returns the element at a specified index in a sequence or a default
+    ///   Returns the element at a specified index in the sequence or a default
     ///   value if the index is out of range.
     /// </summary>
     /// <param name="index">
     ///   The zero-based index of the element to retrieve.
     /// </param>
     /// <returns>
-    ///   <b>Default(T)</b> if the index is outside the bounds of the
-    ///   source sequence; otherwise, the element at the specified position in
-    ///   the source sequence.
+    ///   <c>Default(T)</c> if the index is outside the bounds of the sequence;
+    ///   otherwise, the element at the specified position in the sequence.
     /// </returns>
     function ElementAtOrDefault(index: Integer): T; overload;
 
     /// <summary>
-    ///   Returns the element at a specified index in a sequence or the
+    ///   Returns the element at a specified index in the sequence or the
     ///   specified default value if the index is out of range.
     /// </summary>
     /// <param name="index">
@@ -463,46 +546,95 @@ type
     ///   The value to return if the index is out of range.
     /// </param>
     /// <returns>
-    ///   <i>DefaultValue</i> if the index is outside the bounds of the source
+    ///   <c>defaultValue</c> if the index is outside the bounds of the
     ///   sequence; otherwise, the element at the specified position in the
-    ///   source sequence.
+    ///   sequence.
     /// </returns>
     function ElementAtOrDefault(index: Integer; const defaultValue: T): T; overload;
 
     /// <summary>
-    ///   Determines whether two sequences are equal by comparing the elements
-    ///   by using the default equality comparer for their type.
+    ///   Determines whether the sequences is equal to the specified array by
+    ///   comparing the elements by using the default equality comparer for
+    ///   their type.
     /// </summary>
+    /// <param name="values">
+    ///   An array to compare the the sequence.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the sequence is of equal length to the array and their
+    ///   corresponding elements are equal according to the default equality
+    ///   comparer for their type; otherwise, <c>False</c>.
+    /// </returns>
     function EqualsTo(const values: array of T): Boolean; overload;
 
     /// <summary>
     ///   Determines whether two sequences are equal by comparing the elements
     ///   by using the default equality comparer for their type.
     /// </summary>
+    /// <param name="values">
+    ///   A sequence to compare to the sequence.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the two source sequences are of equal length and their
+    ///   corresponding elements are equal according to the default equality
+    ///   comparer for their type; otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>values</c> is <c>nil</c>.
+    /// </exception>
     function EqualsTo(const values: IEnumerable<T>): Boolean; overload;
 
     /// <summary>
     ///   Determines whether two sequences are equal by comparing their
-    ///   elements by using a specified <c>IEqualityComparer&lt;T&gt;.</c>
+    ///   elements by using a specified equality comparer.
     /// </summary>
+    /// <param name="values">
+    ///   A sequence to compare to the sequence.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to use to compare elements.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the two source sequences are of equal length and their
+    ///   corresponding elements compare equal according to comparer;
+    ///   otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>values</c> is <c>nil</c>. <br /><br />-or- <br /><br /><c>comparer</c>
+    ///    is <c>nil</c>.
+    /// </exception>
     function EqualsTo(const values: IEnumerable<T>; const comparer: IEqualityComparer<T>): Boolean; overload;
 
     /// <summary>
     ///   Determines whether or not the number of elements in the sequence is
-    ///   equals to the given integer.
+    ///   equals to the given count.
     /// </summary>
+    /// <param name="count">
+    ///   The exact number of items the sequence must have for this function to
+    ///   return true.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the number of elements in the sequence is equals to
+    ///   the given count; otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>count</c> is negative.
+    /// </exception>
     function Exactly(count: Integer): Boolean;
 
     /// <summary>
-    ///   Returns the first element of a sequence.
+    ///   Returns the first element of the sequence.
     /// </summary>
     /// <returns>
-    ///   The first element in the specified sequence.
+    ///   The first element in the sequence.
     /// </returns>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function First: T; overload;
 
     /// <summary>
-    ///   Returns the first element in a sequence that satisfies a specified
+    ///   Returns the first element in the sequence that satisfies a specified
     ///   condition.
     /// </summary>
     /// <param name="predicate">
@@ -512,77 +644,101 @@ type
     ///   The first element in the sequence that passes the test in the
     ///   specified predicate function.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   No element satisfies the condition in <c>predicate</c>. <br /><br />
+    ///   -or- <br /><br /> The sequence is empty.
+    /// </exception>
     function First(const predicate: Predicate<T>): T; overload;
 
     /// <summary>
-    ///   Returns the first element of a sequence, or a default value if the
+    ///   Returns the first element of the sequence, or a default value if the
     ///   sequence contains no elements.
     /// </summary>
     /// <returns>
-    ///   <b>Default(T)</b> if source is empty; otherwise, the first
-    ///   element in source.
+    ///   <c>Default(T)</c> if source is empty; otherwise, the first element in
+    ///   the sequence.
     /// </returns>
     function FirstOrDefault: T; overload;
 
     /// <summary>
-    ///   Returns the first element of a sequence, or the specified default
+    ///   Returns the first element of the sequence, or the specified default
     ///   value if the sequence contains no elements.
     /// </summary>
     /// <param name="defaultValue">
-    ///   The value to return if the sequence contains no elements.
+    ///   The default value to return if the sequence is empty.
     /// </param>
     /// <returns>
-    ///   <i>DefaultValue</i> if source is empty; otherwise, the first element
-    ///   in source.
+    ///   <c>defaultValue</c> if the sequence is empty; otherwise, the first
+    ///   element in the sequence.
     /// </returns>
     function FirstOrDefault(const defaultValue: T): T; overload;
 
     /// <summary>
-    ///   Returns the first element of the sequence that satisfies a condition
-    ///   or a default value if no such element is found.
+    ///   Returns the first element of the sequence that satisfies the
+    ///   specified condition or a default value if no such element is found.
     /// </summary>
     /// <param name="predicate">
     ///   A function to test each element for a condition.
     /// </param>
     /// <returns>
-    ///   <b>Default(T)</b> if source is empty or if no element passes
-    ///   the test specified by predicate; otherwise, the first element in
-    ///   source that passes the test specified by predicate.
+    ///   <c>Default(T)</c> if source is empty or if no element passes the test
+    ///   specified by <c>predicate</c>; otherwise, the first element in the
+    ///   sequence that passes the test specified by <c>predicate</c>.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function FirstOrDefault(const predicate: Predicate<T>): T; overload;
 
     /// <summary>
-    ///   Returns the first element of the sequence that satisfies a condition
-    ///   or the specified default value if no such element is found.
+    ///   Returns the first element of the sequence that satisfies the
+    ///   specified condition or the specified default value if no such element
+    ///   is found.
     /// </summary>
     /// <param name="predicate">
     ///   A function to test each element for a condition.
     /// </param>
     /// <param name="defaultValue">
-    ///   The value to return if no element is found.
+    ///   The default value to return if the sequence is empty or no element
+    ///   passes the condition.
     /// </param>
     /// <returns>
-    ///   <i>DefaultValue</i> if source is empty or if no element passes the
-    ///   test specified by predicate; otherwise, the first element in source
-    ///   that passes the test specified by predicate.
+    ///   <c>defaultValue</c> if the sequence is empty or if no element passes
+    ///   the test specified by <c>predicate</c>; otherwise, the first element
+    ///   in the sequence that passes the test specified by <c>predicate</c>.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function FirstOrDefault(const predicate: Predicate<T>; const defaultValue: T): T; overload;
 
     /// <summary>
-    ///   Performs the specified action on each element of a sequence.
+    ///   Performs the specified action on each element of the sequence.
     /// </summary>
+    /// <param name="action">
+    ///   The action to perform on each element.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>action</c> is <c>nil</c>.
+    /// </exception>
     procedure ForEach(const action: Action<T>);
 
     /// <summary>
-    ///   Returns the last element of a sequence.
+    ///   Returns the last element of the sequence.
     /// </summary>
     /// <returns>
-    ///   The value at the last position in the source sequence.
+    ///   The value at the last position in the sequence.
     /// </returns>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Last: T; overload;
 
     /// <summary>
-    ///   Returns the last element of a sequence that satisfies a specified
+    ///   Returns the last element of the sequence that satisfies the specified
     ///   condition.
     /// </summary>
     /// <param name="predicate">
@@ -592,68 +748,86 @@ type
     ///   The last element in the sequence that passes the test in the
     ///   specified predicate function.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   No element satisfies the condition in <c>predicate</c>. <br /><br />
+    ///   -or- <br /><br /> The sequence is empty.
+    /// </exception>
     function Last(const predicate: Predicate<T>): T; overload;
 
     /// <summary>
-    ///   Returns the last element of a sequence, or a default value if the
+    ///   Returns the last element of the sequence, or a default value if the
     ///   sequence contains no elements.
     /// </summary>
     /// <returns>
-    ///   <b>Default(T)</b> if the source sequence is empty; otherwise,
-    ///   the last element in the IEnumerable&lt;T&gt;.
+    ///   <c>Default(T)</c> if the sequence is empty; otherwise, the last
+    ///   element in the sequence.
     /// </returns>
     function LastOrDefault: T; overload;
 
     /// <summary>
-    ///   Returns the last element of a sequence, or the specified default
+    ///   Returns the last element of the sequence, or the specified default
     ///   value if the sequence contains no elements.
     /// </summary>
     /// <param name="defaultValue">
-    ///   The value to return if the sequence contains no elements.
+    ///   The default value to return if the sequence is empty.
     /// </param>
     /// <returns>
-    ///   <i>DefaultValue</i> if the source sequence is empty; otherwise, the
-    ///   last element in the IEnumerable&lt;T&gt;.
+    ///   <c>defaultValue</c> if the sequence is empty; otherwise, the last
+    ///   element in the sequence.
     /// </returns>
     function LastOrDefault(const defaultValue: T): T; overload;
 
     /// <summary>
-    ///   Returns the last element of a sequence that satisfies a condition or
-    ///   a default value if no such element is found.
+    ///   Returns the last element of the sequence that satisfies the specified
+    ///   condition or a default value if no such element is found.
     /// </summary>
     /// <param name="predicate">
     ///   A function to test each element for a condition.
     /// </param>
     /// <returns>
-    ///   <b>Default(T)</b> if the sequence is empty or if no elements
-    ///   pass the test in the predicate function; otherwise, the last element
-    ///   that passes the test in the predicate function.
+    ///   <c>default(T)</c> if the sequence is empty or if no elements pass the
+    ///   test in the predicate function; otherwise, the last element that
+    ///   passes the test in the predicate function.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function LastOrDefault(const predicate: Predicate<T>): T; overload;
 
     /// <summary>
-    ///   Returns the last element of a sequence that satisfies a condition or
-    ///   the specified default value if no such element is found.
+    ///   Returns the last element of the sequence that satisfies the specified
+    ///   condition or the specified default value if no such element is found.
     /// </summary>
     /// <param name="predicate">
     ///   A function to test each element for a condition.
     /// </param>
     /// <param name="defaultValue">
-    ///   The value to return if no element is found.
+    ///   The default value to return if the sequence is empty or no element
+    ///   passes the condition.
     /// </param>
     /// <returns>
-    ///   <i>DefaultValue</i> if the sequence is empty or if no elements pass
-    ///   the test in the predicate function; otherwise, the last element that
-    ///   passes the test in the predicate function.
+    ///   <c>default(TSource)</c> if the sequence is empty or if no element
+    ///   passes the test specified by <c>predicate</c>; otherwise, the first
+    ///   element in the sequence that passes the test specified by <c>
+    ///   predicate</c>.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function LastOrDefault(const predicate: Predicate<T>; const defaultValue: T): T; overload;
 
     /// <summary>
-    ///   Returns the maximum value in a sequence.
+    ///   Returns the maximum value in the sequence.
     /// </summary>
     /// <returns>
     ///   The maximum value in the sequence.
     /// </returns>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Max: T; overload;
 
     /// <summary>
@@ -747,24 +921,50 @@ type
     function Max(const selector: Func<T, Currency>): Currency; overload;
 
     /// <summary>
-    ///   Returns the maximum value in a sequence by using the specified <see cref="IComparer&lt;T&gt;" />
-    ///    .
+    ///   Returns the maximum value in the sequence by using the specified
+    ///   comparer.
     /// </summary>
     /// <param name="comparer">
-    ///   An <see cref="IComparer&lt;T&gt;" /> to compare values.
+    ///   A comparer to compare values.
     /// </param>
     /// <returns>
     ///   The maximum value in the sequence.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Max(const comparer: IComparer<T>): T; overload;
+
+    /// <summary>
+    ///   Returns the maximum value in the sequence by using the specified
+    ///   comparison.
+    /// </summary>
+    /// <param name="comparer">
+    ///   A comparison to compare values.
+    /// </param>
+    /// <returns>
+    ///   The maximum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Max(const comparer: TComparison<T>): T; overload;
 
     /// <summary>
-    ///   Returns the minimum value in a sequence.
+    ///   Returns the minimum value in the sequence.
     /// </summary>
     /// <returns>
     ///   The minimum value in the sequence.
     /// </returns>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Min: T; overload;
 
     /// <summary>
@@ -823,7 +1023,7 @@ type
 
     /// <summary>
     ///   Invokes a transform function on each element of the sequence and
-    ///   returns the minimum Integer value.
+    ///   returns the minimum Double value.
     /// </summary>
     /// <param name="selector">
     ///   A transform function to apply to each element.
@@ -841,7 +1041,7 @@ type
 
     /// <summary>
     ///   Invokes a transform function on each element of the sequence and
-    ///   returns the minimum Integer value.
+    ///   returns the minimum Currency value.
     /// </summary>
     /// <param name="selector">
     ///   A transform function to apply to each element.
@@ -862,105 +1062,269 @@ type
     ///   comparer.
     /// </summary>
     /// <param name="comparer">
-    ///   An <see cref="IComparer&lt;T&gt;" /> to compare values.
+    ///   A comparer to compare values.
     /// </param>
     /// <returns>
     ///   The minimum value in the sequence.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Min(const comparer: IComparer<T>): T; overload;
+
+    /// <summary>
+    ///   Returns the minimum value in the sequence by using the specified
+    ///   comparison.
+    /// </summary>
+    /// <param name="comparer">
+    ///   A comparison to compare values.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Min(const comparer: TComparison<T>): T; overload;
 
     /// <summary>
-    ///   Creates a sequence that lazily caches the source as it is iterated
+    ///   Returns a sequence that lazily caches the sequence as it is iterated
     ///   for the first time, reusing the cache thereafter for future
-    ///   re-iterations. If the source is already cached or buffered then it
+    ///   re-iterations. If the sequence is already cached or buffered then it
     ///   is returned verbatim.
     /// </summary>
+    /// <returns>
+    ///   A sequence that corresponds to a cached version of the sequence.
+    /// </returns>
     function Memoize: IEnumerable<T>;
 
     /// <summary>
-    ///   Sorts the elements of a sequence in ascending order using the default
-    ///   comparer for their type.
+    ///   Sorts the elements of the sequence in ascending order using the
+    ///   default comparer for their type.
     /// </summary>
+    /// <returns>
+    ///   A sequence whose elements are sorted.
+    /// </returns>
     function Ordered: IEnumerable<T>; overload;
 
     /// <summary>
-    ///   Sorts the elements of a sequence in ascending order using the
-    ///   specified <see cref="IComparer&lt;T&gt;" />.
+    ///   Sorts the elements of the sequence in ascending order using the
+    ///   specified comparer.
     /// </summary>
+    /// <returns>
+    ///   A sequence whose elements are sorted.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
     function Ordered(const comparer: IComparer<T>): IEnumerable<T>; overload;
+
+    /// <summary>
+    ///   Sorts the elements of the sequence in ascending order using the
+    ///   specified comparison.
+    /// </summary>
+    /// <returns>
+    ///   A sequence whose elements are sorted.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
     function Ordered(const comparer: TComparison<T>): IEnumerable<T>; overload;
 
     /// <summary>
-    ///   Inverts the order of the elements in a sequence.
+    ///   Inverts the order of the elements in the sequence.
     /// </summary>
+    /// <returns>
+    ///   A sequence whose elements correspond to those of the input sequence
+    ///   in reverse order.
+    /// </returns>
     function Reversed: IEnumerable<T>;
 
     /// <summary>
-    ///   Returns the sequence in a shuffled order.
+    ///   Returns a sequence of elements in random order from the original.
     /// </summary>
+    /// <returns>
+    ///   A sequence whose elements are randomized in their order to those of
+    ///   the input sequence.
+    /// </returns>
     function Shuffled: IEnumerable<T>;
 
     /// <summary>
-    ///   Returns the only element of a sequence, and throws an exception if
+    ///   Returns the only element of the sequence, and raises an exception if
     ///   there is not exactly one element in the sequence.
     /// </summary>
+    /// <returns>
+    ///   The single element of the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The input sequence contains more than one element. <br /><br />-or- <br /><br />
+    ///    The input sequence is empty.
+    /// </exception>
     function Single: T; overload;
 
     /// <summary>
-    ///   Returns the only element of a sequence, and throws an exception if
-    ///   there is not exactly one element in the sequence.
+    ///   Returns the only element of the sequence that satisfies a specified
+    ///   condition, and raises an exception if more than one such element
+    ///   exists.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test an element for a condition.
+    /// </param>
+    /// <returns>
+    ///   The single element of the sequence that satisfies a condition.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   No element satisfies the condition in <c>predicate</c>. <br /><br />
+    ///   -or- <br /><br />More than one element satisfies the condition in <c>
+    ///   predicate</c>. <br /><br />-or- <br /><br />The sequence is empty.
+    /// </exception>
     function Single(const predicate: Predicate<T>): T; overload;
 
     /// <summary>
-    ///   Returns the only element of a sequence, or a default value if the
-    ///   sequence is empty; this method throws an exception if there is more
+    ///   Returns the only element of the sequence, or a default value if the
+    ///   sequence is empty; this method raises an exception if there is more
     ///   than one element in the sequence.
     /// </summary>
+    /// <returns>
+    ///   The single element of the input sequence, or <c>Default(T)</c> if the
+    ///   sequence contains no elements.
+    /// </returns>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The input sequence contains more than one element.
+    /// </exception>
     function SingleOrDefault: T; overload;
 
     /// <summary>
-    ///   Returns the only element of a sequence, or the specified default
-    ///   value if the sequence is empty; this method throws an exception if
+    ///   Returns the only element of the sequence, or a specified default
+    ///   value if the sequence is empty; this method raises an exception if
     ///   there is more than one element in the sequence.
     /// </summary>
+    /// <param name="defaultValue">
+    ///   The default value to return if the sequence is empty.
+    /// </param>
+    /// <returns>
+    ///   The single element of the input sequence, or <c>defaultValue</c> if
+    ///   the sequence contains no elements.
+    /// </returns>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The input sequence contains more than one element.
+    /// </exception>
     function SingleOrDefault(const defaultValue: T): T; overload;
 
     /// <summary>
-    ///   Returns the only element of a sequence that satisfies a specified
+    ///   Returns the only element of the sequence that satisfies a specified
     ///   condition or a default value if no such element exists; this method
-    ///   throws an exception if more than one element satisfies the condition.
+    ///   raises an exception if more than one element satisfies the condition.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test an element for a condition.
+    /// </param>
+    /// <returns>
+    ///   The single element of the input sequence that satisfies the
+    ///   condition, or <c>Default(T)</c> if no such element is found.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   More than one element satisfies the condition in <c>predicate</c>.
+    /// </exception>
     function SingleOrDefault(const predicate: Predicate<T>): T; overload;
 
     /// <summary>
-    ///   Returns the only element of a sequence that satisfies a specified
-    ///   condition or the specified default value if no such element exists;
-    ///   this method throws an exception if more than one element satisfies
+    ///   Returns the only element of the sequence that satisfies a specified
+    ///   condition, or a specified default value if no such element exists;
+    ///   this method raises an exception if more than one element satisfies
     ///   the condition.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test an element for a condition.
+    /// </param>
+    /// <param name="defaultValue">
+    ///   The default value to return if the sequence is empty.
+    /// </param>
+    /// <returns>
+    ///   The single element of the input sequence that satisfies the
+    ///   condition, or <c>defaultValue</c> if no such element is found.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   More than one element satisfies the condition in <c>predicate</c>.
+    /// </exception>
     function SingleOrDefault(const predicate: Predicate<T>; const defaultValue: T): T; overload;
 
     /// <summary>
-    ///   Bypasses a specified number of elements in a sequence and then
+    ///   Bypasses a specified number of elements in the sequence and then
     ///   returns the remaining elements.
     /// </summary>
+    /// <param name="count">
+    ///   The number of elements to skip before returning the remaining
+    ///   elements.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements that occur after the specified
+    ///   index in the input sequence.
+    /// </returns>
     function Skip(count: Integer): IEnumerable<T>;
 
+    /// <summary>
+    ///   Omits the specified number of elements at the end of the sequence.
+    /// </summary>
+    /// <param name="count">
+    ///   The number of elements to omit from the end of the sequence.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements minus count elements from the
+    ///   end of the input sequence.
+    /// </returns>
+    /// <remarks>
+    ///   If <c>count</c> is not a positive number, this method returns the
+    ///   input sequence.
+    /// </remarks>
     function SkipLast(count: Integer): IEnumerable<T>;
 
     /// <summary>
-    ///   Bypasses elements in a sequence as long as a specified condition is
+    ///   Bypasses elements in the sequence as long as a specified condition is
     ///   true and then returns the remaining elements.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test each element for a condition.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements from the input sequence
+    ///   starting at the first element in the linear series that does not pass
+    ///   the test specified by <c>predicate</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function SkipWhile(const predicate: Predicate<T>): IEnumerable<T>; overload;
 
     /// <summary>
-    ///   Bypasses elements in a sequence as long as a specified condition is
+    ///   Bypasses elements in the sequence as long as a specified condition is
     ///   true and then returns the remaining elements. The element's index is
     ///   used in the logic of the predicate function.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test each source element for a condition; the second
+    ///   parameter of the function represents the index of the source element.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements from the input sequence
+    ///   starting at the first element in the linear series that does not pass
+    ///   the test specified by <c>predicate</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function SkipWhile(const predicate: Func<T, Integer, Boolean>): IEnumerable<T>; overload;
 
     /// <summary>
@@ -1064,91 +1428,237 @@ type
     function Sum(const selector: Func<T, Currency>): Currency; overload;
 
     /// <summary>
-    ///   Returns a specified number of contiguous elements from the start of a
-    ///   sequence.
+    ///   Returns the specified number of contiguous elements from the start of
+    ///   the sequence.
     /// </summary>
+    /// <param name="count">
+    ///   The number of elements to return.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the specified number of elements from the
+    ///   start of the input sequence.
+    /// </returns>
+    /// <remarks>
+    ///   If <c>count</c> is not a positive number, the sequence is not
+    ///   enumerated and an empty sequence is returned.
+    /// </remarks>
     function Take(count: Integer): IEnumerable<T>;
 
+    /// <summary>
+    ///   Returns the specified number of contiguous elements from the end of
+    ///   the sequence.
+    /// </summary>
+    /// <param name="count">
+    ///   The number of elements to return.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the specified number of elements from the
+    ///   end of the input sequence.
+    /// </returns>
+    /// <remarks>
+    ///   If <c>count</c> is not a positive number, the sequence is not
+    ///   enumerated and an empty sequence is returned.
+    /// </remarks>
     function TakeLast(count: Integer): IEnumerable<T>;
 
     /// <summary>
-    ///   Returns elements from a sequence as long as a specified condition is
-    ///   true.
+    ///   Returns elements from the sequence as long as a specified condition
+    ///   is true.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test each element for a condition.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements from the input sequence that
+    ///   occur before the element at which the test no longer passes.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function TakeWhile(const predicate: Predicate<T>): IEnumerable<T>; overload;
 
     /// <summary>
-    ///   Returns elements from a sequence as long as a specified condition is
-    ///   true. The element's index is used in the logic of the predicate
+    ///   Returns elements from the sequence as long as a specified condition
+    ///   is true. The element's index is used in the logic of the predicate
     ///   function.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test each source element for a condition; the second
+    ///   parameter of the function represents the index of the source element.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains elements from the input sequence that occur
+    ///   before the element at which the test no longer passes.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function TakeWhile(const predicate: Func<T, Integer, Boolean>): IEnumerable<T>; overload;
 
     /// <summary>
-    ///   Try getting the element at a specified index in a sequence.
+    ///   Attempts to get the element at a specified index in the sequence.
     /// </summary>
+    /// <param name="value">
+    ///   The element at the specified position in the sequence.
+    /// </param>
+    /// <param name="index">
+    ///   The zero-based index of the element to retrieve.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if <c>index</c> is inside the bounds of the sequence;
+    ///   otherwise, <c>False</c>.
+    /// </returns>
     function TryGetElementAt(var value: T; index: Integer): Boolean;
 
     /// <summary>
-    ///   Try getting the first element in a sequence.
+    ///   Attempts to get the first element in the sequence.
     /// </summary>
+    /// <param name="value">
+    ///   The first element in the sequence.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the sequence was not empty; otherwise, <c>False</c>.
+    /// </returns>
     function TryGetFirst(var value: T): Boolean; overload;
 
     /// <summary>
-    ///   Try getting the first element in a sequence that satisfies a
+    ///   Attempts to get the first element in the sequence that satisfies a
     ///   specified condition.
     /// </summary>
+    /// <param name="value">
+    ///   The first element in the sequence that passes the test in the
+    ///   specified predicate function.
+    /// </param>
+    /// <param name="predicate">
+    ///   A function to test each element for a condition.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if an element in the sequence satiesfies the condition in
+    ///   <c>predicate</c>; otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function TryGetFirst(var value: T; const predicate: Predicate<T>): Boolean; overload;
 
     /// <summary>
-    ///   Try getting the last element in a sequence.
+    ///   Attempts to get the last element in the sequence.
     /// </summary>
+    /// <param name="value">
+    ///   The last element in the sequence.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the sequence was not empty; otherwise, <c>False</c>.
+    /// </returns>
     function TryGetLast(var value: T): Boolean; overload;
 
     /// <summary>
-    ///   Try getting the last element in a sequence that satisfies a specified
-    ///   condition.
+    ///   Attempts to get the last element in the sequence that satisfies a
+    ///   specified condition.
     /// </summary>
+    /// <param name="value">
+    ///   The last element in the sequence that passes the test in the
+    ///   specified predicate function.
+    /// </param>
+    /// <param name="predicate">
+    ///   A function to test each element for a condition.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if an element in the sequence satiesfies the condition in
+    ///   <c>predicate</c>; otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function TryGetLast(var value: T; const predicate: Predicate<T>): Boolean; overload;
 
     /// <summary>
-    ///   Try getting the only element in a sequence.
+    ///   Attempts to get the only element in the sequence.
     /// </summary>
+    /// <param name="value">
+    ///   The single element of the sequence.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the sequence contains exactly one element; otherwise, <c>
+    ///   False</c>.
+    /// </returns>
     function TryGetSingle(var value: T): Boolean; overload;
 
     /// <summary>
-    ///   Try getting the only element in a sequence that satisfies a specified
-    ///   condition.
+    ///   Attempts to get the only element in the sequence that satisfies a
+    ///   specified condition.
     /// </summary>
+    /// <param name="value">
+    ///   The single element of the sequence that satisfies a condition.
+    /// </param>
+    /// <param name="predicate">
+    ///   A function to test an element for a condition.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the sequence contains exactly one element that
+    ///   satisfies the condition in <c>predicate</c>; otherwise, <c>False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function TryGetSingle(var value: T; const predicate: Predicate<T>): Boolean; overload;
 
     /// <summary>
-    ///   Filters a sequence of values based on a predicate.
+    ///   Filters the sequence based on the specified predicate.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test each element for a condition.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains elements from the input sequence that
+    ///   satisfy the condition.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function Where(const predicate: Predicate<T>): IEnumerable<T>; overload;
 
     /// <summary>
-    ///   Filters a sequence of values based on a predicate. The element's
+    ///   Filters the sequence based on the specified predicate. Each element's
     ///   index is used in the logic of the predicate function.
     /// </summary>
+    /// <param name="predicate">
+    ///   A function to test each source element for a condition; the second
+    ///   parameter of the function represents the index of the source element.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains elements from the input sequence that
+    ///   satisfy the condition.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function Where(const predicate: Func<T, Integer, Boolean>): IEnumerable<T>; overload;
 
     /// <summary>
-    ///   Gets the assigned comparer. If not comparer was assigned it returns
+    ///   Gets the assigned comparer. If no comparer was assigned it returns
     ///   the default comparer.
     /// </summary>
     property Comparer: IComparer<T> read GetComparer;
 
     /// <summary>
-    ///   Returns the number of elements in a sequence.
+    ///   Returns the number of elements in the sequence.
     /// </summary>
     /// <value>
     ///   The number of elements in the sequence.
     /// </value>
+    /// <remarks>
+    ///   Depending on the type of the underlying collection this might cause a
+    ///   full iteration of the collection. Consider using the methods <see cref="Spring.Collections|IEnumerable&lt;T&gt;.AtLeast(Integer)">
+    ///   AtLeast</see>, <see cref="Spring.Collections|IEnumerable&lt;T&gt;.AtMost(Integer)">
+    ///   AtMost</see>, <see cref="Spring.Collections|IEnumerable&lt;T&gt;.Between(Integer,Integer)">
+    ///   Between</see> or <see cref="Spring.Collections|IEnumerable&lt;T&gt;.Exactly(Integer)">
+    ///   Exactly</see> instead.
+    /// </remarks>
     property Count: Integer read GetCount;
 
     /// <summary>
-    ///   Returns the type of the elements in the sequence.
+    ///   Gets the type of the elements in the sequence.
     /// </summary>
     /// <value>
     ///   The type of the elements in the sequence.
@@ -1159,21 +1669,14 @@ type
     ///   Determines whether the sequence contains no elements.
     /// </summary>
     /// <value>
-    ///   <b>True</b> if the source sequence contains no elements; otherwise, <b>
-    ///   False</b>.
+    ///   <c>True</c> if the sequence contains no elements; otherwise, <c>False</c>
+    ///   .
     /// </value>
     property IsEmpty: Boolean read GetIsEmpty;
   end;
 
   /// <summary>
-  ///   Represents a sub range of a collection.
-  /// </summary>
-  IPartition<T> = interface(IEnumerable<T>) //FI:W524
-    ['{ACFB79AB-F593-4F2B-9720-E6CE984F6844}']
-  end;
-
-  /// <summary>
-  ///   Represents a strongly-typed, read-only collection of elements.
+  ///   Represents a generic read-only collection of elements.
   /// </summary>
   IReadOnlyCollection<T> = interface(IEnumerable<T>) //FI:W524
     ['{E1368FD5-02AE-4481-A9DC-96329DFF606C}']
@@ -1195,10 +1698,8 @@ type
     function CopyTo(var values: TArray<T>; index: Integer): Integer;
   end;
 
-  IReadOnlyList<T> = interface;
-
   /// <summary>
-  ///   Defines methods to manipulate generic collections.
+  ///   Represents a generic collection of elements.
   /// </summary>
   /// <typeparam name="T">
   ///   The type of the elements in the collection.
@@ -1215,13 +1716,30 @@ type
     ///   Adds an item to the collection.
     /// </summary>
     /// <param name="item">
-    ///   The element to add to the collection
+    ///   The element to add to the collection.
     /// </param>
     /// <returns>
     ///   True if the collection was modified, False otherwise.
     /// </returns>
     function Add(const item: T): Boolean;
+
+    /// <summary>
+    ///   Adds multiple items to the collection.
+    /// </summary>
+    /// <param name="item">
+    ///   The elements to add to the collection.
+    /// </param>
     procedure AddRange(const values: array of T); overload;
+
+    /// <summary>
+    ///   Adds multiple items to the collection.
+    /// </summary>
+    /// <param name="item">
+    ///   The elements to add to the collection.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>values</c> is <c>nil</c>.
+    /// </exception>
     procedure AddRange(const values: IEnumerable<T>); overload;
 
     /// <summary>
@@ -1246,44 +1764,58 @@ type
     function CopyTo(var values: TArray<T>; index: Integer): Integer;
 
     /// <summary>
-    ///   Moves the elements of the ICollection&lt;T&gt; to the specified
-    ///   collection.
+    ///   Moves the elements of the collection to the specified collection.
     /// </summary>
+    /// <param name="collection">
+    ///   The collection to move the elements to.
+    /// </param>
     /// <returns>
     ///   The number of elements that were moved.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>collection</c> is <c>nil</c>.
+    /// </exception>
     /// <remarks>
     ///   This internally uses Extract to make sure that objects from a list
-    ///   with <b>OwnsObject</b> are not getting destroyed.
+    ///   with <c>OwnsObject</c> are not getting destroyed.
     /// </remarks>
     function MoveTo(const collection: ICollection<T>): Integer; overload;
 
     /// <summary>
-    ///   Moves the elements of the ICollection&lt;T&gt; that are matching the
-    ///   specified predicate to the specified collection.
+    ///   Moves the elements of the collection that are matching the specified
+    ///   predicate to the specified collection.
     /// </summary>
+    /// <param name="collection">
+    ///   The collection to move the elements to.
+    /// </param>
+    /// <param name="predicate">
+    ///   A function to test each element for a condition.
+    /// </param>
     /// <returns>
     ///   The number of elements that were moved.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>collection</c> is <c>nil</c>. <br /><br />-or- <br /><br /><c>
+    ///   predicate</c> is <c>nil</c>.
+    /// </exception>
     /// <remarks>
     ///   This internally uses Extract to make sure that objects from a list
-    ///   with <b>OwnsObject</b> are not getting destroyed.
+    ///   with <c>OwnsObject</c> are not getting destroyed.
     /// </remarks>
     function MoveTo(const collection: ICollection<T>;
       const predicate: Predicate<T>): Integer; overload;
 
     /// <summary>
     ///   Removes the first occurrence of a specific element from the
-    ///   ICollection&lt;T&gt;.
+    ///   collection.
     /// </summary>
     /// <param name="item">
-    ///   The element to remove from the ICollection&lt;T&gt;.
+    ///   The element to remove from the collection.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if <i>item</i> was successfully removed from the
-    ///   ICollection&lt;T&gt;; otherwise, <b>False</b>. This method also
-    ///   returns <b>False</b> if <i>item</i> is not found in the original
-    ///   ICollection&lt;T&gt;.
+    ///   <c>True</c> if <c>item</c> was successfully removed from the
+    ///   collection; otherwise, <c>False</c>. This method also returns <c>
+    ///   False</c> if <c>item</c> is not found in the collection.
     /// </returns>
     function Remove(const item: T): Boolean;
 
@@ -1297,20 +1829,91 @@ type
     /// <returns>
     ///   The number of elements removed from the collection.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function RemoveAll(const predicate: Predicate<T>): Integer;
 
+    /// <summary>
+    ///   Removes the first occurrence of each element from the collection.
+    /// </summary>
+    /// <param name="values">
+    ///   The elements to remove from the collection.
+    /// </param>
+    /// <returns>
+    ///   The number of elements removed from the collection.
+    /// </returns>
     function RemoveRange(const values: array of T): Integer; overload;
+
+    /// <summary>
+    ///   Removes the first occurrence of each element from the collection.
+    /// </summary>
+    /// <param name="values">
+    ///   The elements to remove from the collection.
+    /// </param>
+    /// <returns>
+    ///   The number of elements removed from the collection.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>values</c> is <c>nil</c>.
+    /// </exception>
     function RemoveRange(const values: IEnumerable<T>): Integer; overload;
 
+    /// <summary>
+    ///   Removes the first occurrence of a specific element from the
+    ///   collection without triggering lifetime management for objects.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to remove from the collection.
+    /// </param>
+    /// <returns>
+    ///   The element that was removed from the collection.
+    /// </returns>
     function Extract(const item: T): T;
+
+    /// <summary>
+    ///   Removes all the elements that match the conditions defined by the
+    ///   specified predicate without triggering lifetime management for
+    ///   objects.
+    /// </summary>
+    /// <param name="predicate">
+    ///   The predicate that defines the conditions of the elements to remove.
+    /// </param>
+    /// <returns>
+    ///   The elements that were removed from the collection.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
     function ExtractAll(const predicate: Predicate<T>): TArray<T>;
+
+    /// <summary>
+    ///   Removes the first occurrence of each element from the collection
+    ///   without triggering lifetime management for objects.
+    /// </summary>
+    /// <param name="values">
+    ///   The elements to remove from the collection.
+    /// </param>
     procedure ExtractRange(const values: array of T); overload;
+
+    /// <summary>
+    ///   Removes the first occurrence of each element from the collection
+    ///   without triggering lifetime management for objects.
+    /// </summary>
+    /// <param name="values">
+    ///   The elements to remove from the collection.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>values</c> is <c>nil</c>.
+    /// </exception>
     procedure ExtractRange(const values: IEnumerable<T>); overload;
 
+    /// <summary>
+    ///   Occurs when an item is added, removed, or moved, or the entire list
+    ///   is refreshed.
+    /// </summary>
     property OnChanged: ICollectionChangedEvent<T> read GetOnChanged;
   end;
-
-  IList<T> = interface;
 
   /// <summary>
   ///   Represents a read-only collection of elements that can be accessed by
@@ -1323,28 +1926,61 @@ type
   {$ENDREGION}
 
     /// <summary>
-    ///   Determines the index of a specific item in the
-    ///   IReadOnlyList&lt;T&gt;.
+    ///   Determines the index of a specific item in the list.
     /// </summary>
     /// <param name="item">
-    ///   The object to locate in the IReadOnlyList&lt;T&gt;.
+    ///   The element to locate in the list.
     /// </param>
     /// <returns>
-    ///   The index of <i>item</i> if found in the list; otherwise, -1.
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
     /// </returns>
     function IndexOf(const item: T): Integer; overload;
+
+    /// <summary>
+    ///   Determines the index of a specific item in the list starting at the
+    ///   specified index.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to locate in the list.
+    /// </param>
+    /// <param name="index">
+    ///   The index where to start to locate the specified item in the list.
+    /// </param>
+    /// <returns>
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
+    /// </returns>
     function IndexOf(const item: T; index: Integer): Integer; overload;
+
+    /// <summary>
+    ///   Determines the index of a specific item in the list starting at the
+    ///   specified index and for the specified count of elements.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to locate in the list.
+    /// </param>
+    /// <param name="index">
+    ///   The index where to start to locate the specified item in the list.
+    /// </param>
+    /// <param name="count">
+    ///   The number of items to compare item with.
+    /// </param>
+    /// <returns>
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
+    /// </returns>
     function IndexOf(const item: T; index, count: Integer): Integer; overload;
 
     /// <summary>
-    ///   Gets the element at the specified index in the read-only list.
+    ///   Gets the element at the specified index in the list.
     /// </summary>
     /// <param name="index">
     ///   The zero-based index of the element to get.
     /// </param>
     /// <value>
-    ///   The element at the specified index in the read-only list.
+    ///   The element at the specified index.
     /// </value>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
+    /// </exception>
     property Items[index: Integer]: T read GetItem; default;
   end;
 
@@ -1365,19 +2001,60 @@ type
     procedure SetOwnsObjects(value: Boolean);
   {$ENDREGION}
 
+    /// <summary>
+    ///   Adds an item to the list.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to add to the list.
+    /// </param>
+    /// <returns>
+    ///   The index of the item in the list.
+    /// </returns>
     function Add(const item: T): Integer;
 
     /// <summary>
-    ///   Inserts an item to the IList&lt;T&gt; at the specified index.
+    ///   Inserts an item to the list at the specified index.
     /// </summary>
     /// <param name="index">
     ///   The zero-based index at which item should be inserted.
     /// </param>
     /// <param name="item">
-    ///   The element to insert into the IList&lt;T&gt;.
+    ///   The element to insert into the list.
     /// </param>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
+    /// </exception>
     procedure Insert(index: Integer; const item: T);
+
+    /// <summary>
+    ///   Inserts multiple items to the list at the specified index.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based index at which item should be inserted.
+    /// </param>
+    /// <param name="item">
+    ///   The elements to insert into the list.
+    /// </param>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
+    /// </exception>
     procedure InsertRange(index: Integer; const values: array of T); overload;
+
+    /// <summary>
+    ///   Inserts multiple items to the list at the specified index.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based index at which item should be inserted.
+    /// </param>
+    /// <param name="item">
+    ///   The elements to insert into the list.
+    /// </param>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
+    /// </exception>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>values</c> is <c>nil</c>.
+    /// </exception>
     procedure InsertRange(index: Integer; const values: IEnumerable<T>); overload;
 
     /// <summary>
@@ -1386,27 +2063,62 @@ type
     /// <param name="index">
     ///   The zero-based index of the item to remove.
     /// </param>
-    /// <exception cref="ArgumentOutOfRangeException">
-    ///   <i>index</i> is not a valid index in the IList&lt;T&gt;.
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
     /// </exception>
     procedure Delete(index: Integer);
+
+    /// <summary>
+    ///   Removes a specified number of items at the specified index.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based index of the item to remove.
+    /// </param>
+    /// <param name="count">
+    ///   The number of items to remove.
+    /// </param>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list. <br /><br /><c>count</c>
+    ///    exceeds the valid range in the list.
+    /// </exception>
     procedure DeleteRange(index, count: Integer);
 
     /// <summary>
-    ///   Extracts the item at the specified index.
+    ///   Removes the item at the specified index without triggering lifetime
+    ///   management for objects.
     /// </summary>
     /// <param name="index">
-    ///   The zero-based index of the item to extract.
+    ///   The zero-based index of the item to remove.
     /// </param>
-    /// <exception cref="ArgumentOutOfRangeException">
-    ///   <i>index</i> is not a valid index in the IList&lt;T&gt;.
+    /// <returns>
+    ///   The element that was removed from the list.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
     /// </exception>
     function ExtractAt(index: Integer): T;
+
+    /// <summary>
+    ///   Removes a specified number of items at the specified index without
+    ///   triggering lifetime management for objects.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based index of the item to remove.
+    /// </param>
+    /// <param name="count">
+    ///   The number of items to remove.
+    /// </param>
+    /// <returns>
+    ///   The elements that were removed from the list.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list. <br /><br /><c>count</c>
+    ///    exceeds the valid range in the list.
+    /// </exception>
     function ExtractRange(index, count: Integer): TArray<T>; overload;
 
     /// <summary>
-    ///   Creates a new list that contains a range of the elements in the
-    ///   original list.
+    ///   Creates a shallow copy of a range of elements in the original list.
     /// </summary>
     /// <param name="index">
     ///   The zero-based index at which the range starts.
@@ -1414,66 +2126,296 @@ type
     /// <param name="count">
     ///   The number of elements in the range.
     /// </param>
+    /// <returns>
+    ///   A shallow copy of a range of elements in the original list.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is less than 0. <br /><br />-or- <br /><br /><c>count</c>
+    ///    is less than 0. <br /><br />-or- <br /><br /><c>index</c> and <c>
+    ///   count</c> do not denote a valid range of elements in the list.
+    /// </exception>
     /// <remarks>
-    ///   If the list contains reference types the elements in the returned
-    ///   list point to the same instance as the elements in the original list.
-    ///   Also if the original list is a <see cref="Spring.Collections.Lists|TObjectList&lt;T&gt;" />
-    ///    it still owns the objects.
+    ///   A shallow copy of a collection of reference types, or a subset of
+    ///   that collection, contains only the references to the elements of the
+    ///   collection. The objects themselves are not copied. The references in
+    ///   the new list point to the same objects as the references in the
+    ///   original list. Also if the original list has ownership over its
+    ///   elements.
     /// </remarks>
     function GetRange(index, count: Integer): IList<T>;
 
+    /// <summary>
+    ///   Exchanges the position of two elements at the given indixes.
+    /// </summary>
+    /// <param name="index1">
+    ///   Index of the first element.
+    /// </param>
+    /// <param name="index2">
+    ///   Index of the second element.
+    /// </param>
     procedure Exchange(index1, index2: Integer);
+
+    /// <summary>
+    ///   Moves an element at the given index to another position.
+    /// </summary>
+    /// <param name="sourceIndex">
+    ///   Index of the element to be moved.
+    /// </param>
+    /// <param name="targetIndex">
+    ///   Index where the element will be moved.
+    /// </param>
+    /// <remarks>
+    ///   The distance an element travels is always equal to the difference
+    ///   between <c>sourceIndex</c> and <c>targetIndex</c>.
+    /// </remarks>
     procedure Move(sourceIndex, targetIndex: Integer);
 
+    /// <summary>
+    ///   Reverses the order of the elements in the entire list.
+    /// </summary>
     procedure Reverse; overload;
+
+    /// <summary>
+    ///   Reverses the order of the elements in the specified range.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based starting index of the range to reverse.
+    /// </param>
+    /// <param name="count">
+    ///   The number of elements in the range to reverse.
+    /// </param>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is less than 0. <br /><br />-or- <br /><br /><c>count</c>
+    ///    is less than 0. <br /><br />-or- <br /><br /><c>index</c> and <c>
+    ///   count</c> do not denote a valid range of elements in the list.
+    /// </exception>
     procedure Reverse(index, count: Integer); overload;
 
+    /// <summary>
+    ///   Sorts the elements in the entire list using the comparer that was
+    ///   specified at construction of the list.
+    /// </summary>
     procedure Sort; overload;
+
+    /// <summary>
+    ///   Sorts the elements in the entire list using the specified comparer.
+    /// </summary>
+    /// <param name="comparer">
+    ///   The comparer to use when comparing elements.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
     procedure Sort(const comparer: IComparer<T>); overload;
+
+    /// <summary>
+    ///   Sorts the elements in the entire list using the specified comparison.
+    /// </summary>
+    /// <param name="comparer">
+    ///   The comparison to use when comparing elements.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
     procedure Sort(const comparer: TComparison<T>); overload;
+
+    /// <summary>
+    ///   Sorts the elements in a range of elements in list using the specified
+    ///   comparer.
+    /// </summary>
+    /// <param name="comparer">
+    ///   The comparer to use when comparing elements.
+    /// </param>
+    /// <param name="index">
+    ///   The zero-based starting index of the range to sort.
+    /// </param>
+    /// <param name="count">
+    ///   The length of the range to sort.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is less than 0. <br /><br />-or- <br /><br /><c>count</c>
+    ///    is less than 0. <br /><br />-or- <br /><br /><c>index</c> and <c>
+    ///   count</c> do not specify a valid range in the list.
+    /// </exception>
     procedure Sort(const comparer: IComparer<T>; index, count: Integer); overload;
+
+    /// <summary>
+    ///   Sorts the elements in a range of elements in list using the specified
+    ///   comparison.
+    /// </summary>
+    /// <param name="comparer">
+    ///   The comparer to use when comparing elements.
+    /// </param>
+    /// <param name="index">
+    ///   The zero-based starting index of the range to sort.
+    /// </param>
+    /// <param name="count">
+    ///   The length of the range to sort.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is less than 0. <br /><br />-or- <br /><br /><c>count</c>
+    ///    is less than 0. <br /><br />-or- <br /><br /><c>index</c> and <c>
+    ///   count</c> do not specify a valid range in the list.
+    /// </exception>
     procedure Sort(const comparer: TComparison<T>; index, count: Integer); overload;
 
     /// <summary>
-    ///   Determines the index of a specific item in the IList&lt;T&gt;.
+    ///   Determines the index of a specific item in the list.
     /// </summary>
     /// <param name="item">
-    ///   The element to locate in the IList&lt;T&gt;.
+    ///   The element to locate in the list.
     /// </param>
     /// <returns>
-    ///   The index of <i>item</i> if found in the list; otherwise, -1.
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
     /// </returns>
-    /// <remarks>
-    ///   If an element occurs multiple times in the list, the IndexOf method
-    ///   always returns the first instance found.
-    /// </remarks>
     function IndexOf(const item: T): Integer; overload;
+
+    /// <summary>
+    ///   Determines the index of a specific item in the list starting at the
+    ///   specified index.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to locate in the list.
+    /// </param>
+    /// <param name="index">
+    ///   The index where to start to locate the specified item in the list.
+    /// </param>
+    /// <returns>
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
+    /// </exception>
     function IndexOf(const item: T; index: Integer): Integer; overload;
+
+    /// <summary>
+    ///   Determines the index of a specific item in the list starting at the
+    ///   specified index and for the specified count of elements.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to locate in the list.
+    /// </param>
+    /// <param name="index">
+    ///   The index where to start to locate the specified item in the list.
+    /// </param>
+    /// <param name="count">
+    ///   The number of items to compare item with.
+    /// </param>
+    /// <returns>
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
+    /// </returns>
     function IndexOf(const item: T; index, count: Integer): Integer; overload;
 
+    /// <summary>
+    ///   Determines the index of a specific item in the list starting at the
+    ///   end of the list.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to locate in the list.
+    /// </param>
+    /// <returns>
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
+    /// </returns>
     function LastIndexOf(const item: T): Integer; overload;
-    function LastIndexOf(const item: T; index: Integer): Integer; overload;
-    function LastIndexOf(const item: T; index, count: Integer): Integer; overload;
 
+    /// <summary>
+    ///   Determines the index of a specific item in the list starting at the
+    ///   specified index towards the start of the list.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to locate in the list.
+    /// </param>
+    /// <param name="index">
+    ///   The index where to start to locate the specified item in the list.
+    /// </param>
+    /// <returns>
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
+    /// </exception>
+    function LastIndexOf(const item: T; index: Integer): Integer; overload;
+
+    /// <summary>
+    ///   Determines the index of a specific item in the list starting at the
+    ///   specified index and for the specified count of elements towards the
+    ///   start of the list.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to locate in the list.
+    /// </param>
+    /// <param name="index">
+    ///   The index where to start to locate the specified item in the list.
+    /// </param>
+    /// <param name="count">
+    ///   The number of items to compare item with.
+    /// </param>
+    /// <returns>
+    ///   The index of <c>item</c> if found in the list; otherwise, -1.
+    /// </returns>
+    function LastIndexOf(const item: T; index, count: Integer): Integer; overload;
 
     /// <summary>
     ///   Returns the list as read-only list.
     /// </summary>
+    /// <returns>
+    ///   The list as read-only list.
+    /// </returns>
     /// <remarks>
     ///   This method will not perform a copy but will return the same instance
-    ///   as IReadOnlyList&lt;T&gt;.
+    ///   as <see cref="Spring.Collections|IReadOnlyList&lt;T&gt;" />.
     /// </remarks>
     function AsReadOnly: IReadOnlyList<T>;
 
     /// <summary>
-    ///   Resize the internal storage so that it is the same size as the
-    ///   collection.
+    ///   Sets the capacity to the actual number of elements in the list.
     /// </summary>
     procedure TrimExcess;
 
+    /// <summary>
+    ///   Gets or sets the total number of elements the internal data structure
+    ///   can hold without resizing.
+    /// </summary>
+    /// <value>
+    ///   The number of elements that the list can contain before resizing is
+    ///   required.
+    /// </value>
     property Capacity: Integer read GetCapacity write SetCapacity;
+
+    /// <summary>
+    ///   Gets the number of elements contained in the list.
+    /// </summary>
+    /// <value>
+    ///   The number of elements contained in the list.
+    /// </value>
     property Count: Integer read GetCount write SetCount;
+
+    /// <summary>
+    ///   Gets or sets the element at the specified index in the list.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based index of the element to get.
+    /// </param>
+    /// <value>
+    ///   The element at the specified index.
+    /// </value>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the list.
+    /// </exception>
     property Items[index: Integer]: T read GetItem write SetItem; default;
+
+    /// <summary>
+    ///   Gets or sets the state of lifetime management for objects.
+    /// </summary>
+    /// <value>
+    ///   The state of lifetime management for objects of the list.
+    /// </value>
     property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
   end;
 
@@ -1516,7 +2458,7 @@ type
     /// </summary>
     /// <value>
     ///   A reference to the next node in the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
-    ///    , or <b>nil</b> if the current node is the last element (Last) of
+    ///    , or <c>nil</c> if the current node is the last element (Last) of
     ///   the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />.
     /// </value>
     property Next: TLinkedListNode<T> read GetNext;
@@ -1561,35 +2503,20 @@ type
     /// </summary>
     /// <param name="node">
     ///   The <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" /> after
-    ///   which to insert <i>newNode</i>.
+    ///   which to insert <c>newNode</c>.
     /// </param>
     /// <param name="value">
     ///   The new <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" /> to
     ///   add to the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />.
     /// </param>
-    /// <exception cref="Spring|EArgumentNullException">
-    ///   <para>
-    ///     <i>node</i> is <b>nil</b>.
-    ///   </para>
-    ///   <para>
-    ///     -or-
-    ///   </para>
-    ///   <para>
-    ///     <i>newNode</i> is <b>nil</b>.
-    ///   </para>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>node</c> is <c>nil</c>. <br /><br />-or- <br /><br /><c>newNode</c>
+    ///    is <c>nil</c>.
     /// </exception>
     /// <exception cref="Spring|EInvalidOperationException">
-    ///   <para>
-    ///     <i>node</i> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
-    ///      .
-    ///   </para>
-    ///   <para>
-    ///     -or-
-    ///   </para>
-    ///   <para>
-    ///     <i>newNode</i> belongs to another <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
-    ///      .
-    ///   </para>
+    ///   <c>node</c> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///    . <br /><br />-or- <br /><br /><c>newNode</c> belongs to another <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///    .
     /// </exception>
     procedure AddAfter(const node: TLinkedListNode<T>; const newNode: TLinkedListNode<T>); overload;
 
@@ -1601,7 +2528,7 @@ type
     /// <param name="node">
     ///   The <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" /> after
     ///   which to insert a new <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" />
-    ///    containing <i>value</i>.
+    ///    containing <c>value</c>.
     /// </param>
     /// <param name="value">
     ///   The value to add to the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
@@ -1609,13 +2536,13 @@ type
     /// </param>
     /// <returns>
     ///   The new <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" />
-    ///   containing <i>value</i>.
+    ///   containing <c>value</c>.
     /// </returns>
-    /// <exception cref="Spring|EArgumentNullException">
-    ///   <i>node</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>node</c> is <c>nil</c>.
     /// </exception>
     /// <exception cref="Spring|EInvalidOperationException">
-    ///   <i>node</i> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///   <c>node</c> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
     ///    .
     /// </exception>
     function AddAfter(const node: TLinkedListNode<T>; const value: T): TLinkedListNode<T>; overload;
@@ -1626,35 +2553,20 @@ type
     /// </summary>
     /// <param name="node">
     ///   The <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" /> before
-    ///   which to insert <i>newNode</i>.
+    ///   which to insert <c>newNode</c>.
     /// </param>
     /// <param name="newNode">
     ///   The new <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" /> to
     ///   add to the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />.
     /// </param>
-    /// <exception cref="Spring|EArgumentNullException">
-    ///   <para>
-    ///     <i>node</i> is <b>nil</b>.
-    ///   </para>
-    ///   <para>
-    ///     -or-
-    ///   </para>
-    ///   <para>
-    ///     <i>newNode</i> is <b>nil</b>.
-    ///   </para>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>node</c> is <c>nil</c>. <br /><br />-or- <br /><br /><c>newNode</c>
+    ///    is <c>nil</c>.
     /// </exception>
     /// <exception cref="Spring|EInvalidOperationException">
-    ///   <para>
-    ///     <i>node</i> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
-    ///      .
-    ///   </para>
-    ///   <para>
-    ///     -or-
-    ///   </para>
-    ///   <para>
-    ///     <i>newNode</i> belongs to another <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
-    ///      .
-    ///   </para>
+    ///   <c>node</c> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///    . <br /><br />-or- <br /><br /><c>newNode</c> belongs to another <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///    .
     /// </exception>
     procedure AddBefore(const node: TLinkedListNode<T>; const newNode: TLinkedListNode<T>); overload;
 
@@ -1666,7 +2578,7 @@ type
     /// <param name="node">
     ///   The <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" /> before
     ///   which to insert a new <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" />
-    ///    containing <i>value</i>.
+    ///    containing <c>value</c>.
     /// </param>
     /// <param name="value">
     ///   The value to add to the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
@@ -1674,13 +2586,13 @@ type
     /// </param>
     /// <returns>
     ///   The new <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" />
-    ///   containing <i>value</i>.
+    ///   containing <c>value</c>.
     /// </returns>
-    /// <exception cref="Spring|EArgumentNullException">
-    ///   <i>node</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>node</c> is <c>nil</c>.
     /// </exception>
     /// <exception cref="Spring|EInvalidOperationException">
-    ///   <i>node</i> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///   <c>node</c> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
     ///    .
     /// </exception>
     function AddBefore(const node: TLinkedListNode<T>; const value: T): TLinkedListNode<T>; overload;
@@ -1694,11 +2606,11 @@ type
     ///   add at the start of the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
     ///    .
     /// </param>
-    /// <exception cref="Spring|EArgumentNullException">
-    ///   <i>node</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>node</c> is <c>nil</c>.
     /// </exception>
     /// <exception cref="Spring|EInvalidOperationException">
-    ///   <i>node</i> belongs to another <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///   <c>node</c> belongs to another <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
     ///    .
     /// </exception>
     procedure AddFirst(const node: TLinkedListNode<T>); overload;
@@ -1713,7 +2625,7 @@ type
     /// </param>
     /// <returns>
     ///   The new <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" />
-    ///   containing <i>value</i>.
+    ///   containing <c>value</c>.
     /// </returns>
     function AddFirst(const value: T): TLinkedListNode<T>; overload;
 
@@ -1726,11 +2638,11 @@ type
     ///   add at the end of the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
     ///    .
     /// </param>
-    /// <exception cref="Spring|EArgumentNullException">
-    ///   <i>node</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>node</c> is <c>nil</c>.
     /// </exception>
     /// <exception cref="Spring|EInvalidOperationException">
-    ///   <i>node</i> belongs to another <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///   <c>node</c> belongs to another <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
     ///    .
     /// </exception>
     procedure AddLast(const node: TLinkedListNode<T>); overload;
@@ -1745,7 +2657,7 @@ type
     /// </param>
     /// <returns>
     ///   The new <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" />
-    ///   containing <i>value</i>.
+    ///   containing <c>value</c>.
     /// </returns>
     function AddLast(const value: T): TLinkedListNode<T>; overload;
 
@@ -1758,7 +2670,7 @@ type
     /// </param>
     /// <returns>
     ///   The first <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" />
-    ///   that contains the specified value, if found; otherwise, <b>nil</b>.
+    ///   that contains the specified value, if found; otherwise, <c>nil</c>.
     /// </returns>
     function Find(const value: T): TLinkedListNode<T>;
 
@@ -1771,7 +2683,7 @@ type
     /// </param>
     /// <returns>
     ///   The last <see cref="Spring.Collections|TLinkedListNode&lt;T&gt;" />
-    ///   that contains the specified value, if found; otherwise, <b>nil</b>.
+    ///   that contains the specified value, if found; otherwise, <c>nil</c>.
     /// </returns>
     function FindLast(const value: T): TLinkedListNode<T>;
 
@@ -1784,11 +2696,11 @@ type
     ///   remove from the <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
     ///    .
     /// </param>
-    /// <exception cref="Spring|EArgumentNullException">
-    ///   <i>node</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>node</c> is <c>nil</c>.
     /// </exception>
     /// <exception cref="Spring|EInvalidOperationException">
-    ///   <i>node</i> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
+    ///   <c>node</c> is not in the current <see cref="Spring.Collections|ILinkedList&lt;T&gt;" />
     ///    .
     /// </exception>
     procedure Remove(const node: TLinkedListNode<T>); overload;
@@ -1833,9 +2745,22 @@ type
     property Last: TLinkedListNode<T> read GetLast;
     {$WARNINGS ON}
 
+    /// <summary>
+    ///   Occurs when an item is added, removed, or moved, or the entire list
+    ///   is refreshed.
+    /// </summary>
     property OnChanged: ICollectionChangedEvent<T> read GetOnChanged;
   end;
 
+  /// <summary>
+  ///   Represents a generic read-only collection of key/value pairs.
+  /// </summary>
+  /// <typeparam name="TKey">
+  ///   The type of keys in the map.
+  /// </typeparam>
+  /// <typeparam name="TValue">
+  ///   The type of values in the map.
+  /// </typeparam>
   IReadOnlyMap<TKey, TValue> = interface(IReadOnlyCollection<TPair<TKey, TValue>>) //FI:W524
     ['{1FBECEB8-582E-4108-BB44-F21A06FE425B}']
   {$REGION 'Property Accessors'}
@@ -1846,17 +2771,18 @@ type
   {$ENDREGION}
 
     /// <summary>
-    ///   Determines whether the map contains the specified key/value pair.
+    ///   Determines whether the map contains the element with the specified
+    ///   key/value pair.
     /// </summary>
     /// <param name="key">
-    ///   The key of the pair to locate in the map.
+    ///   The key of the element to locate in the map.
     /// </param>
     /// <param name="value">
-    ///   The value of the pair to locate in the map.
+    ///   The value of the element to locate in the map.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the map contains a pair with the specified key and
-    ///   value; otherwise <b>False</b>.
+    ///   <c>True</c> if the map contains an element with the specified key and
+    ///   value; otherwise, <c>False</c>.
     /// </returns>
     function Contains(const key: TKey; const value: TValue): Boolean;
 
@@ -1865,11 +2791,11 @@ type
     ///   key.
     /// </summary>
     /// <param name="key">
-    ///   The key to locate in the map.
+    ///   The key of the element to locate in the map.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the map contains an element with the key; otherwise, <b>
-    ///   False</b>.
+    ///   <c>True</c> if the map contains an element with the specified key;
+    ///   otherwise, <c>False</c>.
     /// </returns>
     function ContainsKey(const key: TKey): Boolean;
 
@@ -1878,35 +2804,44 @@ type
     ///   value.
     /// </summary>
     /// <param name="value">
-    ///   The value to locate in the map.
+    ///   The value of the element to locate in the map.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the map contains an element with the value; otherwise,
-    ///   <b>False</b>.
+    ///   <c>True</c> if the map contains an element with the specified value;
+    ///   otherwise, <c>False</c>.
     /// </returns>
     function ContainsValue(const value: TValue): Boolean;
 
     /// <summary>
-    ///   Gets an <see cref="IReadOnlyCollection&lt;T&gt;" /> containing the
-    ///   keys of the map.
+    ///   Gets a collection containing the keys of the map.
     /// </summary>
     /// <value>
-    ///   An <see cref="IReadOnlyCollection&lt;T&gt;" /> containing the keys of
-    ///   the object that implements map.
+    ///   A read-only collection containing the keys of the map.
     /// </value>
     property Keys: IReadOnlyCollection<TKey> read GetKeys;
 
     /// <summary>
-    ///   Gets an <see cref="IReadOnlyCollection&lt;T&gt;" /> containing the
-    ///   values in the map.
+    ///   Gets a collection containing the values in the map.
     /// </summary>
     /// <value>
-    ///   An <see cref="IReadOnlyCollection&lt;T&gt;" /> containing the values
-    ///   in the object that implements map.
+    ///   A read-only collection containing the values in the map.
     /// </value>
     property Values: IReadOnlyCollection<TValue> read GetValues;
 
+    /// <summary>
+    ///   Gets the type of the key of the elements in the map.
+    /// </summary>
+    /// <value>
+    ///   The type of the key of the elements in the map.
+    /// </value>
     property KeyType: PTypeInfo read GetKeyType;
+
+    /// <summary>
+    ///   Gets the type of the value of the elements in the map.
+    /// </summary>
+    /// <value>
+    ///   The type of the value of the elements in the map.
+    /// </value>
     property ValueType: PTypeInfo read GetValueType;
   end;
 
@@ -1938,7 +2873,7 @@ type
     function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
 
     /// <summary>
-    ///   Gets the value associated with the specified key.
+    ///   Attempts to get the value associated with the specified key.
     /// </summary>
     /// <param name="key">
     ///   The key whose value to get.
@@ -1949,16 +2884,23 @@ type
     ///   of the value parameter.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the object that implements IDictionary&lt;TKey,
-    ///   TValue&gt; contains an element with the specified key; otherwise, <b>
-    ///   False</b>.
+    ///   <c>True</c> if the specified key was found; otherwise, <c>False</c>.
     /// </returns>
     function TryGetValue(const key: TKey; var value: TValue): Boolean;
 
     /// <summary>
-    ///   Gets the element that has the specified key in the read-only
-    ///   dictionary.
+    ///   Gets the value associated with the specified key.
     /// </summary>
+    /// <param name="key">
+    ///   The key of the value to get.
+    /// </param>
+    /// <value>
+    ///   The value associated with the specified key. If the specified key is
+    ///   not found, throws an <see cref="Spring|EKeyNotFoundException" />.
+    /// </value>
+    /// <exception cref="Spring|EKeyNotFoundException">
+    ///   <c>key</c> does not exist in the dictionary.
+    /// </exception>
     property Items[const key: TKey]: TValue read GetItem; default;
   end;
 
@@ -1972,8 +2914,30 @@ type
     function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
   {$ENDREGION}
 
+    /// <summary>
+    ///   Determines the index of a specific element in the dictionary.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the element to locate in the dictionary.
+    /// </param>
+    /// <returns>
+    ///   The index of the element with the specified key if found in the
+    ///   dictionary; otherwise, -1.
+    /// </returns>
     function IndexOf(const key: TKey): Integer;
 
+    /// <summary>
+    ///   Gets the element at the specified index in the dictionary.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based index of the element to get.
+    /// </param>
+    /// <value>
+    ///   The element at the specified index.
+    /// </value>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the dictionary.
+    /// </exception>
     property Items[index: Integer]: TPair<TKey, TValue> read GetItemByIndex;
   end;
 
@@ -1998,19 +2962,19 @@ type
   {$ENDREGION}
 
     /// <summary>
-    ///   Adds an element with the provided key and value to the
-    ///   IMap&lt;TKey,TValue&gt;.
+    ///   Adds an element with the specified key and value to the collection.
     /// </summary>
     /// <param name="key">
-    ///   The value to use as the key of the element to add.
+    ///   The key of the element to add.
     /// </param>
     /// <param name="value">
-    ///   The value to use as the value of the element to add.
+    ///   The value of the element to add.
     /// </param>
     procedure Add(const key: TKey; const value: TValue); overload;
 
     /// <summary>
-    ///   Attempts to add the specified key and value to the map.
+    ///   Attempts to add an element with the specified key and value to the
+    ///   collection.
     /// </summary>
     /// <param name="key">
     ///   The key of the element to add.
@@ -2019,43 +2983,43 @@ type
     ///   The value of the element to add.
     /// </param>
     /// <returns>
-    ///   True if the key/value pair was added to the map.
+    ///   <c>True</c> if the key/value pair was added to the map; otherwise, <c>
+    ///   False</c>.
     /// </returns>
     function TryAdd(const key: TKey; const value: TValue): Boolean;
 
     /// <summary>
-    ///   Removes the element with the specified key from the IMap&lt;TKey,
-    ///   TValue&gt;.
+    ///   Removes the element with the specified key from the collection.
     /// </summary>
     /// <param name="key">
     ///   The key of the element to remove.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the element is successfully removed; otherwise, <b>
-    ///   False</b>. This method also returns <b>False</b> if <i>key</i> was
-    ///   not found in the original IMap&lt;TKey, TValue&gt;.
+    ///   <c>True</c> if the element is successfully removed; otherwise, <c>
+    ///   False</c>. This method returns <c>False</c> if <c>key</c> was not
+    ///   found.
     /// </returns>
     function Remove(const key: TKey): Boolean; overload;
 
     /// <summary>
-    ///   Removes the specified key/value pair from the IMap&lt;TKey,
-    ///   TValue&gt;.
+    ///   Removes the element with the specified key and value from the
+    ///   collection.
     /// </summary>
     /// <param name="key">
-    ///   The key of the pair to remove.
+    ///   The key of the element to remove.
     /// </param>
     /// <param name="value">
-    ///   The value of the pair to remove,
+    ///   The value of the element to remove.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the pair was successfully removed; otherwise, <b>False</b>
-    ///    .
+    ///   <c>True</c> if the element was successfully removed; otherwise, <c>
+    ///   False</c> . This method returns <c>False</c> if <c>key</c> was not
+    ///   found.
     /// </returns>
     function Remove(const key: TKey; const value: TValue): Boolean; overload;
 
     /// <summary>
-    ///   Removes the specified range of keys from the IMap&lt;TKey,
-    ///   TValue&gt;.
+    ///   Removes the elements with the specified keys from the collection.
     /// </summary>
     /// <param name="keys">
     ///   The keys of the elements to remove.
@@ -2066,8 +3030,7 @@ type
     function RemoveRange(const keys: array of TKey): Integer; overload;
 
     /// <summary>
-    ///   Removes the specified range of keys from the IMap&lt;TKey,
-    ///   TValue&gt;.
+    ///   Removes the elements with the specified keys from the collection.
     /// </summary>
     /// <param name="keys">
     ///   The keys of the elements to remove.
@@ -2075,71 +3038,103 @@ type
     /// <returns>
     ///   The number of elements that were actually removed.
     /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>keys</c> is <c>nil</c>.
+    /// </exception>
     function RemoveRange(const keys: IEnumerable<TKey>): Integer; overload;
 
+    /// <summary>
+    ///   Removes the element associated with the specified key if it matches
+    ///   the specified value without triggering lifetime management for
+    ///   objects.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the element to remove.
+    /// </param>
+    /// <param name="value">
+    ///   The value of the element to remove.
+    /// </param>
+    /// <returns>
+    ///   The removed key/value pair for the specified key if it existed;
+    ///   otherwise, <c>Default(TPair&lt;TKey,TValue&gt;)</c>.
+    /// </returns>
     function Extract(const key: TKey; const value: TValue): TPair<TKey, TValue>;
 
     /// <summary>
-    ///   Determines whether the IMap&lt;TKey,TValue&gt; contains the specified
+    ///   Determines whether the map contains an element with the specified
     ///   key/value pair.
     /// </summary>
     /// <param name="key">
-    ///   The key of the pair to locate in the IMap&lt;TKey, TValue&gt;.
+    ///   The key of the element to locate in the map.
     /// </param>
     /// <param name="value">
-    ///   The value of the pair to locate in the IMap&lt;TKey, TValue&gt;.
+    ///   The value of the element to locate in the map.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the IMap&lt;TKey, TValue&gt; contains a pair with the
-    ///   specified key and value; otherwise <b>False</b>.
+    ///   <c>True</c> if the map contains an element with the specified key and
+    ///   value; otherwise, <c>False</c>.
     /// </returns>
     function Contains(const key: TKey; const value: TValue): Boolean; overload;
 
     /// <summary>
-    ///   Determines whether the IMap&lt;TKey, TValue&gt; contains an element
-    ///   with the specified key.
+    ///   Determines whether the map contains an element with the specified
+    ///   key.
     /// </summary>
     /// <param name="key">
-    ///   The key to locate in the IMap&lt;TKey, TValue&gt;.
+    ///   The key of the element to locate in the map.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the IMap&lt;TKey, TValue&gt; contains an element with
-    ///   the key; otherwise, <b>False</b>.
+    ///   <c>True</c> if the map contains an element with the specified key;
+    ///   otherwise, <c>False</c>.
     /// </returns>
     function ContainsKey(const key: TKey): Boolean;
 
     /// <summary>
-    ///   Determines whether the IMap&lt;TKey, TValue&gt; contains an element
-    ///   with the specified value.
+    ///   Determines whether the map contains an element with the specified
+    ///   value.
     /// </summary>
     /// <param name="value">
-    ///   The value to locate in the IMap&lt;TKey, TValue&gt;.
+    ///   The value of the element to locate in the map.
     /// </param>
+    /// <returns>
+    ///   <c>True</c> if the map contains an element with the specified value;
+    ///   otherwise, <c>False</c>.
+    /// </returns>
     function ContainsValue(const value: TValue): Boolean;
 
     /// <summary>
-    ///   Gets an <see cref="IReadOnlyCollection&lt;T&gt;" /> containing the
-    ///   keys of the IMap&lt;TKey, TValue&gt;.
+    ///   Gets a collection containing the keys of the map.
     /// </summary>
     /// <value>
-    ///   An <see cref="IReadOnlyCollection&lt;T&gt;" /> containing the keys of
-    ///   the object that implements IDictionary&lt;TKey, TValue&gt;.
+    ///   A read-only collection containing the keys of the map.
     /// </value>
     property Keys: IReadOnlyCollection<TKey> read GetKeys;
 
     /// <summary>
-    ///   Gets an <see cref="IReadOnlyCollection&lt;T&gt;" /> containing the
-    ///   values in the IMap&lt;TKey, TValue&gt;.
+    ///   Gets a collection containing the values in the map.
     /// </summary>
     /// <value>
-    ///   An <see cref="IReadOnlyCollection&lt;T&gt;" /> containing the values
-    ///   in the object that implements IMap&lt;TKey, TValue&gt;.
+    ///   A read-only collection containing the values of the map.
     /// </value>
     property Values: IReadOnlyCollection<TValue> read GetValues;
 
     property OnKeyChanged: ICollectionChangedEvent<TKey> read GetOnKeyChanged;
     property OnValueChanged: ICollectionChangedEvent<TValue> read GetOnValueChanged;
+
+    /// <summary>
+    ///   Gets the type of the key of the elements in the map.
+    /// </summary>
+    /// <value>
+    ///   The type of the key of the elements in the map.
+    /// </value>
     property KeyType: PTypeInfo read GetKeyType;
+
+    /// <summary>
+    ///   Gets the type of the value of the elements in the map.
+    /// </summary>
+    /// <value>
+    ///   The type of the value of the elements in the map.
+    /// </value>
     property ValueType: PTypeInfo read GetValueType;
   end;
 
@@ -2161,18 +3156,28 @@ type
     procedure SetItem(const key: TKey; const value: TValue);
   {$ENDREGION}
 
+    /// <summary>
+    ///   Adds the specified key and value to the dictionary or sets the value
+    ///   associated with the specified key.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the element to add or set.
+    /// </param>
+    /// <param name="value">
+    ///   The value of the element to add or set.
+    /// </param>
     procedure AddOrSetValue(const key: TKey; const value: TValue); deprecated 'Use dict[key] := value instead';
 
     /// <summary>
-    ///   Removes the value for a specified key without triggering lifetime
-    ///   management for objects.
+    ///   Removes the value associated with the specified key without
+    ///   triggering lifetime management for objects.
     /// </summary>
     /// <param name="key">
-    ///   The key whose value to remove.
+    ///   The key of the element to remove.
     /// </param>
     /// <returns>
-    ///   The removed value for the specified key if it existed; <b>default</b>
-    ///   otherwise.
+    ///   The removed value for the specified key if it existed; otherwise, <c>
+    ///   Default(TValue)</c>.
     /// </returns>
     function Extract(const key: TKey): TValue; overload;
 
@@ -2180,12 +3185,29 @@ type
     ///   Gets the value for a given key if a matching key exists in the
     ///   dictionary; returns the default value otherwise.
     /// </summary>
+    /// <param name="key">
+    ///   The key of the element to get.
+    /// </param>
+    /// <returns>
+    ///   The value associated with the specified key. If the specified key is
+    ///   not found, <c>Default(TValue)</c>.
+    /// </returns>
     function GetValueOrDefault(const key: TKey): TValue; overload;
 
     /// <summary>
     ///   Gets the value for a given key if a matching key exists in the
     ///   dictionary; returns the given default value otherwise.
     /// </summary>
+    /// <param name="key">
+    ///   The key of the element to get.
+    /// </param>
+    /// <param name="defaultValue">
+    ///   The value to return if key is not found.
+    /// </param>
+    /// <returns>
+    ///   The value associated with the specified key. If the specified key is
+    ///   not found, <c>defaultValue</c>.
+    /// </returns>
     function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
 
     /// <summary>
@@ -2193,29 +3215,29 @@ type
     ///   key, without triggering lifetime management for objects.
     /// </summary>
     /// <param name="key">
-    ///   The key whose value to get.
+    ///   The key of the element to extract.
     /// </param>
     /// <param name="value">
     ///   The value associated with the specified key, if the key is found;
-    ///   otherwise, <b>Default(TValue)</b>.
+    ///   otherwise, <c>Default(TValue)</c>.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the key is found; <b>False</b> otherwise.
+    ///   <c>True</c> if the key is found; otherwise, <c>False</c>.
     /// </returns>
     function TryExtract(const key: TKey; var value: TValue): Boolean;
 
     /// <summary>
-    ///   Gets the value associated with the specified key.
+    ///   Attempts to get the value associated with the specified key.
     /// </summary>
     /// <param name="key">
-    ///   The key whose value to get.
+    ///   The key of the element to get.
     /// </param>
     /// <param name="value">
     ///   The value associated with the specified key, if the key is found;
-    ///   otherwise, <b>Default(TValue)</b>.
+    ///   otherwise, <c>Default(TValue)</c>.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the key is found; <b>False</b> otherwise.
+    ///   <c>True</c> if the key is found; otherwise, <c>False</c>.
     /// </returns>
     function TryGetValue(const key: TKey; var value: TValue): Boolean;
 
@@ -2223,38 +3245,48 @@ type
     ///   Updates the value associated with the specified key.
     /// </summary>
     /// <param name="key">
-    ///   The key whose value to update.
+    ///   The key of the element to update.
     /// </param>
     /// <param name="newValue">
-    ///   The new value to be associated with the specified key, if the key is found.
+    ///   The new value to be associated with the specified key, if the key is
+    ///   found.
     /// </param>
     /// <param name="oldValue">
-    ///   The original value associated with the specified key, if the key is found;
-    ///   otherwise, <b>Default(TValue)</b>.
+    ///   The original value associated with the specified key, if the key is
+    ///   found; otherwise, <c>Default(TValue)</c>.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the key is found and the value updated; <b>False</b> otherwise.
+    ///   <c>True</c> if the key is found and the value updated; otherwise, <c>
+    ///   False</c>.
     /// </returns>
-    function TryUpdateValue(const key: TKey; const newValue: TValue; var value: TValue): Boolean;
+    function TryUpdateValue(const key: TKey; const newValue: TValue; var oldValue: TValue): Boolean;
 
     /// <summary>
     ///   Returns the dictionary as read-only dictionary.
     /// </summary>
+    /// <returns>
+    ///   The dictionary as read-only dictionary.
+    /// </returns>
     /// <remarks>
     ///   This method will not perform a copy but will return the same instance
-    ///   as IReadOnlyDictionary&lt;TKey, TValue&gt;.
+    ///   as <see cref="Spring.Collections|IReadOnlyDictionary&lt;TKey,TValue&gt;" />
+    ///    .
     /// </remarks>
     function AsReadOnly: IReadOnlyDictionary<TKey, TValue>;
 
     /// <summary>
-    ///   Resize the internal storage so that it is the same size as the
-    ///   collection.
+    ///   Sets the capacity to the actual number of elements in the dictionary.
     /// </summary>
     procedure TrimExcess;
 
     /// <summary>
-    ///   Gets or sets the size of the internal storage.
+    ///   Gets or sets the total number of elements the internal data structure
+    ///   can hold without resizing.
     /// </summary>
+    /// <value>
+    ///   The number of elements that the list can contain before resizing is
+    ///   required.
+    /// </value>
     property Capacity: Integer read GetCapacity write SetCapacity;
 
     /// <summary>
@@ -2265,12 +3297,12 @@ type
     /// </param>
     /// <value>
     ///   The value associated with the specified key. If the specified key is
-    ///   not found, a get operation throws an EKeyNotFoundException, and a set
-    ///   operation creates a new element with the specified key.
+    ///   not found, a get operation throws an <see cref="Spring|EKeyNotFoundException" />
+    ///    , and a set operation creates a new element with the specified key.
     /// </value>
-    /// <exception cref="EKeyNotFoundException">
-    ///   The property is retrieved and <i>key</i> does not exist in the
-    ///   collection.
+    /// <exception cref="Spring|EKeyNotFoundException">
+    ///   The property is retrieved and <c>key</c> does not exist in the
+    ///   dictionary.
     /// </exception>
     property Items[const key: TKey]: TValue read GetItem write SetItem; default;
   end;
@@ -2284,10 +3316,43 @@ type
     function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
   {$ENDREGION}
 
+    /// <summary>
+    ///   Determines the index of a specific element in the dictionary.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the element to locate in the dictionary.
+    /// </param>
+    /// <returns>
+    ///   The index of the element with the specified key if found in the
+    ///   dictionary; otherwise, -1.
+    /// </returns>
     function IndexOf(const key: TKey): Integer;
 
+    /// <summary>
+    ///   Returns the dictionary as read-only ordered dictionary.
+    /// </summary>
+    /// <returns>
+    ///   The dictionary as read-only ordered dictionary.
+    /// </returns>
+    /// <remarks>
+    ///   This method will not perform a copy but will return the same instance
+    ///   as <see cref="Spring.Collections|IReadOnlyOrderedDictionary&lt;TKey,TValue&gt;" />
+    ///    .
+    /// </remarks>
     function AsReadOnly: IReadOnlyOrderedDictionary<TKey, TValue>;
 
+    /// <summary>
+    ///   Gets the element at the specified index in the dictionary.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based index of the element to get.
+    /// </param>
+    /// <value>
+    ///   The element at the specified index.
+    /// </value>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the dictionary.
+    /// </exception>
     property Items[index: Integer]: TPair<TKey, TValue> read GetItemByIndex;
   end;
 
@@ -2298,9 +3363,14 @@ type
   {$ENDREGION}
 
     /// <summary>
-    ///   Returns the inverse view of this bidirectional dictionary which maps
-    ///   each of its values to its associated key.
+    ///   Returns the inverse view of this bidirectional dictionary, which maps
+    ///   each of its values to its associated key. The two bidirectional
+    ///   dictionaries are backed by the same data; any changes to one will
+    ///   appear in the other.
     /// </summary>
+    /// <value>
+    ///   The inverse view of this bidirectional dictonary.
+    /// </value>
     property Inverse: IBidiDictionary<TValue, TKey> read GetInverse;
   end;
 
@@ -2310,7 +3380,36 @@ type
     function GetItems(const key: TKey): IReadOnlyCollection<TValue>;
   {$ENDREGION}
 
+    /// <summary>
+    ///   Attempts to get the values associated with the specified key.
+    /// </summary>
+    /// <param name="key">
+    ///   The key whose values to get.
+    /// </param>
+    /// <param name="value">
+    ///   When this method returns, the values associated with the specified
+    ///   key, if the key is found; otherwise, <c>nil</c>.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the specified key was found; otherwise, <c>False</c>.
+    /// </returns>
     function TryGetValues(const key: TKey; var values: IReadOnlyCollection<TValue>): Boolean;
+
+    /// <summary>
+    ///   Gets a collection of the values accociated with the/ specified key.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the values to get.
+    /// </param>
+    /// <value>
+    ///   A read-only collection containing the values accociated with the
+    ///   specified key.
+    /// </value>
+    /// <remarks>
+    ///   If the specified key does not exist in the multimap, an empty
+    ///   collection is returned. <br /><br />Any changes to the multimap will
+    ///   appear in the returned collections.
+    /// </remarks>
     property Items[const key: TKey]: IReadOnlyCollection<TValue> read GetItems; default;
   end;
 
@@ -2321,25 +3420,49 @@ type
   {$ENDREGION}
 
     /// <summary>
-    ///   Adds an element with the provided key and value to the map and
+    ///   Adds an element with the specified key and value to the map and
     ///   returns if the underlying map was modified.
     /// </summary>
     /// <param name="key">
-    ///   The value to use as the key of the element to add.
+    ///   The key of the element to add.
     /// </param>
     /// <param name="value">
-    ///   The value to use as the value of the element to add.
+    ///   The value of the element to add.
     /// </param>
     /// <returns>
-    ///   True if the map was modified, False otherwise.
+    ///   <c>True</c> if the map was modified, <c>False</c> otherwise.
     /// </returns>
     function Add(const key: TKey; const value: TValue): Boolean; overload;
 
+    /// <summary>
+    ///   Adds multiple elements with the specified values accociated with the
+    ///   specified key.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the elements to add.
+    /// </param>
+    /// <param name="value">
+    ///   The values of the elements to add.
+    /// </param>
     procedure AddRange(const key: TKey; const values: array of TValue); overload;
+
+    /// <summary>
+    ///   Adds multiple elements with the specified values accociated with the
+    ///   specified key.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the elements to add.
+    /// </param>
+    /// <param name="value">
+    ///   The values of the elements to add.
+    /// </param>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>values</c> is <c>nil</c>.
+    /// </exception>
     procedure AddRange(const key: TKey; const values: IEnumerable<TValue>); overload;
 
     /// <summary>
-    ///   Extracts all values for the given key from the multimap.
+    ///   Extracts all values accociated with the given key from the multimap.
     /// </summary>
     /// <remarks>
     ///   If the multimap has doOwnsValues set the items in the returned list
@@ -2348,17 +3471,48 @@ type
     /// </remarks>
     function Extract(const key: TKey): ICollection<TValue>; overload;
 
+    /// <summary>
+    ///   Attempts to get the values associated with the specified key.
+    /// </summary>
+    /// <param name="key">
+    ///   The key whose values to get.
+    /// </param>
+    /// <param name="value">
+    ///   When this method returns, the values associated with the specified
+    ///   key, if the key is found; otherwise, <c>nil</c>.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the specified key was found; otherwise, <c>False</c>.
+    /// </returns>
     function TryGetValues(const key: TKey; var values: IReadOnlyCollection<TValue>): Boolean;
 
     /// <summary>
     ///   Returns the multimap as read-only multimap.
     /// </summary>
+    /// <returns>
+    ///   The multimap as read-only ordered multimap.
+    /// </returns>
     /// <remarks>
     ///   This method will not perform a copy but will return the same instance
     ///   as IReadOnlyMultiMap&lt;TKey, TValue&gt;.
     /// </remarks>
     function AsReadOnly: IReadOnlyMultiMap<TKey, TValue>;
 
+    /// <summary>
+    ///   Gets a collection of the values accociated with the/ specified key.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the values to get.
+    /// </param>
+    /// <value>
+    ///   A read-only collection containing the values accociated with the
+    ///   specified key.
+    /// </value>
+    /// <remarks>
+    ///   If the specified key does not exist in the multimap, an empty
+    ///   collection is returned. <br /><br />Any changes to the multimap will
+    ///   appear in the returned collections.
+    /// </remarks>
     property Items[const key: TKey]: IReadOnlyCollection<TValue> read GetItems; default;
   end;
 
@@ -2386,11 +3540,10 @@ type
     ///   Adds an element at the top of the stack.
     /// </summary>
     /// <param name="item">
-    ///   The element to push onto the stack. The value can be <b>nil</b> for
-    ///   reference types.
+    ///   The element to push onto the stack.
     /// </param>
     /// <returns>
-    ///   True if the element was added, False otherwise.
+    ///   <c>True</c> if the element was added; otherwise, <c>False</c>.
     /// </returns>
     function Push(const item: T): Boolean;
 
@@ -2407,9 +3560,9 @@ type
     function Pop: T;
 
     /// <summary>
-    ///   Removes and returns the element at the top of the stack. If the
-    ///   stack has ownership over the instances, then ownership of the
-    ///   returned element is transferred to the caller.
+    ///   Removes and returns the element at the top of the stack. If the stack
+    ///   has ownership over the instances, then ownership of the returned
+    ///   element is transferred to the caller.
     /// </summary>
     /// <returns>
     ///   The element that was removed.
@@ -2423,7 +3576,7 @@ type
 
     /// <summary>
     ///   Returns the element at the top of the stack without removing it.
-    ///   Returns <b>Default(T)</b> if the stack is empty.
+    ///   Returns <c>Default(T)</c> if the stack is empty.
     /// </summary>
     function PeekOrDefault: T;
 
@@ -2431,26 +3584,26 @@ type
     ///   Attempts to remove and return the element at the top of the stack.
     /// </summary>
     /// <param name="item">
-    ///   The element that was removed if the operation was successful and
-    ///   the stack does not have ownership of the instances; <b>Default(T)</b>
+    ///   The element that was removed if the operation was successful and the
+    ///   stack does not have ownership of the instances; <c>Default(T)</c>
     ///   otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was removed; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was removed; otherwise, <c>False</c>.
     /// </returns>
     function TryPop(var item: T): Boolean;
 
     /// <summary>
-    ///   Attempts to remove and return the element at the top of the stack.
-    ///   If the stack has ownership over the instances, then ownership of
-    ///   the returned element is transferred to the caller.
+    ///   Attempts to remove and return the element at the top of the stack. If
+    ///   the stack has ownership over the instances, then ownership of the
+    ///   returned element is transferred to the caller.
     /// </summary>
     /// <param name="item">
-    ///   The element that was removed if the operation was successful; <b>
-    ///   Default(T)</b> otherwise.
+    ///   The element that was removed if the operation was successful; <c>
+    ///   Default(T)</c> otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was removed; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was removed; otherwise, <c>False</c>.
     /// </returns>
     function TryExtract(var item: T): Boolean;
 
@@ -2459,21 +3612,33 @@ type
     ///   removing it.
     /// </summary>
     /// <param name="item">
-    ///   The element at the top of the stack if the operation was
-    ///   successful; <b>Default(T)</b> otherwise.
+    ///   The element at the top of the stack if the operation was successful; <c>
+    ///   Default(T)</c> otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was returned; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was returned; otherwise, <c>False</c>.
     /// </returns>
     function TryPeek(var item: T): Boolean;
 
     /// <summary>
-    ///   Resize the internal storage so that it is the same size as the
-    ///   collection.
+    ///   Sets the capacity to the actual number of elements in the stack.
     /// </summary>
     procedure TrimExcess;
 
+    /// <summary>
+    ///   Gets or sets the total number of elements the internal data structure
+    ///   can hold without resizing.
+    /// </summary>
+    /// <value>
+    ///   The number of elements that the stack can contain before resizing is
+    ///   required.
+    /// </value>
     property Capacity: Integer read GetCapacity write SetCapacity;
+
+    /// <summary>
+    ///   Occurs when an item is added, removed, or moved, or the entire list
+    ///   is refreshed.
+    /// </summary>
     property OnChanged: ICollectionChangedEvent<T> read GetOnChanged;
   end;
 
@@ -2500,7 +3665,7 @@ type
     ///   Adds an element to the end of the queue.
     /// </summary>
     /// <param name="item">
-    ///   The element to add to the queue. The value can be <b>nil</b> for
+    ///   The element to add to the queue. The value can be <c>nil</c> for
     ///   reference types.
     /// </param>
     /// <returns>
@@ -2538,7 +3703,7 @@ type
 
     /// <summary>
     ///   Returns the element at the beginning of the queue without removing
-    ///   it. Returns <b>Default(T)</b> if the queue is empty.
+    ///   it. Returns <c>Default(T)</c> if the queue is empty.
     /// </summary>
     function PeekOrDefault: T;
 
@@ -2547,12 +3712,12 @@ type
     ///   queue.
     /// </summary>
     /// <param name="item">
-    ///   The element that was removed if the operation was successful and
-    ///   the queue does not have ownership of the instances; <b>Default(T)</b>
+    ///   The element that was removed if the operation was successful and the
+    ///   queue does not have ownership of the instances; <c>Default(T)</c>
     ///   otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was removed; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was removed; otherwise, <c>False</c>.
     /// </returns>
     function TryDequeue(var item: T): Boolean;
 
@@ -2562,11 +3727,11 @@ type
     ///   of the returned element is transferred to the caller.
     /// </summary>
     /// <param name="item">
-    ///   The element that was removed if the operation was successful; <b>
-    ///   Default(T)</b> otherwise.
+    ///   The element that was removed if the operation was successful; <c>
+    ///   Default(T)</c> otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was removed; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was removed; otherwise, <c>False</c>.
     /// </returns>
     function TryExtract(var item: T): Boolean;
 
@@ -2576,20 +3741,32 @@ type
     /// </summary>
     /// <param name="item">
     ///   The element at the beginning of the queue if the operation was
-    ///   successful; <b>Default(T)</b> otherwise.
+    ///   successful; <c>Default(T)</c> otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was returned; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was returned; otherwise, <c>False</c>.
     /// </returns>
     function TryPeek(var item: T): Boolean;
 
     /// <summary>
-    ///   Resize the internal storage so that it is the same size as the
-    ///   collection.
+    ///   Sets the capacity to the actual number of elements in the queue.
     /// </summary>
     procedure TrimExcess;
 
+    /// <summary>
+    ///   Gets or sets the total number of elements the internal data structure
+    ///   can hold without resizing.
+    /// </summary>
+    /// <value>
+    ///   The number of elements that the queue can contain before resizing is
+    ///   required.
+    /// </value>
     property Capacity: Integer read GetCapacity write SetCapacity;
+
+    /// <summary>
+    ///   Occurs when an item is added, removed, or moved, or the entire list
+    ///   is refreshed.
+    /// </summary>
     property OnChanged: ICollectionChangedEvent<T> read GetOnChanged;
   end;
 
@@ -2616,7 +3793,7 @@ type
     ///   Adds an element to the front of the deque.
     /// </summary>
     /// <param name="item">
-    ///   The element to add to the deque. The value can be <b>nil</b> for
+    ///   The element to add to the deque. The value can be <c>nil</c> for
     ///   reference types.
     /// </param>
     /// <returns>
@@ -2628,7 +3805,7 @@ type
     ///   Adds an element to the back of the deque.
     /// </summary>
     /// <param name="item">
-    ///   The element to add to the deque. The value can be <b>nil</b> for
+    ///   The element to add to the deque. The value can be <c>nil</c> for
     ///   reference types.
     /// </param>
     /// <returns>
@@ -2681,68 +3858,78 @@ type
     function ExtractLast: T;
 
     /// <summary>
-    ///   Attempts to remove and return the element at the front of the
-    ///   deque.
+    ///   Attempts to remove and return the element at the front of the deque.
     /// </summary>
     /// <param name="item">
-    ///   The element that was removed if the operation was successful and
-    ///   the deque does not have ownership of the instances; <b>Default(T)</b>
+    ///   The element that was removed if the operation was successful and the
+    ///   deque does not have ownership of the instances; <c>Default(T)</c>
     ///   otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was removed; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was removed; otherwise, <c>False</c>.
     /// </returns>
     function TryRemoveFirst(var item: T): Boolean;
 
     /// <summary>
-    ///   Attempts to remove and return the element at the back of the
-    ///   deque.
+    ///   Attempts to remove and return the element at the back of the deque.
     /// </summary>
     /// <param name="item">
-    ///   The element that was removed if the operation was successful and
-    ///   the deque does not have ownership of the instances; <b>Default(T)</b>
+    ///   The element that was removed if the operation was successful and the
+    ///   deque does not have ownership of the instances; <c>Default(T)</c>
     ///   otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was removed; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was removed; otherwise, <c>False</c>.
     /// </returns>
     function TryRemoveLast(var item: T): Boolean;
 
     /// <summary>
-    ///   Attempts to remove and return the element at the front of the
-    ///   deque. If the deque has ownership over the instances, then ownership
-    ///   of the returned element is transferred to the caller.
+    ///   Attempts to remove and return the element at the front of the deque.
+    ///   If the deque has ownership over the instances, then ownership of the
+    ///   returned element is transferred to the caller.
     /// </summary>
     /// <param name="item">
-    ///   The element that was removed if the operation was successful; <b>
-    ///   Default(T)</b> otherwise.
+    ///   The element that was removed if the operation was successful; <c>
+    ///   Default(T)</c> otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was removed; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was removed; otherwise, <c>False</c>.
     /// </returns>
     function TryExtractFirst(var item: T): Boolean;
 
     /// <summary>
-    ///   Attempts to remove and return the element at the back of the
-    ///   deque. If the deque has ownership over the instances, then ownership
-    ///   of the returned element is transferred to the caller.
+    ///   Attempts to remove and return the element at the back of the deque.
+    ///   If the deque has ownership over the instances, then ownership of the
+    ///   returned element is transferred to the caller.
     /// </summary>
     /// <param name="item">
-    ///   The element that was removed if the operation was successful; <b>
-    ///   Default(T)</b> otherwise.
+    ///   The element that was removed if the operation was successful; <c>
+    ///   Default(T)</c> otherwise.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if an element was removed; otherwise, <b>False</b>.
+    ///   <c>True</c> if an element was removed; otherwise, <c>False</c>.
     /// </returns>
     function TryExtractLast(var item: T): Boolean;
 
     /// <summary>
-    ///   Resize the internal storage so that it is the same size as the
-    ///   collection.
+    ///   Sets the capacity to the actual number of elements in the deque.
     /// </summary>
     procedure TrimExcess;
 
+    /// <summary>
+    ///   Gets or sets the total number of elements the internal data structure
+    ///   can hold without resizing.
+    /// </summary>
+    /// <value>
+    ///   The number of elements that the deque can contain before resizing is
+    ///   required.
+    /// </value>
     property Capacity: Integer read GetCapacity write SetCapacity;
+
+    /// <summary>
+    ///   Occurs when an item is added, removed, or moved, or the entire list
+    ///   is refreshed.
+    /// </summary>
     property OnChanged: ICollectionChangedEvent<T> read GetOnChanged;
   end;
 
@@ -2766,8 +3953,8 @@ type
     /// <param name="other">
     ///   The collection of items to remove from the set.
     /// </param>
-    /// <exception cref="EArgumentNullException">
-    ///   <i>other</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>other</c> is <c>nil</c>.
     /// </exception>
     procedure ExceptWith(const other: IEnumerable<T>);
 
@@ -2778,8 +3965,8 @@ type
     /// <param name="other">
     ///   The collection to compare to the current set.
     /// </param>
-    /// <exception cref="EArgumentNullException">
-    ///   <i>other</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>other</c> is <c>nil</c>.
     /// </exception>
     procedure IntersectWith(const other: IEnumerable<T>);
 
@@ -2790,8 +3977,8 @@ type
     /// <param name="other">
     ///   The collection to compare to the current set.
     /// </param>
-    /// <exception cref="EArgumentNullException">
-    ///   <i>other</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>other</c> is <c>nil</c>.
     /// </exception>
     procedure UnionWith(const other: IEnumerable<T>);
 
@@ -2802,11 +3989,11 @@ type
     ///   The collection to compare to the current set.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the current set is a subset of <i>other</i>;
-    ///   otherwise, <b>False</b>.
+    ///   <c>True</c> if the current set is a subset of <c>other</c>;
+    ///   otherwise, <c>False</c>.
     /// </returns>
-    /// <exception cref="EArgumentNullException">
-    ///   <i>other</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>other</c> is <c>nil</c>.
     /// </exception>
     function IsSubsetOf(const other: IEnumerable<T>): Boolean;
 
@@ -2818,11 +4005,11 @@ type
     ///   The collection to compare to the current set.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the current set is a superset of <i>other</i>;
-    ///   otherwise, <b>False</b>.
+    ///   <c>True</c> if the current set is a superset of <c>other</c>;
+    ///   otherwise, <c>False</c>.
     /// </returns>
-    /// <exception cref="EArgumentNullException">
-    ///   <i>other</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>other</c> is <c>nil</c>.
     /// </exception>
     function IsSupersetOf(const other: IEnumerable<T>): Boolean;
 
@@ -2834,11 +4021,11 @@ type
     ///   The collection to compare to the current set.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the current set is equal to <i>other</i>; otherwise, <b>
-    ///   False</b>.
+    ///   <c>True</c> if the current set is equal to <c>other</c>; otherwise, <c>
+    ///   False</c>.
     /// </returns>
-    /// <exception cref="EArgumentNullException">
-    ///   <i>other</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>other</c> is <c>nil</c>.
     /// </exception>
     function SetEquals(const other: IEnumerable<T>): Boolean;
 
@@ -2850,23 +4037,27 @@ type
     ///   The collection to compare to the current set.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if the current set and <i>other</i> share at least one
-    ///   common element; otherwise, <b>False</b>.
+    ///   <c>True</c> if the current set and <c>other</c> share at least one
+    ///   common element; otherwise, <c>False</c>.
     /// </returns>
-    /// <exception cref="EArgumentNullException">
-    ///   <i>other</i> is <b>nil</b>.
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>other</c> is <c>nil</c>.
     /// </exception>
     function Overlaps(const other: IEnumerable<T>): Boolean;
 
     /// <summary>
-    ///   Resize the internal storage so that it is the same size as the
-    ///   collection.
+    ///   Sets the capacity to the actual number of elements in the set.
     /// </summary>
     procedure TrimExcess;
 
     /// <summary>
-    ///   Gets or sets the size of the internal storage.
+    ///   Gets or sets the total number of elements the internal data structure
+    ///   can hold without resizing.
     /// </summary>
+    /// <value>
+    ///   The number of elements that the set can contain before resizing is
+    ///   required.
+    /// </value>
     property Capacity: Integer read GetCapacity write SetCapacity;
   end;
 
@@ -2879,8 +4070,29 @@ type
     function GetItemByIndex(index: Integer): T;
   {$ENDREGION}
 
-    function IndexOf(const key: T): Integer;
+    /// <summary>
+    ///   Determines the index of a specific item in the set.
+    /// </summary>
+    /// <param name="item">
+    ///   The item to locate in the dictionary.
+    /// </param>
+    /// <returns>
+    ///   The index of <c>item</c> if found in the set; otherwise, -1.
+    /// </returns>
+    function IndexOf(const item: T): Integer;
 
+    /// <summary>
+    ///   Gets the element at the specified index in the set.
+    /// </summary>
+    /// <param name="index">
+    ///   The zero-based index of the element to get.
+    /// </param>
+    /// <value>
+    ///   The element at the specified index.
+    /// </value>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>index</c> is not a valid index in the set.
+    /// </exception>
     property Items[index: Integer]: T read GetItemByIndex;
   end;
 
@@ -2940,8 +4152,8 @@ type
     ///   The count of the element before the operation, zero if the element
     ///   was not in the multiset.
     /// </returns>
-    /// <exception cref="EInvalidArgumentException">
-    ///   If count is negative
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>count</c> is negative.
     /// </exception>
     function Add(const item: T; count: Integer): Integer; overload;
 
@@ -2960,8 +4172,8 @@ type
     ///   The count of the element before the operation, zero if the element
     ///   was not in the multiset.
     /// </returns>
-    /// <exception cref="EInvalidArgumentException">
-    ///   If count is negative
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>count</c> is negative.
     /// </exception>
     function Remove(const item: T; count: Integer): Integer; overload;
 
@@ -2969,6 +4181,16 @@ type
     ///   Determines whether the current multiset and the specified collection
     ///   contain the same number of elements.
     /// </summary>
+    /// <param name="other">
+    ///   The collection to compare to the current set.
+    /// </param>
+    /// <returns>
+    ///   <c>True</c> if the current multiset is equal to <c>other</c>; otherwise, <c>
+    ///   False</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>other</c> is <c>nil</c>.
+    /// </exception>
     function SetEquals(const other: IEnumerable<T>): Boolean;
 
     /// <summary>
@@ -2992,9 +4214,16 @@ type
     property Items: IReadOnlyCollection<T> read GetItems;
 
     /// <summary>
-    ///   Returns or sets the number of occurrences of an element in this
-    ///   multiset (the count of the element).
+    ///   Gets or sets the number of occurrences of an element in this multiset
+    ///   (the count of the element).
     /// </summary>
+    /// <param name="item">
+    ///   The item to get or set the count for.
+    /// </param>
+    /// <value>
+    ///   The number of occurences of the specified item; 0 when it does not
+    ///   exist.
+    /// </value>
     property ItemCount[const item: T]: Integer read GetItemCount write SetItemCount; default;
   end;
 
@@ -3014,10 +4243,10 @@ type
   {$ENDREGION}
 
     /// <summary>
-    ///   Gets the key of the IGrouping&lt;TKey, TElement&gt;.
+    ///   Gets the key of the grouping.
     /// </summary>
     /// <value>
-    ///   The key of the IGrouping&lt;TKey, TElement&gt;.
+    ///   The key of the grouping.
     /// </value>
     property Key: TKey read GetKey;
   end;
@@ -3041,30 +4270,26 @@ type
   {$ENDREGION}
 
     /// <summary>
-    ///   Determines whether a specified key exists in the ILookup&lt;TKey,
-    ///   TElement&gt;.
+    ///   Determines whether a specified key exists in the lookup
     /// </summary>
     /// <param name="key">
-    ///   The key to search for in the ILookup&lt;TKey, TElement&gt;.
+    ///   The key to search for in the lookup.
     /// </param>
     /// <returns>
-    ///   <b>True</b> if <i>key</i> is in the ILookup&lt;TKey, TElement&gt;;
-    ///   otherwise, <b>False</b>.
+    ///   <c>True</c> if <c>key</c> is in the lookup; otherwise, <c>False</c>.
     /// </returns>
     function Contains(const key: TKey): Boolean;
 
     /// <summary>
-    ///   Gets the <see cref="IEnumerable&lt;T&gt;" /> sequence of values
-    ///   indexed by a specified key.
+    ///   Gets the collection of values indexed by a specified key.
     /// </summary>
     /// <param name="key">
-    ///   The key of the desired sequence of values.
+    ///   The key of the desired collecton of values.
     /// </param>
     /// <value>
-    ///   The <see cref="IEnumerable&lt;T&gt;" /> sequence of values indexed by
-    ///   the specified key.
+    ///   The collection of values indexed by the specified key.
     /// </value>
-    property Item[const key: TKey]: IReadOnlyCollection<TElement> read GetItem; default;
+    property Items[const key: TKey]: IReadOnlyCollection<TElement> read GetItem; default;
   end;
 
   /// <summary>
@@ -3080,8 +4305,18 @@ type
   end;
 
   /// <summary>
+  ///   Represents a sub range of a collection.
+  /// </summary>
+  /// <remarks>
+  ///   This type is for internal use.
+  /// </remarks>
+  IPartition<T> = interface(IEnumerable<T>) //FI:W524
+    ['{ACFB79AB-F593-4F2B-9720-E6CE984F6844}']
+  end;
+
+  /// <summary>
   ///   Provides static methods to create an instance of various interfaced
-  ///   generic collections such as <see cref="IList&lt;T&gt;" /> or <see cref="IDictionary&lt;TKey, TValue&gt;" />
+  ///   generic collections such as <see cref="IList&lt;T&gt;" /> or <see cref="IDictionary&lt;TKey,TValue&gt;" />
   ///    .
   /// </summary>
   TCollections = class
@@ -3753,216 +4988,89 @@ type
     class procedure InternalFrom_Interface_OpenArray(source: Pointer; count: Integer; var result; elementType: PTypeInfo); static;
     class procedure InternalOfType_Object(const source: IEnumerable<TObject>; var result; resultType: PTypeInfo); static;
   public
+    /// <summary>
+    ///   Applies an accumulator function over a sequence. The specified seed
+    ///   value is used as the initial accumulator value.
+    /// </summary>
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TAccumulate">
+    ///   The type of the accumulator value.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence aggregate over.
+    /// </param>
+    /// <param name="seed">
+    ///   The initial accumulator value.
+    /// </param>
+    /// <param name="func">
+    ///   An accumulator function to be invoked on each element.
+    /// </param>
+    /// <returns>
+    ///   The final accumulator value.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>func</c> is <c>nil</c>.
+    /// </exception>
     class function Aggregate<TSource, TAccumulate>(const source: IEnumerable<TSource>;
       const seed: TAccumulate; const func: Func<TAccumulate, TSource, TAccumulate>): TAccumulate; overload; static;
+
+    /// <summary>
+    ///   Applies an accumulator function over a sequence. The specified seed
+    ///   value is used as the initial accumulator value, and the specified
+    ///   function is used to select the result value.
+    /// </summary>
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TAccumulate">
+    ///   The type of the accumulator value.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the resulting value.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence aggregate over.
+    /// </param>
+    /// <param name="seed">
+    ///   The initial accumulator value.
+    /// </param>
+    /// <param name="func">
+    ///   An accumulator function to be invoked on each element.
+    /// </param>
+    /// <param name="resultSelector">
+    ///   A function to transform the final accumulator value into the result
+    ///   value.
+    /// </param>
+    /// <returns>
+    ///   The transformed final accumulator value.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>func</c> or <c>resultSelector</c> is <c>nil</c>.
+    /// </exception>
     class function Aggregate<TSource, TAccumulate, TResult>(const source: IEnumerable<TSource>;
       const seed: TAccumulate; const func: Func<TAccumulate, TSource, TAccumulate>;
       const resultSelector: Func<TAccumulate, TResult>): TResult; overload; static;
 
     /// <summary>
-    ///   Returns the elements of the specified sequence or the type
-    ///   parameter's default value in a singleton collection if the sequence
-    ///   is empty.
-    /// </summary>
-    class function DefaultIfEmpty<T>(const source: IEnumerable<T>): IEnumerable<T>; overload; static;
-
-    /// <summary>
-    ///   Returns the elements of the specified sequence or the specified value
-    ///   in a singleton collection if the sequence is empty.
-    /// </summary>
-    class function DefaultIfEmpty<T>(const source: IEnumerable<T>; const defaultValue: T): IEnumerable<T>; overload; static;
-
-    /// <summary>
-    ///   Returns an empty <see cref="IEnumerable&lt;T&gt;" /> that has the
-    ///   specified type argument.
-    /// </summary>
-    /// <typeparam name="T">
-    ///   The type to assign to the type parameter of the returned generic <see cref="IEnumerable&lt;T&gt;" />
+    ///   Splits the elements of a sequence into chunks of size at most <c>size</c>
     ///    .
-    /// </typeparam>
-    /// <returns>
-    ///   An empty <see cref="IEnumerable&lt;T&gt;" /> whose type argument is <i>
-    ///   T</i>.
-    /// </returns>
-    class function Empty<T>: IReadOnlyList<T>; static;
-
-    class function From<T>(const values: array of T): IReadOnlyList<T>; overload; static;
-    class function From<T>(const values: TArray<T>): IReadOnlyList<T>; overload; static;
-
-    /// <summary>
-    ///   Returns the maximum value in a generic sequence according to a
-    ///   specified key selector function.
     /// </summary>
     /// <typeparam name="T">
     ///   The type of the elements of <c>source</c>.
     /// </typeparam>
-    /// <typeparam name="TKey">
-    ///   The type of key to compare elements by.
-    /// </typeparam>
     /// <param name="source">
-    ///   A sequence of values to determine the maximum value of.
-    /// </param>
-    /// <param name="keySelector">
-    ///   A function to extract the key for each element.
-    /// </param>
-    /// <returns>
-    ///   The value with the maximum key in the sequence.
-    /// </returns>
-    /// <exception cref="EArgumentNilException">
-    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
-    /// </exception>
-    class function MaxBy<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>): T; overload; static;
-
-    /// <summary>
-    ///   Returns the maximum value in a generic sequence according to a
-    ///   specified key selector function and key comparer.
-    /// </summary>
-    /// <typeparam name="T">
-    ///   The type of the elements of <c>source</c>.
-    /// </typeparam>
-    /// <typeparam name="TKey">
-    ///   The type of key to compare elements by.
-    /// </typeparam>
-    /// <param name="source">
-    ///   A sequence of values to determine the maximum value of.
-    /// </param>
-    /// <param name="keySelector">
-    ///   A function to extract the key for each element.
-    /// </param>
-    /// <param name="comparer">
-    ///   The comparer to compare keys.
-    /// </param>
-    /// <returns>
-    ///   The value with the maximum key in the sequence.
-    /// </returns>
-    /// <exception cref="EArgumentNilException">
-    ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
-    /// </exception>
-    class function MaxBy<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>;
-      const comparer: IComparer<TKey>): T; overload; static;
-
-    /// <summary>
-    ///   Returns the minimum value in a generic sequence according to a
-    ///   specified key selector function.
-    /// </summary>
-    /// <typeparam name="T">
-    ///   The type of the elements of <c>source</c>.
-    /// </typeparam>
-    /// <typeparam name="TKey">
-    ///   The type of key to compare elements by.
-    /// </typeparam>
-    /// <param name="source">
-    ///   A sequence of values to determine the minimum value of.
-    /// </param>
-    /// <param name="keySelector">
-    ///   A function to extract the key for each element.
-    /// </param>
-    /// <returns>
-    ///   The value with the minimum key in the sequence.
-    /// </returns>
-    /// <exception cref="EArgumentNilException">
-    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
-    /// </exception>
-    class function MinBy<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>): T; overload; static;
-
-    /// <summary>
-    ///   Returns the minimum value in a generic sequence according to a
-    ///   specified key selector function and key comparer.
-    /// </summary>
-    /// <typeparam name="T">
-    ///   The type of the elements of <c>source</c>.
-    /// </typeparam>
-    /// <typeparam name="TKey">
-    ///   The type of key to compare elements by.
-    /// </typeparam>
-    /// <param name="source">
-    ///   A sequence of values to determine the minimum value of.
-    /// </param>
-    /// <param name="keySelector">
-    ///   A function to extract the key for each element.
-    /// </param>
-    /// <param name="comparer">
-    ///   The comparer to compare keys.
-    /// </param>
-    /// <returns>
-    ///   The value with the minimum key in the sequence.
-    /// </returns>
-    /// <exception cref="EArgumentNilException">
-    ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
-    /// </exception>
-    class function MinBy<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>;
-      const comparer: IComparer<TKey>): T; overload; static;
-
-
-    class function OfType<T, TResult>(const source: IEnumerable<T>): IEnumerable<TResult>; static;
-
-    class function OrderBy<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T,TKey>): IEnumerable<T>; overload; static;
-    class function OrderBy<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T,TKey>;
-      const comparer: IComparer<TKey>): IEnumerable<T>; overload; static;
-
-    class function OrderByDescending<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T,TKey>): IEnumerable<T>; overload; static;
-    class function OrderByDescending<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T,TKey>;
-      const comparer: IComparer<TKey>): IEnumerable<T>; overload; static;
-
-    class function Range(start, count: Integer): IReadOnlyList<Integer>; static;
-
-    class function Repeated<T>(const element: T; count: Integer): IEnumerable<T>; static;
-
-    class function Select<T, TResult>(const source: IEnumerable<T>;
-      const selector: Func<T, TResult>): IEnumerable<TResult>; overload; static;
-
-    class function SelectMany<T, TResult>(const source: IEnumerable<T>;
-      const selector: Func<T, IEnumerable<TResult>>): IEnumerable<TResult>; overload; static;
-
-
-    class function ToDictionary<TSource, TKey>(const source: IEnumerable<TSource>;
-      const keySelector: Func<TSource, TKey>): IOrderedDictionary<TKey, TSource>; overload; static;
-    class function ToDictionary<TSource, TKey>(const source: IEnumerable<TSource>;
-      const keySelector: Func<TSource, TKey>;
-      const comparer: IEqualityComparer<TKey>): IOrderedDictionary<TKey, TSource>; overload; static;
-    class function ToDictionary<TSource, TKey, TElement>(const source: IEnumerable<TSource>;
-      const keySelector: Func<TSource, TKey>;
-      const elementSelector: Func<TSource, TElement>): IOrderedDictionary<TKey, TElement>; overload; static;
-    class function ToDictionary<TSource, TKey, TElement>(const source: IEnumerable<TSource>;
-      const keySelector: Func<TSource, TKey>;
-      const elementSelector: Func<TSource, TElement>;
-      const comparer: IEqualityComparer<TKey>): IOrderedDictionary<TKey, TElement>; overload; static;
-
-    class function ToLookup<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>): ILookup<TKey, T>; overload; static;
-    class function ToLookup<T, TKey>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>;
-      const comparer: IEqualityComparer<TKey>): ILookup<TKey, T>; overload; static;
-    class function ToLookup<T, TKey, TElement>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>;
-      const elementSelector: Func<T, TElement>): ILookup<TKey, TElement>; overload; static;
-    class function ToLookup<T, TKey, TElement>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>;
-      const elementSelector: Func<T, TElement>;
-      const comparer: IEqualityComparer<TKey>): ILookup<TKey, TElement>; overload; static;
-
-    /// <summary>
-    ///   Splits the elements of a sequence into chunks of size at most <c>size</c> .
-    /// </summary>
-    /// <param name="source">
-    ///   An <see cref="Spring.Collections|IEnumerable&lt;T&gt;" /> whose elements to chunk.
+    ///   A sequence whose elements to chunk.
     /// </param>
     /// <param name="size">
     ///   The maximum size of each chunk.
     /// </param>
     /// <returns>
-    ///   An <see cref="Spring.Collections|IEnumerable&lt;TArray&lt;T&gt;&gt;" /> that contains the
-    ///   elements the input sequence split into chunks of size <c>size</c>.
+    ///   A sequence that contains the elements the input sequence split into
+    ///   chunks of size <c>size</c>.
     /// </returns>
-    /// <exception cref="Spring|EArgumentNullException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   <c>source</c> is <c>nil</c>.
     /// </exception>
     /// <exception cref="Spring|EArgumentOutOfRangeException">
@@ -3970,40 +5078,1484 @@ type
     /// </exception>
     class function Chunk<T>(const source: IEnumerable<T>; size: Integer): IEnumerable<TArray<T>>; static;
 
+    /// <summary>
+    ///   Returns the elements of the specified sequence or the type
+    ///   parameter's default value in a singleton collection if the sequence
+    ///   is empty.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to return a default value for if it is empty.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains <c>Default(T)</c> if <c>source</c> is empty;
+    ///   otherwise, <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    class function DefaultIfEmpty<T>(const source: IEnumerable<T>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Returns the elements of the specified sequence or the specified value
+    ///   in a singleton collection if the sequence is empty.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to return a default value for if it is empty.
+    /// </param>
+    /// <param name="defaultValue">
+    ///   The value to return if the sequence is empty.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains <c>defaultValue</c> if <c>source</c> is
+    ///   empty; otherwise, <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    class function DefaultIfEmpty<T>(const source: IEnumerable<T>; const defaultValue: T): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Returns distinct elements from a sequence by using the default
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to remove duplicate elements from.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains distinct elements from the source sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
     class function Distinct<T>(const source: IEnumerable<T>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Returns distinct elements from a sequence by using a specified
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to remove duplicate elements from.
+    /// </param>
+    /// <param name="comparer">
+    ///   A sequence to compare values.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains distinct elements from the source sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare values.
+    /// </remarks>
     class function Distinct<T>(const source: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
 
+    /// <summary>
+    ///   Returns distinct elements from a sequence according to a specified
+    ///   key selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to distinguish elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to remove duplicate elements from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains distinct elements from the source sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
     class function DistinctBy<T, TKey>(const source: IEnumerable<T>;
       const keySelector: Func<T, TKey>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Returns distinct elements from a sequence according to a specified
+    ///   key selector function and using a specified comparer to compare keys.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to distinguish elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to remove duplicate elements from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains distinct elements from the source sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare values.
+    /// </remarks>
     class function DistinctBy<T, TKey>(const source: IEnumerable<T>;
       const keySelector: Func<T, TKey>;
       const comparer: IEqualityComparer<TKey>): IEnumerable<T>; overload; static;
 
+    /// <summary>
+    ///   Produces the set difference of two sequences by using the default
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of the input sequences.
+    /// </typeparam>
+    /// <param name="first">
+    ///   A sequence whose elements that are not also in <c>second</c> will be
+    ///   returned.
+    /// </param>
+    /// <param name="second">
+    ///   A sequence whose elements that also occur in <c>first</c> will cause
+    ///   those elements to be removed from the returned sequence.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the set difference of the elements of two
+    ///   sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>first</c> or <c>second</c> is <c>nil</c>.
+    /// </exception>
     class function &Except<T>(const first, second: IEnumerable<T>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Produces the set difference of two sequences by using the specified
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of the input sequences.
+    /// </typeparam>
+    /// <param name="first">
+    ///   A sequence whose elements that are not also in <c>second</c> will be
+    ///   returned.
+    /// </param>
+    /// <param name="second">
+    ///   A sequence whose elements that also occur in <c>first</c> will cause
+    ///   those elements to be removed from the returned sequence.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare values.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the set difference of the elements of two
+    ///   sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>first</c> or <c>second</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare values.
+    /// </remarks>
     class function &Except<T>(const first, second: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
 
+    /// <summary>
+    ///   Returns an empty sequence that has the specified type argument.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type to assign to the type parameter of the returned sequence.
+    /// </typeparam>
+    /// <returns>
+    ///   An empty sequence whose type argument is <c>T</c>.
+    /// </returns>
+    class function Empty<T>: IReadOnlyList<T>; static;
+
+    /// <summary>
+    ///   Returns a sequence that contains the specified values.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements in <c>values</c>.
+    /// </typeparam>
+    /// <param name="values">
+    ///   The values to return a sequence for.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the specified values.
+    /// </returns>
+    class function From<T>(const values: array of T): IReadOnlyList<T>; overload; static;
+
+    /// <summary>
+    ///   Returns a sequence that contains the specified values.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements in <c>values</c>.
+    /// </typeparam>
+    /// <param name="values">
+    ///   The values to return a sequence for.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the specified values.
+    /// </returns>
+    class function From<T>(const values: TArray<T>): IReadOnlyList<T>; overload; static;
+
+    /// <summary>
+    ///   Groups the elements of a sequence according to a specified key
+    ///   selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to group.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <returns>
+    ///   A sequence where each element is a group that contains a sequence of
+    ///   elements and a key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
     class function GroupBy<T, TKey>(const source: IEnumerable<T>;
       const keySelector: Func<T, TKey>): IEnumerable<IGrouping<TKey,T>>; overload; static;
+
+    /// <summary>
+    ///   Groups the elements of a sequence according to a specified key
+    ///   selector function and compares the keys by using a specified
+    ///   comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to group.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   A equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A sequence where each element is a group that contains a collection of
+    ///   elements and a key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function GroupBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const comparer: IEqualityComparer<TKey>): IEnumerable<IGrouping<TKey,T>>; overload; static;
+
+    /// <summary>
+    ///   Groups the elements of a sequence according to a specified key
+    ///   selector function and projects the elements for each group by using a
+    ///   specified function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TElement">
+    ///   The type of the elements in the grouping.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to group.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="elementSelector">
+    ///   A function to map each source element to an element in the grouping.
+    /// </param>
+    /// <returns>
+    ///   A sequence where each element is a group that contains a collection of
+    ///   elements of type <c>TElement</c> and a key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>elementSelector</c> is <c>nil</c>.
+    /// </exception>
     class function GroupBy<T, TKey, TElement>(const source: IEnumerable<T>;
       const keySelector: Func<T, TKey>;
       const elementSelector: Func<T, TElement>): IEnumerable<IGrouping<TKey,TElement>>; overload; static;
+
+    /// <summary>
+    ///   Groups the elements of a sequence according to a key selector
+    ///   function. The keys are compared by using a comparer and each group's
+    ///   elements are projected by using a specified function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TElement">
+    ///   The type of the elements in the grouping.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to group.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="elementSelector">
+    ///   A function to map each source element to an element in the grouping.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A sequence where each element is a group that contains a collection
+    ///   of elements of type <c>TElement</c> and a key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>elementSelector</c> is <c>
+    ///   nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function GroupBy<T, TKey, TElement>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const elementSelector: Func<T, TElement>;
+      const comparer: IEqualityComparer<TKey>): IEnumerable<IGrouping<TKey,TElement>>; overload; static;
+
+    /// <summary>
+    ///   Groups the elements of a sequence according to a specified key
+    ///   selector function and creates a result value from each group and its
+    ///   key.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the result value returned by <c>resultSelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to group.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="resultSelector">
+    ///   A function to create a result value from each group.
+    /// </param>
+    /// <returns>
+    ///   A collection of elements of type <c>TResult</c> where each element
+    ///   represents a projection over a group and its key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>resultSelector</c> is <c>
+    ///   nil</c>.
+    /// </exception>
+    class function GroupBy<T, TKey, TResult>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const resultSelector: Func<TKey, IEnumerable<T>, TResult>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Groups the elements of a sequence according to a specified key
+    ///   selector function and creates a result value from each group and its
+    ///   key. The keys are compared by using a specified comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the result value returned by <c>resultSelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to group.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="resultSelector">
+    ///   A function to create a result value from each group.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A collection of elements of type <c>TResult</c> where each element
+    ///   represents a projection over a group and its key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>resultSelector</c> is <c>
+    ///   nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function GroupBy<T, TKey, TResult>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const resultSelector: Func<TKey, IEnumerable<T>, TResult>;
+      const comparer: IEqualityComparer<TKey>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Groups the elements of a sequence according to a specified key
+    ///   selector function and creates a result value from each group and its
+    ///   key. The elements of each group are projected by using a specified
+    ///   function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TElement">
+    ///   The type of the elements in each grouping.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the result value returned by <c>resultSelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to group.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="elementSelector">
+    ///   A function to map each source element to an element in a grouping.
+    /// </param>
+    /// <param name="resultSelector">
+    ///   A function to create a result value from each group.
+    /// </param>
+    /// <returns>
+    ///   A collection of elements of type <c>TResult</c> where each element
+    ///   represents a projection over a group and its key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>elementSelector</c> or <c>
+    ///   resultSelector</c> is <c>nil</c>.
+    /// </exception>
     class function GroupBy<T, TKey, TElement, TResult>(const source: IEnumerable<T>;
-      const keySelector: Func<T, TKey>; const elementSelector: Func<T, TElement>;
+      const keySelector: Func<T, TKey>;
+      const elementSelector: Func<T, TElement>;
       const resultSelector: Func<TKey, IEnumerable<TElement>, TResult>): IEnumerable<TResult>; overload; static;
 
+    /// <summary>
+    ///   Groups the elements of a sequence according to a specified key
+    ///   selector function and creates a result value from each group and its
+    ///   key. Key values are compared by using a specified comparer, and the
+    ///   elements of each group are projected by using a specified function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TElement">
+    ///   The type of the elements in each grouping.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the result value returned by <c>resultSelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to group.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="elementSelector">
+    ///   A function to map each source element to an element in a grouping.
+    /// </param>
+    /// <param name="resultSelector">
+    ///   A function to create a result value from each group.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A collection of elements of type <c>TResult</c> where each element
+    ///   represents a projection over a group and its key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>elementSelector</c> or <c>
+    ///   resultSelector</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function GroupBy<T, TKey, TElement, TResult>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const elementSelector: Func<T, TElement>;
+      const resultSelector: Func<TKey, IEnumerable<TElement>, TResult>;
+      const comparer: IEqualityComparer<TKey>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Produces the set intersection of two sequences by using the default
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of the input sequences.
+    /// </typeparam>
+    /// <param name="first">
+    ///   A sequence whose distinct elements that also appear in <c>second</c>
+    ///   will be returned.
+    /// </param>
+    /// <param name="second">
+    ///   A sequence whose distinct elements that also appear in <c>first</c>
+    ///   will be returned.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements that form the set intersection
+    ///   of two sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>first</c> or <c>second</c> is <c>nil</c>.
+    /// </exception>
     class function Intersect<T>(const first, second: IEnumerable<T>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Produces the set intersection of two sequences by using the specified
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of the input sequences.
+    /// </typeparam>
+    /// <param name="first">
+    ///   A sequence whose distinct elements that also appear in <c>second</c>
+    ///   will be returned.
+    /// </param>
+    /// <param name="second">
+    ///   A sequence whose distinct elements that also appear in <c>first</c>
+    ///   will be returned.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare values.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements that form the set intersection
+    ///   of two sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>first</c> or <c>second</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare values.
+    /// </remarks>
     class function Intersect<T>(const first, second: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
 
+    /// <summary>
+    ///   Returns the maximum value in a generic sequence according to a
+    ///   specified key selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to compare elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to determine the maximum value of.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <returns>
+    ///   The value with the maximum key in the sequence.
+    /// </returns>
+    /// <exception cref="EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    class function MaxBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>): T; overload; static;
+
+    /// <summary>
+    ///   Returns the maximum value in a generic sequence according to a
+    ///   specified key selector function and key comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to compare elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to determine the maximum value of.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   The comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   The value with the maximum key in the sequence.
+    /// </returns>
+    /// <exception cref="EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    class function MaxBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const comparer: IComparer<TKey>): T; overload; static;
+
+    /// <summary>
+    ///   Returns the minimum value in a generic sequence according to a
+    ///   specified key selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to compare elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to determine the minimum value of.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <returns>
+    ///   The value with the minimum key in the sequence.
+    /// </returns>
+    /// <exception cref="EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    class function MinBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>): T; overload; static;
+
+    /// <summary>
+    ///   Returns the minimum value in a generic sequence according to a
+    ///   specified key selector function and key comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to compare elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to determine the minimum value of.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   The comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   The value with the minimum key in the sequence.
+    /// </returns>
+    /// <exception cref="EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    class function MinBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const comparer: IComparer<TKey>): T; overload; static;
+
+    /// <summary>
+    ///   Filters the elements of a sequence based on a specified type.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type to filter the elements of the sequence on.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence whose elements to filter.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains elements from the input sequence of type <c>
+    ///   TResult</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    class function OfType<T, TResult>(const source: IEnumerable<T>): IEnumerable<TResult>; static;
+
+    /// <summary>
+    ///   Sorts the elements of a sequence in ascending order according to a
+    ///   key.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to order.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from an element.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are sorted according to a key.
+    /// </returns>
+    class function OrderBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T,TKey>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Sorts the elements of a sequence in ascending order by using a
+    ///   specified comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to order.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from an element.
+    /// </param>
+    /// <param name="comparer">
+    ///   A comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are sorted according to a key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    class function OrderBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T,TKey>;
+      const comparer: IComparer<TKey>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Sorts the elements of a sequence in descending order according to a
+    ///   key.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to order.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from an element.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are sorted in descending order according to
+    ///   a key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    class function OrderByDescending<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T,TKey>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Sorts the elements of a sequence in descending order by using a
+    ///   specified comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to order.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from an element.
+    /// </param>
+    /// <param name="comparer">
+    ///   A comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are sorted in descending order according to
+    ///   a key.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    class function OrderByDescending<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T,TKey>;
+      const comparer: IComparer<TKey>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Generates a sequence of integral numbers within a specified range.
+    /// </summary>
+    /// <param name="start">
+    ///   The value of the first integer in the sequence.
+    /// </param>
+    /// <param name="count">
+    ///   The number of sequential integers to generate.
+    /// </param>
+    /// <returns>
+    ///   A read-only list that contains a range of sequential integral
+    ///   numbers.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentOutOfRangeException">
+    ///   <c>count</c> is less than 0. <br /><br />-or- <br /><br /><c>start</c>
+    ///    + <c>count</c> -1 is larger than <c>MaxInt</c>.
+    /// </exception>
+    class function Range(start, count: Integer): IReadOnlyList<Integer>; static;
+
+    /// <summary>
+    ///   Generates a sequence that contains one repeated value.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the value to be repeated in the result sequence.
+    /// </typeparam>
+    /// <param name="element">
+    ///   The value to be repeated.
+    /// </param>
+    /// <param name="count">
+    ///   The number of times to repeat the value in the generated sequence.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains a repeated value.
+    /// </returns>
+    /// <exception cref="EArgumentOutOfRangeException">
+    ///   <c>count</c> is less than 0.
+    /// </exception>
+    class function Repeated<T>(const element: T; count: Integer): IEnumerable<T>; static;
+
+    /// <summary>
+    ///   Projects each element of a sequence into a new form by incorporating
+    ///   the element's index.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the value returned by <c>selector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to invoke a transform function on.
+    /// </param>
+    /// <param name="selector">
+    ///   A transform function to apply to each source element; the second
+    ///   parameter of the function represents the index of the source element.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are the result of invoking the transform
+    ///   function on each element of <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    class function Select<T, TResult>(const source: IEnumerable<T>;
+      const selector: Func<T, TResult>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Projects each element of a sequence into a new form.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the value returned by <c>selector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to invoke a transform function on.
+    /// </param>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are the result of invoking the transform
+    ///   function on each element of source.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    class function Select<T, TResult>(const source: IEnumerable<T>;
+      const selector: Func<T, Integer, TResult>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Projects each element of a sequence to an <see cref="Spring.Collections|IEnumerable&lt;T&gt;" />
+    ///    and flattens the resulting sequences into one sequence.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the elements of the sequence returned by <c>selector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to project.
+    /// </param>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are the result of invoking the one-to-many
+    ///   transform function on each element of the input sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    class function SelectMany<T, TResult>(const source: IEnumerable<T>;
+      const selector: Func<T, IEnumerable<TResult>>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Projects each element of a sequence to an <see cref="Spring.Collections|IEnumerable&lt;T&gt;" />
+    ///   , and flattens the resulting sequences into one sequence. The index
+    ///   of each source element is used in the projected form of that element.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the elements of the sequence returned by <c>selector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to project.
+    /// </param>
+    /// <param name="selector">
+    ///   A transform function to apply to each source element; the second
+    ///   parameter of the function represents the index of the source element.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are the result of invoking the one-to-many
+    ///   transform function on each element of an input sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    class function SelectMany<T, TResult>(const source: IEnumerable<T>;
+      const selector: Func<T, Integer, IEnumerable<TResult>>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Projects each element of a sequence to an <see cref="Spring.Collections|IEnumerable&lt;T&gt;" />
+    ///   , flattens the resulting sequences into one sequence, and invokes a
+    ///   result selector function on each element therein.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TCollection">
+    ///   The type of the intermediate elements collected by <c>
+    ///   collectionSelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the elements of the resulting sequence.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to project.
+    /// </param>
+    /// <param name="collectionSelector">
+    ///   A transform function to apply to each element of the input sequence.
+    /// </param>
+    /// <param name="resultSelector">
+    ///   A transform function to apply to each element of the intermediate
+    ///   sequence.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are the result of invoking the one-to-many
+    ///   transform function <c>collectionSelector</c> on each element of <c>
+    ///   source</c> and then mapping each of those sequence elements and their
+    ///   corresponding source element to a result element.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>collectionSelector</c> or <c>resultSelector</c>
+    ///   is <c>nil</c>.
+    /// </exception>
+    class function SelectMany<T, TCollection, TResult>(const source: IEnumerable<T>;
+      const collectionSelector: Func<T, IEnumerable<TCollection>>;
+      const resultSelector: Func<T, TCollection, TResult>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Projects each element of a sequence to an <see cref="Spring.Collections|IEnumerable&lt;T&gt;" />
+    ///    , flattens the resulting sequences into one sequence, and invokes a
+    ///   result selector function on each element therein. The index of each
+    ///   source element is used in the intermediate projected form of that
+    ///   element.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TCollection">
+    ///   The type of the intermediate elements collected by <c>
+    ///   collectionSelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the elements of the resulting sequence.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to project.
+    /// </param>
+    /// <param name="collectionSelector">
+    ///   A transform function to apply to each source element; the second
+    ///   parameter of the function represents the index of the source element.
+    /// </param>
+    /// <param name="resultSelector">
+    ///   A transform function to apply to each element of the intermediate
+    ///   sequence.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are the result of invoking the one-to-many
+    ///   transform function collectionSelector on each element of source and
+    ///   then mapping each of those sequence elements and their corresponding
+    ///   source element to a result element.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>collectionSelector</c> or <c>resultSelector</c>
+    ///   is <c>nil</c>.
+    /// </exception>
+    class function SelectMany<T, TCollection, TResult>(const source: IEnumerable<T>;
+      const collectionSelector: Func<T, Integer, IEnumerable<TCollection>>;
+      const resultSelector: Func<T, TCollection, TResult>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Creates a dictionary from an sequence according to a specified key
+    ///   selector function.
+    /// </summary>
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence to create a dictionary from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from each element.
+    /// </param>
+    /// <returns>
+    ///   A dictionary that contains keys and values. The values within each
+    ///   group are in the same order as in source.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EArgumentException">
+    ///   <c>keySelector</c> produces duplicate keys for two elements.
+    /// </exception>
+    class function ToDictionary<TSource, TKey>(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>): IOrderedDictionary<TKey, TSource>; overload; static;
+
+    /// <summary>
+    ///   Creates a dictionary from an sequence according to a specified key
+    ///   selector function and key comparer.
+    /// </summary>
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence to create a dictionary from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A dictionary that contains keys and values. The values within each
+    ///   group are in the same order as in source.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EArgumentException">
+    ///   <c>keySelector</c> produces duplicate keys for two elements.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function ToDictionary<TSource, TKey>(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>;
+      const comparer: IEqualityComparer<TKey>): IOrderedDictionary<TKey, TSource>; overload; static;
+
+    /// <summary>
+    ///   Creates a dictionary from a sequence according to specified key
+    ///   selector and element selector functions.
+    /// </summary>
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TElement">
+    ///   The type of the value returned by <c>elementSelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence to create a dictionary from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from each element.
+    /// </param>
+    /// <param name="elementSelector">
+    ///   A transform function to produce a result element value from each
+    ///   element.
+    /// </param>
+    /// <returns>
+    ///   A dictionary that contains values of type <c>TElement</c> selected
+    ///   from the input sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>elementSelector</c> is <c>
+    ///   nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EArgumentException">
+    ///   <c>keySelector</c> produces duplicate keys for two elements.
+    /// </exception>
+    class function ToDictionary<TSource, TKey, TElement>(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>;
+      const elementSelector: Func<TSource, TElement>): IOrderedDictionary<TKey, TElement>; overload; static;
+
+    /// <summary>
+    ///   Creates a dictionary from a sequence according to specified key
+    ///   selector and element selector functions.
+    /// </summary>
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TElement">
+    ///   The type of the value returned by <c>elementSelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence to create a dictionary from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from each element.
+    /// </param>
+    /// <param name="elementSelector">
+    ///   A transform function to produce a result element value from each
+    ///   element.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A dictionary that contains values of type <c>TElement</c> selected
+    ///   from the input sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>elementSelector</c> is <c>
+    ///   nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EArgumentException">
+    ///   <c>keySelector</c> produces duplicate keys for two elements.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function ToDictionary<TSource, TKey, TElement>(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>;
+      const elementSelector: Func<TSource, TElement>;
+      const comparer: IEqualityComparer<TKey>): IOrderedDictionary<TKey, TElement>; overload; static;
+
+    /// <summary>
+    ///   Creates a lookup from a sequence according to a specified key
+    ///   selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to create a lookup from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from each element.
+    /// </param>
+    /// <returns>
+    ///   A lookup that contains keys and values. The values within each group
+    ///   are in the same order as in source.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   The method returns a lookup, a one-to-many dictionary that maps keys
+    ///   to collections of values. A lookup differs from a dictionary, which
+    ///   performs a one-to-one mapping of keys to single values.
+    /// </remarks>
+    class function ToLookup<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>): ILookup<TKey, T>; overload; static;
+
+    /// <summary>
+    ///   Creates a lookup from a sequence according to a specified key
+    ///   selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to create a lookup from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A lookup that contains keys and values. The values within each group
+    ///   are in the same order as in source.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   The method returns a lookup, a one-to-many dictionary that maps keys
+    ///   to collections of values. A lookup differs from a dictionary, which
+    ///   performs a one-to-one mapping of keys to single values. <br /><br />
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function ToLookup<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const comparer: IEqualityComparer<TKey>): ILookup<TKey, T>; overload; static;
+
+    /// <summary>
+    ///   Creates a lookup from a sequence according to specified key selector
+    ///   and element selector functions.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TElement">
+    ///   The type of the value returned by <c>elementSelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to create a lookup from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from each element.
+    /// </param>
+    /// <param name="elementSelector">
+    ///   A transform function to produce a result element value from each
+    ///   element.
+    /// </param>
+    /// <returns>
+    ///   A lookup that contains values of type <c>TElement</c> selected from
+    ///   the input sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   The method returns a lookup, a one-to-many dictionary that maps keys
+    ///   to collections of values. A lookup differs from a dictionary, which
+    ///   performs a one-to-one mapping of keys to single values.
+    /// </remarks>
+    class function ToLookup<T, TKey, TElement>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const elementSelector: Func<T, TElement>): ILookup<TKey, TElement>; overload; static;
+
+    /// <summary>
+    ///   Creates a lookup from a sequence according to a specified key
+    ///   selector function, a comparer and an element selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TElement">
+    ///   The type of the value returned by <c>elementSelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   The sequence to create a lookup from.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract a key from each element.
+    /// </param>
+    /// <param name="elementSelector">
+    ///   A transform function to produce a result element value from each
+    ///   element.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   A lookup that contains values of type <c>TElement</c> selected from
+    ///   the input sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>elementSelector</c> is <c>
+    ///   nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   The method returns a lookup, a one-to-many dictionary that maps keys
+    ///   to collections of values. A lookup differs from a dictionary, which
+    ///   performs a one-to-one mapping of keys to single values. <br /><br />
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function ToLookup<T, TKey, TElement>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const elementSelector: Func<T, TElement>;
+      const comparer: IEqualityComparer<TKey>): ILookup<TKey, TElement>; overload; static;
+
+    /// <summary>
+    ///   Produces the set union of two sequences by using the default equality
+    ///   comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of the input sequences.
+    /// </typeparam>
+    /// <param name="first">
+    ///   A sequence whose distinct elements form the first set for the union.
+    /// </param>
+    /// <param name="second">
+    ///   A sequence whose distinct elements form the second set for the union.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements from both input sequences,
+    ///   excluding duplicates.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>first</c> or <c>second</c> is <c>nil</c>.
+    /// </exception>
     class function Union<T>(const first, second: IEnumerable<T>): IEnumerable<T>; overload; static;
+
+    /// <summary>
+    ///   Produces the set union of two sequences by using a specified equality
+    ///   comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of the input sequences.
+    /// </typeparam>
+    /// <param name="first">
+    ///   A sequence whose distinct elements form the first set for the union.
+    /// </param>
+    /// <param name="second">
+    ///   A sequence whose distinct elements form the second set for the union.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare values.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements from both input sequences,
+    ///   excluding duplicates.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>first</c> or <c>second</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare values.
+    /// </remarks>
     class function Union<T>(const first, second: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
 
+    /// <summary>
+    ///   Produces a sequence of tuples with elements from the two specified
+    ///   sequences.
+    /// </summary>
+    /// <typeparam name="TFirst">
+    ///   The type of the elements of the first input sequence.
+    /// </typeparam>
+    /// <typeparam name="TSecond">
+    ///   The type of the elements of the second input sequence.
+    /// </typeparam>
+    /// <param name="first">
+    ///   The first sequence to merge.
+    /// </param>
+    /// <param name="second">
+    ///   The second sequence to merge.
+    /// </param>
+    /// <returns>
+    ///   A sequence of tuples with elements taken from the first and second
+    ///   sequences, in that order.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>first</c> or <c>second</c> is <c>nil</c>.
+    /// </exception>
     class function Zip<TFirst, TSecond>(
       const first: IEnumerable<TFirst>;
       const second: IEnumerable<TSecond>): IEnumerable<Tuple<TFirst,TSecond>>; overload; static;
+
+    /// <summary>
+    ///   Applies a specified function to the corresponding elements of two
+    ///   sequences, producing a sequence of the results.
+    /// </summary>
+    /// <typeparam name="TFirst">
+    ///   The type of the elements of the first input sequence.
+    /// </typeparam>
+    /// <typeparam name="TSecond">
+    ///   The type of the elements of the second input sequence.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the elements of the result sequence.
+    /// </typeparam>
+    /// <param name="first">
+    ///   The first sequence to merge.
+    /// </param>
+    /// <param name="second">
+    ///   The second sequence to merge.
+    /// </param>
+    /// <param name="resultSelector">
+    ///   A function that specifies how to merge the elements from the two
+    ///   sequences.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains merged elements of two input sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>first</c> or <c>second</c> or <c>resultSelector</c> is <c>nil</c>.
+    /// </exception>
     class function Zip<TFirst, TSecond, TResult>(
       const first: IEnumerable<TFirst>;
       const second: IEnumerable<TSecond>;
@@ -8028,12 +10580,46 @@ begin
     source, keySelector, TIdentityFunction<T>.Instance);
 end;
 
+class function TEnumerable.GroupBy<T, TKey>(const source: IEnumerable<T>;
+  const keySelector: Func<T, TKey>;
+  const comparer: IEqualityComparer<TKey>): IEnumerable<IGrouping<TKey, T>>;
+begin
+  IEnumerable<IInterface>(Result) := TGroupedEnumerable<T, TKey, T>.Create(
+    source, keySelector, TIdentityFunction<T>.Instance, comparer);
+end;
+
 class function TEnumerable.GroupBy<T, TKey, TElement>(
   const source: IEnumerable<T>; const keySelector: Func<T, TKey>;
   const elementSelector: Func<T, TElement>): IEnumerable<IGrouping<TKey, TElement>>;
 begin
   IEnumerable<IInterface>(Result) := TGroupedEnumerable<T, TKey, TElement>.Create(
     source, keySelector, elementSelector);
+end;
+
+class function TEnumerable.GroupBy<T, TKey, TElement>(
+  const source: IEnumerable<T>; const keySelector: Func<T, TKey>;
+  const elementSelector: Func<T, TElement>;
+  const comparer: IEqualityComparer<TKey>): IEnumerable<IGrouping<TKey, TElement>>;
+begin
+  IEnumerable<IInterface>(Result) := TGroupedEnumerable<T, TKey, TElement>.Create(
+    source, keySelector, elementSelector, comparer);
+end;
+
+class function TEnumerable.GroupBy<T, TKey, TResult>(
+  const source: IEnumerable<T>; const keySelector: Func<T, TKey>;
+  const resultSelector: Func<TKey, IEnumerable<T>, TResult>): IEnumerable<TResult>;
+begin
+  Result := TGroupedEnumerable<T, TKey, T, TResult>.Create(
+    source, keySelector, TIdentityFunction<T>.Instance, resultSelector);
+end;
+
+class function TEnumerable.GroupBy<T, TKey, TResult>(
+  const source: IEnumerable<T>; const keySelector: Func<T, TKey>;
+  const resultSelector: Func<TKey, IEnumerable<T>, TResult>;
+  const comparer: IEqualityComparer<TKey>): IEnumerable<TResult>;
+begin
+  Result := TGroupedEnumerable<T, TKey, T, TResult>.Create(
+    source, keySelector, TIdentityFunction<T>.Instance, resultSelector, comparer);
 end;
 
 class function TEnumerable.GroupBy<T, TKey, TElement, TResult>(
@@ -8043,6 +10629,16 @@ class function TEnumerable.GroupBy<T, TKey, TElement, TResult>(
 begin
   Result := TGroupedEnumerable<T, TKey, TElement, TResult>.Create(
     source, keySelector, elementSelector, resultSelector);
+end;
+
+class function TEnumerable.GroupBy<T, TKey, TElement, TResult>(
+  const source: IEnumerable<T>; const keySelector: Func<T, TKey>;
+  const elementSelector: Func<T, TElement>;
+  const resultSelector: Func<TKey, IEnumerable<TElement>, TResult>;
+  const comparer: IEqualityComparer<TKey>): IEnumerable<TResult>;
+begin
+  Result := TGroupedEnumerable<T, TKey, TElement, TResult>.Create(
+    source, keySelector, elementSelector, resultSelector, comparer);
 end;
 
 class function TEnumerable.Intersect<T>(const first,
@@ -8219,10 +10815,40 @@ begin
   Result := TSelectIterator<T, TResult>.Create(source, selector);
 end;
 
+class function TEnumerable.Select<T, TResult>(const source: IEnumerable<T>;
+  const selector: Func<T, Integer, TResult>): IEnumerable<TResult>;
+begin
+  Result := TSelectIndexIterator<T, TResult>.Create(source, selector);
+end;
+
 class function TEnumerable.SelectMany<T, TResult>(const source: IEnumerable<T>;
   const selector: Func<T, IEnumerable<TResult>>): IEnumerable<TResult>;
 begin
   Result := TSelectManyIterator<T, TResult>.Create(source, selector);
+end;
+
+class function TEnumerable.SelectMany<T, TResult>(const source: IEnumerable<T>;
+  const selector: Func<T, Integer, IEnumerable<TResult>>): IEnumerable<TResult>;
+begin
+  Result := TSelectManyIndexIterator<T, TResult>.Create(source, selector);
+end;
+
+class function TEnumerable.SelectMany<T, TCollection, TResult>(
+  const source: IEnumerable<T>;
+  const collectionSelector: Func<T, IEnumerable<TCollection>>;
+  const resultSelector: Func<T, TCollection, TResult>): IEnumerable<TResult>;
+begin
+  Result := TSelectManyIterator<T, TCollection, TResult>.Create(
+    source, collectionSelector, resultSelector);
+end;
+
+class function TEnumerable.SelectMany<T, TCollection, TResult>(
+  const source: IEnumerable<T>;
+  const collectionSelector: Func<T, Integer, IEnumerable<TCollection>>;
+  const resultSelector: Func<T, TCollection, TResult>): IEnumerable<TResult>;
+begin
+  Result := TSelectManyIndexIterator<T, TCollection, TResult>.Create(
+    source, collectionSelector, resultSelector);
 end;
 
 class function TEnumerable.ToDictionary<TSource, TKey>(

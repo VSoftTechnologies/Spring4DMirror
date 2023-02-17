@@ -1562,7 +1562,7 @@ type
     class procedure RaiseArgumentFormatException(const argumentName: string); overload; static;
 
     /// <summary>
-    ///   Raises an <see cref="EArgumentNullException" /> exception.
+    ///   Raises an <see cref="EArgumentNilException" /> exception.
     /// </summary>
     class procedure RaiseArgumentNullException(const argumentName: string); overload; static;
 
@@ -1958,7 +1958,7 @@ type
     ///   If <b>true</b> the value - if any got created - will be destroyed
     ///   when going out of scope. Only when T is a class type.
     /// </param>
-    /// <exception cref="EArgumentNullException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   <i>valueFactory</i> is <b>nil</b>.
     /// </exception>
     constructor Create(const valueFactory: Func<T>; ownsObject: Boolean = False); overload;
@@ -3143,13 +3143,13 @@ procedure DynArrayCopyRange(var Result: Pointer; A: Pointer; TypeInfo: Pointer; 
 procedure PlatformNotImplemented;
 
 /// <summary>
-///   Raises an <see cref="Spring|EArgumentNullException" /> if the <paramref name="value" />
+///   Raises an <see cref="Spring|EArgumentNilException" /> if the <paramref name="value" />
 ///    is nil.
 /// </summary>
 procedure CheckArgumentNotNull(const value: IInterface; const argumentName: string); overload; deprecated 'Use Guard.CheckNotNull instead';
 
 /// <summary>
-///   Raises an <see cref="Spring|EArgumentNullException" /> if the <paramref name="value" />
+///   Raises an <see cref="Spring|EArgumentNilException" /> if the <paramref name="value" />
 ///    is nil.
 /// </summary>
 procedure CheckArgumentNotNull(value: Pointer; const argumentName: string); overload; deprecated 'Use Guard.CheckNotNull instead';
