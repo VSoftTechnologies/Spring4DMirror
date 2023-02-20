@@ -510,7 +510,7 @@ type
 
     function Contains(const key: TKey): Boolean; overload;
     function GetEnumerator: IEnumerator<IInterface>;
-    property Item[const key: TKey]: IReadOnlyCollection<TElement> read GetItem; default;
+    property Items[const key: TKey]: IReadOnlyCollection<TElement> read GetItem; default;
   end;
 
   TJoinIterator<TOuter, TInner, TKey, TResult> = class(TIterator<TResult>, IEnumerable<TResult>)
@@ -3256,8 +3256,6 @@ end;
 
 constructor TRepeatIterator<T>.Create(const element: T; count: Integer); //FI:W525
 begin
-  if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-
   fElement := element;
   fCount := count;
 end;

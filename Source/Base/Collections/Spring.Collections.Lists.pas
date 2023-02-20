@@ -443,7 +443,7 @@ begin
 {$IFDEF DELPHIXE7_UP}
   if (GetTypeKind(T) in FastComparableTypes) and (SizeOf(T) in [1, 2, 4, 8]) then
     if DefaultComparer = nil then
-      DefaultComparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+      DefaultComparer := _LookupVtableInfo(giComparer, GetElementType, SizeOf(T));
 {$ENDIF}
 end;
 
@@ -2296,7 +2296,7 @@ var
   comparer: Pointer;
   i: Integer;
 begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
+  comparer := _LookupVtableInfo(giEqualityComparer, GetElementType, SizeOf(T));
   for i := index to index + count - 1 do
     if IEqualityComparer<T>(comparer).Equals(fItems(i), item) then
       Exit(i);

@@ -962,7 +962,7 @@ type
     /// <value>
     ///   The element at the specified index in the read-only list.
     /// </value>
-    property Item[index: Integer]: T read GetItem; default;
+    property Items[index: Integer]: T read GetItem; default;
   end;
 
   /// <summary>
@@ -3376,8 +3376,6 @@ type
       const seed: TAccumulate; const func: Func<TAccumulate, TSource, TAccumulate>;
       const resultSelector: Func<TAccumulate, TResult>): TResult; overload; static;
 
-    class function CombinePredicates<T>(const predicate1, predicate2: Predicate<T>): Predicate<T>; static;
-
     /// <summary>
     ///   Returns the elements of the specified sequence or the type
     ///   parameter's default value in a singleton collection if the sequence
@@ -3543,12 +3541,19 @@ type
   TStringComparer = Spring.Comparers.TStringComparer;
 
   TIdentityFunction<T> = record
-  private class var
-    fInstance: Func<T, T>;
+  strict private const
+    {$J+}
+    VTable: Pointer = nil;
+    Methods: array[0..3] of Pointer = (
+      @NopQueryInterface,
+      @NopRef,
+      @NopRef,
+      nil);
+    {$IFNDEF WRITEABLECONST_ON}{$J-}{$ENDIF}
+    function Invoke(const x: T): T;
+    class function GetInstance: Func<T, T>; static;
   public
-    class constructor Create;
-    class destructor Destroy;
-    class property Instance: Func<T, T> read fInstance;
+    class property Instance: Func<T, T> read GetInstance;
   end;
 
   TCollectionHelper = class helper for TCollection
@@ -3561,26 +3566,7 @@ type
     constructor Create(ownsObjects: Boolean = True);
   end;
 
-  PEnumeratorVtable = ^TEnumeratorVtable;
-  TEnumeratorVtable = array[0..4] of Pointer;
-
 function GetElementType(typeInfo: PTypeInfo): PTypeInfo;
-
-const
-  IEnumerableGuid: TGUID = '{6BC97F33-C0A8-4770-8E1C-C2017527B7E7}';
-  ICollectionGuid: TGUID = '{4E749779-0873-498E-9597-FCF2A42C3F7B}';
-  IObjectListGuid: TGUID = '{78A32DC5-1A5B-4191-9CA5-006CD85CF1AA}';
-  IInterfaceListGuid: TGUID = '{B6BF9A6E-797C-4982-8D0D-B935E43D917E}';
-
-  IEnumerableOfTGuid: TGUID = '{A6B46D30-5B0F-495F-B7EC-46FBC5A75D24}';
-  ICollectionOfTGuid: TGUID = '{9BFD9B06-45CD-4C80-B145-01B09D432CF0}';
-  IListOfTGuid: TGUID = '{B6B4E1E1-0D29-40E1-854C-A93DEA8D1AA5}';
-
-  IReadOnlyCollectionOfTGuid: TGUID = '{E1368FD5-02AE-4481-A9DC-96329DFF606C}';
-  IReadOnlyListOfTGuid: TGUID = '{82A74ABB-509E-4AC0-9268-A993E7DC3AB3}';
-  IReadOnlyDictionaryGuid: TGUID = '{39F7C68B-373E-4758-808C-705D3978E38F}';
-
-  IPartitionOfTGuid: TGUID = '{ACFB79AB-F593-4F2B-9720-E6CE984F6844}';
 
 implementation
 
@@ -7450,16 +7436,6 @@ begin
   Result := TChunkIterator<T>.Create(source, size);
 end;
 
-class function TEnumerable.CombinePredicates<T>(const predicate1,
-  predicate2: Predicate<T>): Predicate<T>;
-begin
-  Result :=
-    function(const x: T): Boolean
-    begin
-      Result := predicate1(x) and predicate2(x);
-    end;
-end;
-
 class function TEnumerable.DefaultIfEmpty<T>(
   const source: IEnumerable<T>): IEnumerable<T>;
 var
@@ -7577,7 +7553,7 @@ class function TEnumerable.GroupBy<T, TKey>(const source: IEnumerable<T>;
   const keySelector: Func<T, TKey>): IEnumerable<IGrouping<TKey, T>>;
 begin
   IEnumerable<IInterface>(Result) := TGroupedEnumerable<T, TKey, T>.Create(
-    source, keySelector, function(const item: T): T begin Result := item end);
+    source, keySelector, TIdentityFunction<T>.Instance);
 end;
 
 class function TEnumerable.GroupBy<T, TKey, TElement>(
@@ -7673,7 +7649,12 @@ end;
 class function TEnumerable.Repeated<T>(const element: T;
   count: Integer): IEnumerable<T>;
 begin
-  Result := TRepeatIterator<T>.Create(element, count);
+  if count = 0 then
+    Result := TEnumerable.Empty<T>
+  else if count > 0 then
+    Result := TRepeatIterator<T>.Create(element, count)
+  else
+    RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 end;
 
 class function TEnumerable.Select<T, TResult>(const source: IEnumerable<T>;
@@ -7861,21 +7842,15 @@ end;
 class function TEnumerable.ToLookup<T, TKey>(const source: IEnumerable<T>;
   const keySelector: Func<T, TKey>): ILookup<TKey, T>;
 begin
-  ILookupInternal<TKey, T>(Result) := TLookup<TKey, T>.Create<T>(source, keySelector,
-    function(const x: T): T
-    begin
-      Result := x
-    end);
+  ILookupInternal<TKey, T>(Result) := TLookup<TKey, T>.Create<T>(
+    source, keySelector, TIdentityFunction<T>.Instance);
 end;
 
 class function TEnumerable.ToLookup<T, TKey>(const source: IEnumerable<T>;
   const keySelector: Func<T, TKey>; const comparer: IEqualityComparer<TKey>): ILookup<TKey, T>;
 begin
-  ILookupInternal<TKey, T>(Result) := TLookup<TKey, T>.Create<T>(source, keySelector,
-    function(const x: T): T
-    begin
-      Result := x
-    end, comparer);
+  ILookupInternal<TKey, T>(Result) := TLookup<TKey, T>.Create<T>(
+    source, keySelector, TIdentityFunction<T>.Instance, comparer);
 end;
 
 class function TEnumerable.ToLookup<T, TKey, TElement>(
@@ -8007,18 +7982,16 @@ end;
 
 {$REGION 'TIdentityFunction<T>'}
 
-class constructor TIdentityFunction<T>.Create;
+class function TIdentityFunction<T>.GetInstance: Func<T, T>;
 begin
-  fInstance :=
-    function(const x: T): T
-    begin
-      Result := x
-    end;
+  VTable := @Methods;
+  Methods[3] := @TIdentityFunction<T>.Invoke;
+  Pointer(Result) := @VTable;
 end;
 
-class destructor TIdentityFunction<T>.Destroy;
+function TIdentityFunction<T>.Invoke(const x: T): T;
 begin
-  fInstance := nil;
+  Result := x;
 end;
 
 {$ENDREGION}

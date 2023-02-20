@@ -249,6 +249,7 @@ type
       fSource: TBidiDictionary<TKey, TValue>;
       fItemIndex: Integer;
       fVersion: Integer;
+      fItem: PItem;
       function GetCurrent: TKeyValuePair;
       function GetCurrentInverse: TValueKeyPair;
       function GetCurrentKey: TKey;
@@ -341,7 +342,7 @@ type
       out bucketIndex, itemIndex: Integer): Boolean;
     function KeyHash(const key: TKey): Integer; inline;
     function ValueHash(const value: TValue): Integer; inline;
-    procedure DoAdd(keyhashCode, keyBucketIndex, valueHashCode, valueBucketIndex,
+    procedure DoAdd(keyHashCode, keyBucketIndex, valueHashCode, valueBucketIndex,
       itemIndex: Integer; const key: TKey; const value: TValue);
     procedure DoRemove(keyBucketIndex, valueBucketIndex, itemIndex: Integer;
       action: TCollectionChangedAction);
@@ -1072,7 +1073,7 @@ begin
         Exit(True);
       end;
     until False;
-    Result := False;
+    Exit(False);
   end
   else
     Result := RaiseHelper.EnumFailedVersion;
@@ -1360,7 +1361,7 @@ begin
   Result := fValueComparer.GetHashCode(value) and not RemovedFlag;
 end;
 
-procedure TBidiDictionary<TKey, TValue>.DoAdd(keyhashCode, keyBucketIndex, valueHashCode,
+procedure TBidiDictionary<TKey, TValue>.DoAdd(keyHashCode, keyBucketIndex, valueHashCode,
   valueBucketIndex, itemIndex: Integer; const key: TKey; const value: TValue);
 begin
   {$Q-}
@@ -1512,7 +1513,6 @@ begin
     TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
   begin
     fSource := Self;
-    fItemIndex := -1;
     fVersion := Self.fVersion;
   end;
 end;
@@ -1609,7 +1609,7 @@ begin
       FindValue(value, valueHashCode, valueBucketIndex, valueItemIndex);
     end;
     Assert(keyItemIndex = valueItemIndex);
-    DoAdd(keyhashCode, keyBucketIndex, valueHashCode, valueBucketIndex, keyItemIndex, key, value);
+    DoAdd(keyHashCode, keyBucketIndex, valueHashCode, valueBucketIndex, keyItemIndex, key, value);
   end;
 end;
 
@@ -1702,7 +1702,7 @@ begin
     FindValue(value, valueHashCode, valueBucketIndex, valueItemIndex);
   end;
   Assert(keyItemIndex = valueItemIndex);
-  DoAdd(keyhashCode, keyBucketIndex, valueHashCode, valueBucketIndex, keyItemIndex, key, value);
+  DoAdd(keyHashCode, keyBucketIndex, valueHashCode, valueBucketIndex, keyItemIndex, key, value);
   Result := True;
 end;
 
@@ -1850,7 +1850,7 @@ begin
       FindValue(value, valueHashCode, valueBucketIndex, valueItemIndex);
     end;
     Assert(keyItemIndex = valueItemIndex);
-    DoAdd(keyhashCode, keyBucketIndex, valueHashCode, valueBucketIndex, keyItemIndex, key, value);
+    DoAdd(keyHashCode, keyBucketIndex, valueHashCode, valueBucketIndex, keyItemIndex, key, value);
   end;
 end;
 
@@ -1966,7 +1966,6 @@ begin
     TypeInfo(TEnumerator), @TEnumerator.GetCurrentInverse, @TEnumerator.MoveNext))^ do
   begin
     fSource := Self.fSource;
-    fItemIndex := -1;
     fVersion := fSource.fVersion;
   end;
 end;
@@ -2192,38 +2191,54 @@ end;
 {$REGION 'TBidiDictionary<TKey, TValue>.TEnumerator' }
 
 function TBidiDictionary<TKey, TValue>.TEnumerator.GetCurrent: TKeyValuePair;
+var
+  item: PItem;
 begin
-  Result.Key := fSource.fItems[fItemIndex].Key;
-  Result.Value := fSource.fItems[fItemIndex].Value;
+  item := fItem;
+  Result.Key := item.Key;
+  Result.Value := item.Value;
 end;
 
 function TBidiDictionary<TKey, TValue>.TEnumerator.GetCurrentInverse: TValueKeyPair;
+var
+  item: PItem;
 begin
-  Result.Key := fSource.fItems[fItemIndex].Value;
-  Result.Value := fSource.fItems[fItemIndex].Key;
+  item := fItem;
+  Result.Key := item.Value;
+  Result.Value := item.Key;
 end;
 
 function TBidiDictionary<TKey, TValue>.TEnumerator.GetCurrentKey: TKey;
 begin
-  Result := fSource.fItems[fItemIndex].Key;
+  Result := fItem.Key;
 end;
 
 function TBidiDictionary<TKey, TValue>.TEnumerator.GetCurrentValue: TValue;
 begin
-  Result := fSource.fItems[fItemIndex].Value;
+  Result := fItem.Value;
 end;
 
 function TBidiDictionary<TKey, TValue>.TEnumerator.MoveNext: Boolean;
+var
+  source: TBidiDictionary<TKey, TValue>;
+  item: PItem;
 begin
-  if fVersion = fSource.fVersion then
+  source := fSource;
+  if fVersion = source.fVersion then
   begin
-    while fItemIndex < fSource.fItemCount - 1 do
-    begin
+    repeat
+      if fItemIndex >= source.fItemCount then
+        Break;
+
+      item := @source.fItems[fItemIndex];
       Inc(fItemIndex);
-      if not fSource.fItems[fItemIndex].Removed then
+      if item.KeyHashCode >= 0 then
+      begin
+        fItem := item;
         Exit(True);
-    end;
-    Result := False;
+      end;
+    until False;
+    Exit(False);
   end
   else
     Result := RaiseHelper.EnumFailedVersion;
@@ -2257,7 +2272,6 @@ begin
     TypeInfo(TEnumerator), @TEnumerator.GetCurrentKey, @TEnumerator.MoveNext))^ do
   begin
     fSource := Self.fSource;
-    fItemIndex := -1;
     fVersion := fSource.fVersion;
   end;
 end;
@@ -2330,7 +2344,6 @@ begin
     TypeInfo(TEnumerator), @TEnumerator.GetCurrentValue, @TEnumerator.MoveNext))^ do
   begin
     fSource := Self.fSource;
-    fItemIndex := -1;
     fVersion := fSource.fVersion;
   end;
 end;
@@ -2848,7 +2861,7 @@ begin
       end;
       fNode := Pointer(1);
     end;
-    Result := False;
+    Exit(False);
   end
   else
     Result := RaiseHelper.EnumFailedVersion;
