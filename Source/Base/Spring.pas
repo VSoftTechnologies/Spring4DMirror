@@ -2398,7 +2398,7 @@ type
 
   ENotImplementedException = SysUtils.ENotImplemented;
   EInvalidOperationException = SysUtils.EInvalidOpException;
-  EKeyNotFoundException = SysUtils.EArgumentException;
+  EKeyNotFoundException = class(SysUtils.EArgumentException);
   EArgumentNilException = SysUtils.EArgumentNilException;
 
   EInvalidCastException = SysUtils.EInvalidCast;
@@ -2410,7 +2410,6 @@ type
 
   EArgumentException = SysUtils.EArgumentException;
   EArgumentOutOfRangeException = SysUtils.EArgumentOutOfRangeException;
-  EArgumentNullException = EArgumentNilException;
   EInvalidEnumArgumentException = class(EArgumentException);
 
   ERttiException = class(Exception);
@@ -8163,8 +8162,8 @@ end;
 
 class procedure Guard.RaiseArgumentNullException(const argumentName: string);
 begin
-  raise EArgumentNullException.CreateResFmt(
-    @SArgumentNullException, [argumentName]) at ReturnAddress;
+  raise EArgumentNilException.CreateResFmt(
+    @SArgumentNilException, [argumentName]) at ReturnAddress;
 end;
 
 class procedure Guard.RaiseArgumentOutOfRangeException(const argumentName: string);

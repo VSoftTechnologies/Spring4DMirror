@@ -352,8 +352,8 @@ begin
   Result := True;
 end;
 
-function TDependencyResolver.CanResolveFromArgument(const context: ICreationContext;
-  const dependency: TDependencyModel; //FI:O804
+function TDependencyResolver.CanResolveFromArgument(const context: ICreationContext; //FI:O804
+  const dependency: TDependencyModel;
   const argument: TValue): Boolean;
 begin
   Result := Assigned(argument.TypeInfo) and argument.IsType(dependency.TypeInfo);
@@ -438,7 +438,7 @@ begin
       Kernel.Resolver.Resolve(context, dependencyModel, value).AsType(TypeInfo(T), Result);
     end;
 
-  case lazyKind of //FI:W535
+  case lazyKind of
     lkFunc: Result := TValue.From<Func<T>>(factory);
     lkRecord: Result := TValue.From<Lazy<T>>(Lazy<T>.Create(factory));
     lkInterface: Result := TValue.From<ILazy<T>>(Lazy<T>.Create(factory));

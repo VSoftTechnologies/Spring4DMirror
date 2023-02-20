@@ -72,6 +72,8 @@ type
   private type
     PNode = ^TNode;
 
+    TEnumeratorVtable = array[0..4] of Pointer;
+
     TEnumerator = record
     private
       fRoot: PNode;

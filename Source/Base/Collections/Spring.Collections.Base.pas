@@ -58,6 +58,9 @@ type
   end;
   {$ENDIF}
 
+  PEnumeratorVtable = ^TEnumeratorVtable;
+  TEnumeratorVtable = array[0..4] of Pointer;
+
   PEnumeratorBlock = ^TEnumeratorBlock;
   TEnumeratorBlock = record
     Vtable: Pointer;
@@ -97,6 +100,8 @@ type
   end;
 
   TEnumerableBase = class abstract(TRefCountedObject)
+  private
+    function MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
   protected
     this: Pointer;
   {$REGION 'Property Accessors'}
@@ -440,6 +445,7 @@ type
 
   {$REGION 'Implements IEnumerable<T>'}
     function GetEnumerator: IEnumerator<T>;
+    function ToArray: TArray<T>;
   {$ENDREGION}
 
   {$REGION 'Implements IReadOnlyCollection<T>'}
@@ -752,6 +758,21 @@ const
   OwnsObjectsBitIndex = 31;
   OwnsObjectsMask     = 1 shl OwnsObjectsBitIndex;
   CountMask           = not OwnsObjectsMask;
+
+  IEnumerableGuid: TGUID = '{6BC97F33-C0A8-4770-8E1C-C2017527B7E7}';
+  ICollectionGuid: TGUID = '{4E749779-0873-498E-9597-FCF2A42C3F7B}';
+  IObjectListGuid: TGUID = '{78A32DC5-1A5B-4191-9CA5-006CD85CF1AA}';
+  IInterfaceListGuid: TGUID = '{B6BF9A6E-797C-4982-8D0D-B935E43D917E}';
+
+  IEnumerableOfTGuid: TGUID = '{A6B46D30-5B0F-495F-B7EC-46FBC5A75D24}';
+  ICollectionOfTGuid: TGUID = '{9BFD9B06-45CD-4C80-B145-01B09D432CF0}';
+  IListOfTGuid: TGUID = '{B6B4E1E1-0D29-40E1-854C-A93DEA8D1AA5}';
+
+  IReadOnlyCollectionOfTGuid: TGUID = '{E1368FD5-02AE-4481-A9DC-96329DFF606C}';
+  IReadOnlyListOfTGuid: TGUID = '{82A74ABB-509E-4AC0-9268-A993E7DC3AB3}';
+  IReadOnlyDictionaryGuid: TGUID = '{39F7C68B-373E-4758-808C-705D3978E38F}';
+
+  IPartitionOfTGuid: TGUID = '{ACFB79AB-F593-4F2B-9720-E6CE984F6844}';
 
 procedure AssignComparer(var comparer; const source: IInterface);
 procedure EnsureEventInstance(var event: TEventBase; var result;
@@ -1083,6 +1104,15 @@ begin
     Result := IEnumerable(this).Count
   else
     Result := -1;
+end;
+
+function TEnumerableBase.MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
+begin
+  // TODO: optimize by iterating class hierarchy only once
+  Result := (GetInterfaceEntry(ICollectionOfTGuid) <> nil)
+    or (GetInterfaceEntry(IReadOnlyCollectionOfTGuid) <> nil)
+    or (InheritsFrom(iteratorClass)
+    and (TEnumerableIterator<Integer>(Self).fKind = TIteratorKind.Memoize));
 end;
 
 {$ENDREGION}
@@ -1607,10 +1637,7 @@ end;
 
 function TEnumerableBase<T>.Memoize: IEnumerable<T>;
 begin
-  if (GetInterfaceEntry(ICollectionOfTGuid) <> nil)
-    or (GetInterfaceEntry(IReadOnlyCollectionOfTGuid) <> nil)
-    or (InheritsFrom(TEnumerableIterator<T>)
-    and (TEnumerableIterator<T>(Self).fKind = TIteratorKind.Memoize)) then
+  if MemoizeCanReturnThis(TEnumerableIterator<T>) then
     Result := IEnumerable<T>(this)
   else
     Result := TEnumerableIterator<T>.Create(IEnumerable<T>(this),
@@ -1913,6 +1940,11 @@ begin
       if index >= 0 then
         Continue;
 
+      {$IFDEF RSP31615}
+      if IsManagedType(T) then
+        IEnumeratorInternal(enumerator).GetCurrent(value)
+      else
+      {$ENDIF}
       value := enumerator.Current;
       Exit(True);
     end;
@@ -1928,6 +1960,11 @@ begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   if enumerator.MoveNext then
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(value)
+    else
+    {$ENDIF}
     value := enumerator.Current;
     Exit(True);
   end;
@@ -1945,6 +1982,11 @@ begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
     if predicate(item) then
     begin
@@ -1964,6 +2006,11 @@ begin
   if enumerator.MoveNext then
   begin
     repeat
+      {$IFDEF RSP31615}
+      if IsManagedType(T) then
+        IEnumeratorInternal(enumerator).GetCurrent(value)
+      else
+      {$ENDIF}
       value := enumerator.Current;
     until not enumerator.MoveNext;
     Exit(True);
@@ -1983,6 +2030,11 @@ begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
     if predicate(item) then
     begin
@@ -2002,6 +2054,11 @@ begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   if enumerator.MoveNext then
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
     if not enumerator.MoveNext then
     begin
@@ -2025,8 +2082,12 @@ begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
-
     if predicate(item) then
     begin
       if Result then
@@ -3786,6 +3847,11 @@ begin
       i := 0;
     Index := i + 1;
     Current := TArray<T>(items)[i];
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(Enumerator).GetCurrent(TArray<T>(items)[i])
+    else
+    {$ENDIF}
     TArray<T>(items)[i] := Enumerator.Current;
     Result := True;
   end
@@ -4211,7 +4277,7 @@ end;
 
 function TIteratorBase<T>.TryGetLast(var value: T): Boolean;
 var
-  intf: IInterface;
+  enumerator: IEnumerator<T>;
   count, lastIndex: Integer;
 begin
   if fKind = TIteratorKind.Partition then
@@ -4233,15 +4299,20 @@ begin
       end
       else
       begin
-        intf := fSource.GetEnumerator;
-        if (SkipAndCount(IEnumerator(intf), fIndex) = fIndex)
-          and IEnumerator(intf).MoveNext then
+        enumerator := fSource.GetEnumerator;
+        if (SkipAndCount(IEnumerator(enumerator), fIndex) = fIndex)
+          and enumerator.MoveNext then
         begin
           count := fCount;
           repeat
-            value := IEnumerator<T>(intf).Current;
+            {$IFDEF RSP31615}
+            if IsManagedType(T) then
+              IEnumeratorInternal(enumerator).GetCurrent(value)
+            else
+            {$ENDIF}
+            value := enumerator.Current;
             Dec(count);
-          until (count = 0) or not IEnumerator(intf).MoveNext;
+          until (count = 0) or not enumerator.MoveNext;
           Exit(True);
         end;
       end;
@@ -4339,12 +4410,15 @@ begin
 end;
 
 function TArrayIterator<T>.GetEnumerator: IEnumerator<T>; //FI:W521
+var
+  items: Pointer;
 begin
+  items := Pointer(fItems);
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
     TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
   begin
-    fItems := Self.fItems;
-    fCount := DynArrayLength(fItems);
+    fItems := TArray<T>(items);
+    fCount := DynArrayLength(items);
   end;
 end;
 
@@ -4373,15 +4447,19 @@ end;
 function TArrayIterator<T>.IndexOf(const item: T; index, count: Integer): Integer;
 var
   comparer: Pointer;
-  i: Integer;
 begin
   CheckRange(index, count, DynArrayLength(fItems));
 
   comparer := _LookupVtableInfo(giEqualityComparer, GetElementType, SizeOf(T));
-  for i := index to index + count - 1 do
-    if IEqualityComparer<T>(comparer).Equals(fItems[i], item) then
-      Exit(i);
+  for Result := index to index + count - 1 do
+    if IEqualityComparer<T>(comparer).Equals(fItems[Result], item) then
+      Exit;
   Result := -1;
+end;
+
+function TArrayIterator<T>.ToArray: TArray<T>;
+begin
+  Result := Copy(fItems);
 end;
 
 {$ENDREGION}

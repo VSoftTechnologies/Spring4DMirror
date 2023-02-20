@@ -1574,7 +1574,7 @@ procedure TTestGuard.TestNotNull;
 var
   intf: IInterface;
 begin
-  StartExpectingException(EArgumentNullException);
+  StartExpectingException(EArgumentNilException);
   Guard.CheckNotNull(intf, 'intf');
   StopExpectingException();
 end;
