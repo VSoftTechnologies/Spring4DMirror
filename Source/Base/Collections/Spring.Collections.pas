@@ -250,6 +250,121 @@ type
     function AtMost(count: Integer): Boolean;
 
     /// <summary>
+    ///   Computes the average of the sequence.
+    /// </summary>
+    /// <returns>
+    ///   The average of all elements in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|ENotSupportedException">
+    ///   T is not a supported numeric type.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Average: Double; overload;
+
+    /// <summary>
+    ///   Computes the average of a sequence of Integer values that are
+    ///   obtained by invoking a transform function on each element of the
+    ///   input sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The average of the sequence of values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    /// <exception cref="Spring|EIntOverflow">
+    ///   The sum of the elements in the sequence is larger than Int64.MaxValue.
+    /// </exception>
+    function Average(const selector: Func<T, Integer>): Double; overload;
+
+    /// <summary>
+    ///   Computes the average of a sequence of Int64 values that are
+    ///   obtained by invoking a transform function on each element of the
+    ///   input sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The average of the sequence of values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    /// <exception cref="Spring|EIntOverflow">
+    ///   The sum of the elements in the sequence is larger than Int64.MaxValue.
+    /// </exception>
+    function Average(const selector: Func<T, Int64>): Double; overload;
+
+    /// <summary>
+    ///   Computes the average of a sequence of Single values that are
+    ///   obtained by invoking a transform function on each element of the
+    ///   input sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The average of the sequence of values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Average(const selector: Func<T, Single>): Double; overload;
+
+    /// <summary>
+    ///   Computes the average of a sequence of Double values that are
+    ///   obtained by invoking a transform function on each element of the
+    ///   input sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The average of the sequence of values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Average(const selector: Func<T, Double>): Double; overload;
+
+    /// <summary>
+    ///   Computes the average of a sequence of Currency values that are
+    ///   obtained by invoking a transform function on each element of the
+    ///   input sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The average of the sequence of values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Average(const selector: Func<T, Currency>): Double; overload;
+
+    /// <summary>
     ///   Determines whether or not the number of elements in the sequence is
     ///   between an inclusive range of minimum and maximum integers.
     /// </summary>
@@ -541,7 +656,95 @@ type
     /// </returns>
     function Max: T; overload;
 
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the maximum Integer value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The maximum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Max(const selector: Func<T, Integer>): Integer; overload;
+
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the maximum Int64 value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The maximum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Max(const selector: Func<T, Int64>): Int64; overload;
+
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the maximum Single value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The maximum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Max(const selector: Func<T, Single>): Single; overload;
+
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the maximum Double value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The maximum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Max(const selector: Func<T, Double>): Double; overload;
+
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the maximum Currency value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The maximum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Max(const selector: Func<T, Currency>): Currency; overload;
 
     /// <summary>
     ///   Returns the maximum value in a sequence by using the specified <see cref="IComparer&lt;T&gt;" />
@@ -564,11 +767,99 @@ type
     /// </returns>
     function Min: T; overload;
 
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the minimum Integer value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The minimum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
     function Min(const selector: Func<T, Integer>): Integer; overload;
 
     /// <summary>
-    ///   Returns the minimum value in a sequence by using the specified <see cref="IComparer&lt;T&gt;" />
-    ///    .
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the minimum Int64 value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The minimum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Min(const selector: Func<T, Int64>): Int64; overload;
+
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the minimum Single value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The minimum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Min(const selector: Func<T, Single>): Single; overload;
+
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the minimum Integer value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The minimum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Min(const selector: Func<T, Double>): Double; overload;
+
+    /// <summary>
+    ///   Invokes a transform function on each element of the sequence and
+    ///   returns the minimum Integer value.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The minimum value in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EInvalidOperationException">
+    ///   The sequence is empty.
+    /// </exception>
+    function Min(const selector: Func<T, Currency>): Currency; overload;
+
+    /// <summary>
+    ///   Returns the minimum value in the sequence by using the specified
+    ///   comparer.
     /// </summary>
     /// <param name="comparer">
     ///   An <see cref="IComparer&lt;T&gt;" /> to compare values.
@@ -675,10 +966,102 @@ type
     /// <summary>
     ///   Computes the sum of the sequence.
     /// </summary>
-    function Sum: T;
-//    function Sum(const selector: Func<T, Integer>): Integer; overload;
-//    function Sum(const selector: Func<T, Int64>): Int64; overload;
-//    function Sum(const selector: Func<T, Double>): Double; overload;
+    /// <returns>
+    ///   The sum of all elements in the sequence.
+    /// </returns>
+    /// <exception cref="Spring|ENotSupportedException">
+    ///   T is not a supported numeric type.
+    /// </exception>
+    /// <remarks>
+    ///   Returns 0 when the sequence is empty.
+    /// </remarks>
+    function Sum: T; overload;
+
+    /// <summary>
+    ///   Computes the sum of the sequence of Single values that are obtained
+    ///   by invoking a transform function on each element of the input
+    ///   sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The sum of the projected values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EIntOverflow">
+    ///   The sum of the elements in the sequence is larger than Int32.MaxValue.
+    /// </exception>
+    function Sum(const selector: Func<T, Integer>): Integer; overload;
+
+    /// <summary>
+    ///   Computes the sum of the sequence of Int64 values that are obtained
+    ///   by invoking a transform function on each element of the input
+    ///   sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The sum of the projected values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    /// <exception cref="Spring|EIntOverflow">
+    ///   The sum of the elements in the sequence is larger than Int64.MaxValue.
+    /// </exception>
+    function Sum(const selector: Func<T, Int64>): Int64; overload;
+
+    /// <summary>
+    ///   Computes the sum of the sequence of Single values that are obtained
+    ///   by invoking a transform function on each element of the input
+    ///   sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The sum of the projected values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    function Sum(const selector: Func<T, Single>): Single; overload;
+
+    /// <summary>
+    ///   Computes the sum of the sequence of Double values that are obtained
+    ///   by invoking a transform function on each element of the input
+    ///   sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The sum of the projected values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    function Sum(const selector: Func<T, Double>): Double; overload;
+
+    /// <summary>
+    ///   Computes the sum of the sequence of Currency values that are obtained
+    ///   by invoking a transform function on each element of the input
+    ///   sequence.
+    /// </summary>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   The sum of the projected values.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    function Sum(const selector: Func<T, Currency>): Currency; overload;
 
     /// <summary>
     ///   Returns a specified number of contiguous elements from the start of a
@@ -3406,10 +3789,114 @@ type
     class function From<T>(const values: array of T): IReadOnlyList<T>; overload; static;
     class function From<T>(const values: TArray<T>): IReadOnlyList<T>; overload; static;
 
-    class function Min<T>(const source: IEnumerable<T>;
-      const selector: Func<T, Integer>): Integer; overload; static;
-    class function Max<T>(const source: IEnumerable<T>;
-      const selector: Func<T, Integer>): Integer; overload; static;
+    /// <summary>
+    ///   Returns the maximum value in a generic sequence according to a
+    ///   specified key selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to compare elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to determine the maximum value of.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <returns>
+    ///   The value with the maximum key in the sequence.
+    /// </returns>
+    /// <exception cref="EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    class function MaxBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>): T; overload; static;
+
+    /// <summary>
+    ///   Returns the maximum value in a generic sequence according to a
+    ///   specified key selector function and key comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to compare elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to determine the maximum value of.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   The comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   The value with the maximum key in the sequence.
+    /// </returns>
+    /// <exception cref="EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    class function MaxBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const comparer: IComparer<TKey>): T; overload; static;
+
+    /// <summary>
+    ///   Returns the minimum value in a generic sequence according to a
+    ///   specified key selector function.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to compare elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to determine the minimum value of.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <returns>
+    ///   The value with the minimum key in the sequence.
+    /// </returns>
+    /// <exception cref="EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    class function MinBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>): T; overload; static;
+
+    /// <summary>
+    ///   Returns the minimum value in a generic sequence according to a
+    ///   specified key selector function and key comparer.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of key to compare elements by.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to determine the minimum value of.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   The comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   The value with the minimum key in the sequence.
+    /// </returns>
+    /// <exception cref="EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
+    /// </exception>
+    class function MinBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const comparer: IComparer<TKey>): T; overload; static;
+
 
     class function OfType<T, TResult>(const source: IEnumerable<T>): IEnumerable<TResult>; static;
 
@@ -3435,21 +3922,6 @@ type
     class function SelectMany<T, TResult>(const source: IEnumerable<T>;
       const selector: Func<T, IEnumerable<TResult>>): IEnumerable<TResult>; overload; static;
 
-    class function Sum(const source: IEnumerable<Integer>): Integer; overload; static;
-    class function Sum(const source: IEnumerable<Int64>): Int64; overload; static;
-    class function Sum(const source: IEnumerable<Single>): Single; overload; static;
-    class function Sum(const source: IEnumerable<Double>): Double; overload; static;
-    class function Sum(const source: IEnumerable<Currency>): Currency; overload; static;
-    class function Sum<TSource>(const source: IEnumerable<TSource>;
-      const selector: Func<TSource, Integer>): Integer; overload; static;
-    class function Sum<TSource>(const source: IEnumerable<TSource>;
-      const selector: Func<TSource, Int64>): Int64; overload; static;
-    class function Sum<TSource>(const source: IEnumerable<TSource>;
-      const selector: Func<TSource, Single>): Single; overload; static;
-    class function Sum<TSource>(const source: IEnumerable<TSource>;
-      const selector: Func<TSource, Double>): Double; overload; static;
-    class function Sum<TSource>(const source: IEnumerable<TSource>;
-      const selector: Func<TSource, Currency>): Currency; overload; static;
 
     class function ToDictionary<TSource, TKey>(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>): IOrderedDictionary<TKey, TSource>; overload; static;
@@ -7585,16 +8057,100 @@ begin
   Result := TIntersectIterator<T>.Create(first, second, comparer);
 end;
 
-class function TEnumerable.Max<T>(const source: IEnumerable<T>;
-  const selector: Func<T, Integer>): Integer;
+class function TEnumerable.MaxBy<T, TKey>(const source: IEnumerable<T>;
+  const keySelector: Func<T, TKey>): T;
+var
+  keyComparer: Pointer;
 begin
-  Result := Select<T, Integer>(source, selector).Max;
+  keyComparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+  Result := MaxBy<T, TKey>(source, keySelector, IComparer<TKey>(keyComparer));
 end;
 
-class function TEnumerable.Min<T>(const source: IEnumerable<T>;
-  const selector: Func<T, Integer>): Integer;
+class function TEnumerable.MaxBy<T, TKey>(const source: IEnumerable<T>;
+  const keySelector: Func<T, TKey>; const comparer: IComparer<TKey>): T;
+var
+  enumerator: IEnumerator<T>;
+  item: T;
+  maxKey, key: TKey;
 begin
-  Result := Select<T, Integer>(source, selector).Min;
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
+
+  enumerator := source.GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(enumerator).GetCurrent(Result)
+  else
+  {$ENDIF}
+  Result := enumerator.Current;
+  maxKey := keySelector(Result);
+  while enumerator.MoveNext do
+  begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
+    item := enumerator.Current;
+    key := keySelector(item);
+    if comparer.Compare(key, maxKey) > 0 then
+    begin
+      maxKey := key;
+      Result := item;
+    end;
+  end;
+end;
+
+class function TEnumerable.MinBy<T, TKey>(const source: IEnumerable<T>;
+  const keySelector: Func<T, TKey>): T;
+var
+  keyComparer: Pointer;
+begin
+  keyComparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+  Result := MinBy<T, TKey>(source, keySelector, IComparer<TKey>(keyComparer));
+end;
+
+class function TEnumerable.MinBy<T, TKey>(const source: IEnumerable<T>;
+  const keySelector: Func<T, TKey>; const comparer: IComparer<TKey>): T;
+var
+  enumerator: IEnumerator<T>;
+  item: T;
+  minKey, key: TKey;
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
+
+  enumerator := source.GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(enumerator).GetCurrent(Result)
+  else
+  {$ENDIF}
+  Result := enumerator.Current;
+  minKey := keySelector(Result);
+  while enumerator.MoveNext do
+  begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
+    item := enumerator.Current;
+    key := keySelector(item);
+    if comparer.Compare(key, minKey) < 0 then
+    begin
+      minKey := key;
+      Result := item;
+    end;
+  end;
 end;
 
 class function TEnumerable.OfType<T, TResult>(
@@ -7667,136 +8223,6 @@ class function TEnumerable.SelectMany<T, TResult>(const source: IEnumerable<T>;
   const selector: Func<T, IEnumerable<TResult>>): IEnumerable<TResult>;
 begin
   Result := TSelectManyIterator<T, TResult>.Create(source, selector);
-end;
-
-class function TEnumerable.Sum(const source: IEnumerable<Integer>): Integer;
-var
-  enumerator: IEnumerator<Integer>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + enumerator.Current;
-end;
-
-class function TEnumerable.Sum(const source: IEnumerable<Int64>): Int64;
-var
-  enumerator: IEnumerator<Int64>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + enumerator.Current;
-end;
-
-class function TEnumerable.Sum(const source: IEnumerable<Single>): Single;
-var
-  enumerator: IEnumerator<Single>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + enumerator.Current;
-end;
-
-class function TEnumerable.Sum(const source: IEnumerable<Double>): Double;
-var
-  enumerator: IEnumerator<Double>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + enumerator.Current;
-end;
-
-class function TEnumerable.Sum(const source: IEnumerable<Currency>): Currency;
-var
-  enumerator: IEnumerator<Currency>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + enumerator.Current;
-end;
-
-class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
-  const selector: Func<TSource, Integer>): Integer;
-var
-  enumerator: IEnumerator<TSource>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + selector(enumerator.Current);
-end;
-
-class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
-  const selector: Func<TSource, Int64>): Int64;
-var
-  enumerator: IEnumerator<TSource>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + selector(enumerator.Current);
-end;
-
-class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
-  const selector: Func<TSource, Single>): Single;
-var
-  enumerator: IEnumerator<TSource>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + selector(enumerator.Current);
-end;
-
-class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
-  const selector: Func<TSource, Double>): Double;
-var
-  enumerator: IEnumerator<TSource>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + selector(enumerator.Current);
-end;
-
-class function TEnumerable.Sum<TSource>(const source: IEnumerable<TSource>;
-  const selector: Func<TSource, Currency>): Currency;
-var
-  enumerator: IEnumerator<TSource>;
-begin
-  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
-  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
-
-  Result := 0;
-  enumerator := source.GetEnumerator;
-  while enumerator.MoveNext do
-    Result := Result + selector(enumerator.Current);
 end;
 
 class function TEnumerable.ToDictionary<TSource, TKey>(

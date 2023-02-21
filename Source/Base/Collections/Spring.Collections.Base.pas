@@ -100,7 +100,10 @@ type
   end;
 
   TEnumerableBase = class abstract(TRefCountedObject)
-  private
+  private type
+    TGetCurrent = procedure(const enumerator: IInterface; var value);
+    TGetCurrentWithComparer = procedure(const enumerator, comparer: IInterface; var value);
+    TGetCurrentWithSelector<T> = function(const enumerator, selector: IInterface): T;
     function MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
   protected
     this: Pointer;
@@ -109,6 +112,32 @@ type
     function GetIsEmpty: Boolean;
     function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
+
+    function Average(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Integer>): Double; overload;
+    function Average(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Int64>): Double; overload;
+    function Average(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Single>): Double; overload;
+    function Average(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Double>): Double; overload;
+    function Average(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Currency>): Double; overload;
+
+    procedure Max(const comparer: IInterface; var result; getCurrent: TGetCurrent; getGreaterValue: TGetCurrentWithComparer); overload;
+    function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Integer>): Integer; overload;
+    function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Int64>): Int64; overload;
+    function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Single>): Single; overload;
+    function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Double>): Double; overload;
+    function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Currency>): Currency; overload;
+
+    procedure Min(const comparer: IInterface; var result; getCurrent: TGetCurrent; getLesserValue: TGetCurrentWithComparer); overload;
+    function Min(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Integer>): Integer; overload;
+    function Min(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Int64>): Int64; overload;
+    function Min(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Single>): Single; overload;
+    function Min(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Double>): Double; overload;
+    function Min(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Currency>): Currency; overload;
+
+    function Sum(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Integer>): Integer; overload;
+    function Sum(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Int64>): Int64; overload;
+    function Sum(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Single>): Single; overload;
+    function Sum(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Double>): Double; overload;
+    function Sum(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Currency>): Currency; overload;
   public
     class function NewInstance: TObject; override;
 
@@ -152,6 +181,13 @@ type
 
     function Any(const predicate: Predicate<T>): Boolean; overload;
 
+    function Average: Double; overload;
+    function Average(const selector: Func<T, Integer>): Double; overload;
+    function Average(const selector: Func<T, Int64>): Double; overload;
+    function Average(const selector: Func<T, Single>): Double; overload;
+    function Average(const selector: Func<T, Double>): Double; overload;
+    function Average(const selector: Func<T, Currency>): Double; overload;
+
     function Concat(const second: IEnumerable<T>): IEnumerable<T>;
 
     function Contains(const value: T): Boolean; overload;
@@ -183,13 +219,21 @@ type
     function LastOrDefault(const predicate: Predicate<T>; const defaultValue: T): T; overload;
 
     function Max: T; overload;
-    function Max(const selector: Func<T, Integer>): Integer; overload;
     function Max(const comparer: IComparer<T>): T; overload;
     function Max(const comparer: TComparison<T>): T; overload;
+    function Max(const selector: Func<T, Integer>): Integer; overload;
+    function Max(const selector: Func<T, Int64>): Int64; overload;
+    function Max(const selector: Func<T, Single>): Single; overload;
+    function Max(const selector: Func<T, Double>): Double; overload;
+    function Max(const selector: Func<T, Currency>): Currency; overload;
     function Min: T; overload;
-    function Min(const selector: Func<T, Integer>): Integer; overload;
     function Min(const comparer: IComparer<T>): T; overload;
     function Min(const comparer: TComparison<T>): T; overload;
+    function Min(const selector: Func<T, Integer>): Integer; overload;
+    function Min(const selector: Func<T, Int64>): Int64; overload;
+    function Min(const selector: Func<T, Single>): Single; overload;
+    function Min(const selector: Func<T, Double>): Double; overload;
+    function Min(const selector: Func<T, Currency>): Currency; overload;
 
     function Memoize: IEnumerable<T>;
 
@@ -213,7 +257,12 @@ type
     function SkipWhile(const predicate: Predicate<T>): IEnumerable<T>; overload;
     function SkipWhile(const predicate: Func<T, Integer, Boolean>): IEnumerable<T>; overload;
 
-    function Sum: T;
+    function Sum: T; overload;
+    function Sum(const selector: Func<T, Integer>): Integer; overload;
+    function Sum(const selector: Func<T, Int64>): Int64; overload;
+    function Sum(const selector: Func<T, Single>): Single; overload;
+    function Sum(const selector: Func<T, Double>): Double; overload;
+    function Sum(const selector: Func<T, Currency>): Currency; overload;
 
     function Take(count: Integer): IEnumerable<T>;
     function TakeLast(count: Integer): IEnumerable<T>;
@@ -404,6 +453,17 @@ type
 
     class function DoGetCurrent(const enumerator: IEnumerator; elementType: PTypeInfo): Spring.TValue; static;
     class function DoAdd(const collection: IInterface; const value: Spring.TValue): Boolean; static;
+  end;
+
+  TSelector<T> = record
+    class function GetCurrentWithSelector(const enumerator, selector: IInterface): T; static;
+    class procedure GetCurrent(const enumerator: IInterface; var value); static;
+    class procedure GetCurrentIfGreaterThan(const enumerator, comparer: IInterface; var result); static;
+    class procedure GetCurrentIfLessThan(const enumerator, comparer: IInterface; var result); static;
+  end;
+
+  TSelector<T, TResult> = record
+    class function GetCurrent(const enumerator, selector: IInterface): TResult; static;
   end;
 
   TEnumerableIterator<T> = class sealed(TIteratorBase<T>, IInterface, IEnumerable<T>)
@@ -1049,6 +1109,108 @@ begin
     Result := Boolean(RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum));
 end;
 
+function TEnumerableBase.Average(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Integer>): Double;
+var
+  enumerator: IEnumerator;
+  sum, count: Int64;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  sum := getCurrent(enumerator, selector);
+  count := 1;
+  while enumerator.MoveNext do
+  begin
+    {$Q+}
+    sum := sum + getCurrent(enumerator, selector);
+    {$IFNDEF OVERFLOWCHECKS_ON}{$Q-}{$ENDIF}
+    Inc(count);
+  end;
+  Result := sum / count;
+end;
+
+function TEnumerableBase.Average(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Int64>): Double;
+var
+  enumerator: IEnumerator;
+  sum, count: Int64;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  sum := getCurrent(enumerator, selector);
+  count := 1;
+  while enumerator.MoveNext do
+  begin
+    {$Q+}
+    sum := sum + getCurrent(enumerator, selector);
+    {$IFNDEF OVERFLOWCHECKS_ON}{$Q-}{$ENDIF}
+    Inc(count);
+  end;
+  Result := sum / count;
+end;
+
+function TEnumerableBase.Average(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Single>): Double;
+var
+  enumerator: IEnumerator;
+  sum: Double;
+  count: Int64;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  sum := getCurrent(enumerator, selector);
+  count := 1;
+  while enumerator.MoveNext do
+  begin
+    sum := sum + getCurrent(enumerator, selector);
+    Inc(count);
+  end;
+  Result := sum / count;
+end;
+
+function TEnumerableBase.Average(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Double>): Double;
+var
+  enumerator: IEnumerator;
+  sum: Double;
+  count: Int64;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  sum := getCurrent(enumerator, selector);
+  count := 1;
+  while enumerator.MoveNext do
+  begin
+    sum := sum + getCurrent(enumerator, selector);
+    Inc(count);
+  end;
+  Result := sum / count;
+end;
+
+function TEnumerableBase.Average(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Currency>): Double;
+var
+  enumerator: IEnumerator;
+  sum: Double;
+  count: Int64;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  sum := getCurrent(enumerator, selector);
+  count := 1;
+  while enumerator.MoveNext do
+  begin
+    sum := sum + getCurrent(enumerator, selector);
+    Inc(count);
+  end;
+  Result := sum / count;
+end;
+
 function TEnumerableBase.Between(min, max: Integer): Boolean;
 begin
   if min >= 0 then
@@ -1113,6 +1275,277 @@ begin
     or (GetInterfaceEntry(IReadOnlyCollectionOfTGuid) <> nil)
     or (InheritsFrom(iteratorClass)
     and (TEnumerableIterator<Integer>(Self).fKind = TIteratorKind.Memoize));
+end;
+
+procedure TEnumerableBase.Max(const comparer: IInterface; var result;
+  getCurrent: TGetCurrent; getGreaterValue: TGetCurrentWithComparer);
+var
+  enumerator: IEnumerator;
+begin
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
+
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+
+  getCurrent(enumerator, result);
+  while enumerator.MoveNext do
+    getGreaterValue(enumerator, comparer, result);
+end;
+
+function TEnumerableBase.Max(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Integer>): Integer;
+var
+  enumerator: IEnumerator;
+  value: Integer;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value > Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Max(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Int64>): Int64;
+var
+  enumerator: IEnumerator;
+  value: Int64;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value > Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Max(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Single>): Single;
+var
+  enumerator: IEnumerator;
+  value: Single;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value > Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Max(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Double>): Double;
+var
+  enumerator: IEnumerator;
+  value: Double;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value > Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Max(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Currency>): Currency;
+var
+  enumerator: IEnumerator;
+  value: Currency;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value > Result then
+      Result := value;
+  end;
+end;
+
+procedure TEnumerableBase.Min(const comparer: IInterface; var result;
+  getCurrent: TGetCurrent; getLesserValue: TGetCurrentWithComparer);
+var
+  enumerator: IEnumerator;
+begin
+  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
+
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+
+  getCurrent(enumerator, result);
+  while enumerator.MoveNext do
+    getLesserValue(enumerator, comparer, result);
+end;
+
+function TEnumerableBase.Min(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Integer>): Integer;
+var
+  enumerator: IEnumerator;
+  value: Integer;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value < Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Min(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Int64>): Int64;
+var
+  enumerator: IEnumerator;
+  value: Int64;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value < Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Min(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Single>): Single;
+var
+  enumerator: IEnumerator;
+  value: Single;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value < Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Min(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Double>): Double;
+var
+  enumerator: IEnumerator;
+  value: Double;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value < Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Min(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Currency>): Currency;
+var
+  enumerator: IEnumerator;
+  value: Currency;
+begin
+  enumerator := IEnumerable(this).GetEnumerator;
+  if not enumerator.MoveNext then
+    RaiseHelper.NoElements;
+  Result := getCurrent(enumerator, selector);
+  while enumerator.MoveNext do
+  begin
+    value := getCurrent(enumerator, selector);
+    if value < Result then
+      Result := value;
+  end;
+end;
+
+function TEnumerableBase.Sum(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Integer>): Integer;
+var
+  enumerator: IEnumerator;
+begin
+  Result := 0;
+  enumerator := IEnumerable(this).GetEnumerator;
+  while enumerator.MoveNext do
+    {$Q+}
+    Result := Result + getCurrent(enumerator, selector);
+    {$IFNDEF OVERFLOWCHECKS_ON}{$Q-}{$ENDIF}
+end;
+
+function TEnumerableBase.Sum(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Int64>): Int64;
+var
+  enumerator: IEnumerator;
+begin
+  Result := 0;
+  enumerator := IEnumerable(this).GetEnumerator;
+  while enumerator.MoveNext do
+    {$Q+}
+    Result := Result + getCurrent(enumerator, selector);
+    {$IFNDEF OVERFLOWCHECKS_ON}{$Q-}{$ENDIF}
+end;
+
+function TEnumerableBase.Sum(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Single>): Single;
+var
+  enumerator: IEnumerator;
+begin
+  Result := 0;
+  enumerator := IEnumerable(this).GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + getCurrent(enumerator, selector);
+end;
+
+function TEnumerableBase.Sum(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Double>): Double;
+var
+  enumerator: IEnumerator;
+begin
+  Result := 0;
+  enumerator := IEnumerable(this).GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + getCurrent(enumerator, selector);
+end;
+
+function TEnumerableBase.Sum(const selector: IInterface;
+  getCurrent: TGetCurrentWithSelector<Currency>): Currency;
+var
+  enumerator: IEnumerator;
+begin
+  Result := 0;
+  enumerator := IEnumerable(this).GetEnumerator;
+  while enumerator.MoveNext do
+    Result := Result + getCurrent(enumerator, selector);
 end;
 
 {$ENDREGION}
@@ -1206,6 +1639,56 @@ begin
     if predicate(enumerator.Current) then
       Exit(True);
   Result := False;
+end;
+
+function TEnumerableBase<T>.Average: Double;
+begin
+  if TypeInfo(T) = TypeInfo(Integer) then
+    Result := Average(nil, TSelector<Integer>.GetCurrentWithSelector)
+  else if TypeInfo(T) = TypeInfo(Int64) then
+    Result := Average(nil, TSelector<Int64>.GetCurrentWithSelector)
+  else if TypeInfo(T) = TypeInfo(NativeInt) then
+    {$IFDEF CPU32BITS}
+    Result := Average(nil, TSelector<Integer>.GetCurrentWithSelector)
+    {$ELSE}
+    Result := Average(nil, TSelector<Int64>.GetCurrentWithSelector)
+    {$ENDIF}
+  else if TypeInfo(T) = TypeInfo(System.Single) then
+    Result := Average(nil, TSelector<System.Single>.GetCurrentWithSelector)
+  else if TypeInfo(T) = TypeInfo(Double) then
+    Result := Average(nil, TSelector<Double>.GetCurrentWithSelector)
+  else if TypeInfo(T) = TypeInfo(Currency) then
+    Result := Average(nil, TSelector<Currency>.GetCurrentWithSelector)
+  else
+    // if T is not of any of the above types this way of calling Average is not supported
+    // consider using Average with a selector function to turn the values
+    // to any of the supported types for calculating the average
+    RaiseHelper.NotSupported;
+end;
+
+function TEnumerableBase<T>.Average(const selector: Func<T, Integer>): Double;
+begin
+  Result := Average(PInterface(@selector)^, TSelector<T, Integer>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Average(const selector: Func<T, Int64>): Double;
+begin
+  Result := Average(PInterface(@selector)^, TSelector<T, Int64>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Average(const selector: Func<T, Single>): Double;
+begin
+  Result := Average(PInterface(@selector)^, TSelector<T, System.Single>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Average(const selector: Func<T, Double>): Double;
+begin
+  Result := Average(PInterface(@selector)^, TSelector<T, Double>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Average(const selector: Func<T, Currency>): Double;
+begin
+  Result := Average(PInterface(@selector)^, TSelector<T, Currency>.GetCurrent);
 end;
 
 function TEnumerableBase<T>.Concat(const second: IEnumerable<T>): IEnumerable<T>;
@@ -1483,156 +1966,82 @@ end;
 
 function TEnumerableBase<T>.Max: T;
 begin
-  Result := Max(fComparer);
-end;
-
-function TEnumerableBase<T>.Max(const selector: Func<T, Integer>): Integer;
-var
-  enumerator: IEnumerator<T>;
-  value: Integer;
-  {$IFDEF RSP31615}
-  item: T;
-  {$ENDIF}
-begin
-  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
-
-  enumerator := IEnumerable<T>(this).GetEnumerator;
-  if not enumerator.MoveNext then
-    RaiseHelper.NoElements;
-  {$IFDEF RSP31615}
-  if IsManagedType(T) then
-  begin
-    IEnumeratorInternal(enumerator).GetCurrent(item);
-    Result := selector(item);
-  end
-  else
-  {$ENDIF}
-  Result := selector(enumerator.Current);
-  while enumerator.MoveNext do
-  begin
-    {$IFDEF RSP31615}
-    if IsManagedType(T) then
-    begin
-      IEnumeratorInternal(enumerator).GetCurrent(item);
-      value := selector(item);
-    end
-    else
-    {$ENDIF}
-    value := selector(enumerator.Current);
-    if value > Result then
-      Result := value;
-  end;
+  Result := IEnumerable<T>(this).Max(fComparer);
 end;
 
 function TEnumerableBase<T>.Max(const comparer: IComparer<T>): T;
-var
-  enumerator: IEnumerator<T>;
-  item: T;
 begin
-  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
-
-  enumerator := IEnumerable<T>(this).GetEnumerator;
-  if not enumerator.MoveNext then
-    RaiseHelper.NoElements;
-  {$IFDEF RSP31615}
-  if IsManagedType(T) then
-    IEnumeratorInternal(enumerator).GetCurrent(Result)
-  else
-  {$ENDIF}
-  Result := enumerator.Current;
-  while enumerator.MoveNext do
-  begin
-    {$IFDEF RSP31615}
-    if IsManagedType(T) then
-      IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
-    item := enumerator.Current;
-    if comparer.Compare(item, Result) > 0 then
-      Result := item;
-  end;
+  Max(comparer, Result,  TSelector<T>.GetCurrent, TSelector<T>.GetCurrentIfGreaterThan);
 end;
 
 function TEnumerableBase<T>.Max(const comparer: TComparison<T>): T;
 begin
-  Result := Max(IComparer<T>(PPointer(@comparer)^));
+  Result := IEnumerable<T>(this).Max(IComparer<T>(PPointer(@comparer)^));
+end;
+
+function TEnumerableBase<T>.Max(const selector: Func<T, Integer>): Integer;
+begin
+  Result := Max(PInterface(@selector)^, TSelector<T, Integer>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Max(const selector: Func<T, Int64>): Int64;
+begin
+  Result := Max(PInterface(@selector)^, TSelector<T, Int64>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Max(const selector: Func<T, Single>): Single;
+begin
+  Result := Max(PInterface(@selector)^, TSelector<T, System.Single>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Max(const selector: Func<T, Double>): Double;
+begin
+  Result := Max(PInterface(@selector)^, TSelector<T, Double>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Max(const selector: Func<T, Currency>): Currency;
+begin
+  Result := Max(PInterface(@selector)^, TSelector<T, Currency>.GetCurrent);
 end;
 
 function TEnumerableBase<T>.Min: T;
 begin
-  Result := Min(fComparer);
-end;
-
-function TEnumerableBase<T>.Min(const selector: Func<T, Integer>): Integer;
-var
-  enumerator: IEnumerator<T>;
-  value: Integer;
-  {$IFDEF RSP31615}
-  item: T;
-  {$ENDIF}
-begin
-  if not Assigned(selector) then RaiseHelper.ArgumentNil(ExceptionArgument.selector);
-
-  enumerator := IEnumerable<T>(this).GetEnumerator;
-  if not enumerator.MoveNext then
-    RaiseHelper.NoElements;
-  {$IFDEF RSP31615}
-  if IsManagedType(T) then
-  begin
-    IEnumeratorInternal(enumerator).GetCurrent(item);
-    Result := selector(item);
-  end
-  else
-  {$ENDIF}
-  Result := selector(enumerator.Current);
-  while enumerator.MoveNext do
-  begin
-    {$IFDEF RSP31615}
-    if IsManagedType(T) then
-    begin
-      IEnumeratorInternal(enumerator).GetCurrent(item);
-      value := selector(item);
-    end
-    else
-    {$ENDIF}
-    value := selector(enumerator.Current);
-    if value < Result then
-      Result := value;
-  end;
+  Result := IEnumerable<T>(this).Min(fComparer);
 end;
 
 function TEnumerableBase<T>.Min(const comparer: IComparer<T>): T;
-var
-  enumerator: IEnumerator<T>;
-  item: T;
 begin
-  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
-
-  enumerator := IEnumerable<T>(this).GetEnumerator;
-  if not enumerator.MoveNext then
-    RaiseHelper.NoElements;
-  {$IFDEF RSP31615}
-  if IsManagedType(T) then
-    IEnumeratorInternal(enumerator).GetCurrent(Result)
-  else
-  {$ENDIF}
-  Result := enumerator.Current;
-  while enumerator.MoveNext do
-  begin
-    {$IFDEF RSP31615}
-    if IsManagedType(T) then
-      IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
-    item := enumerator.Current;
-    if comparer.Compare(item, Result) < 0 then
-      Result := item;
-  end;
+  Max(comparer, Result,  TSelector<T>.GetCurrent, TSelector<T>.GetCurrentIfLessThan);
 end;
 
 function TEnumerableBase<T>.Min(const comparer: TComparison<T>): T;
 begin
   Result := IEnumerable<T>(this).Min(IComparer<T>(PPointer(@comparer)^));
+end;
+
+function TEnumerableBase<T>.Min(const selector: Func<T, Integer>): Integer;
+begin
+  Result := Min(PInterface(@selector)^, TSelector<T, Integer>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Min(const selector: Func<T, Int64>): Int64;
+begin
+  Result := Min(PInterface(@selector)^, TSelector<T, Int64>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Min(const selector: Func<T, Single>): Single;
+begin
+  Result := Min(PInterface(@selector)^, TSelector<T, System.Single>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Min(const selector: Func<T, Double>): Double;
+begin
+  Result := Min(PInterface(@selector)^, TSelector<T, Double>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Min(const selector: Func<T, Currency>): Currency;
+begin
+  Result := Min(PInterface(@selector)^, TSelector<T, Currency>.GetCurrent);
 end;
 
 function TEnumerableBase<T>.Memoize: IEnumerable<T>;
@@ -1843,26 +2252,51 @@ end;
 function TEnumerableBase<T>.Sum: T; //FI:W521
 begin
   if TypeInfo(T) = TypeInfo(Integer) then
-    PInteger(@Result)^ := TEnumerable.Sum(IEnumerable<Integer>(this))
+    PInteger(@Result)^ := Sum(nil, TSelector<Integer>.GetCurrentWithSelector)
   else if TypeInfo(T) = TypeInfo(Int64) then
-    PInt64(@Result)^ := TEnumerable.Sum(IEnumerable<Int64>(this))
+    PInt64(@Result)^ := Sum(nil, TSelector<Int64>.GetCurrentWithSelector)
   else if TypeInfo(T) = TypeInfo(NativeInt) then
     {$IFDEF CPU32BITS}
-    PInteger(@Result)^ := TEnumerable.Sum(IEnumerable<Integer>(this))
+    PInteger(@Result)^ := Sum(nil, TSelector<Integer>.GetCurrentWithSelector)
     {$ELSE}
-    PInt64(@Result)^ := TEnumerable.Sum(IEnumerable<Int64>(this))
+    PInt64(@Result)^ := Sum(nil, TSelector<Int64>.GetCurrentWithSelector)
     {$ENDIF}
   else if TypeInfo(T) = TypeInfo(System.Single) then
-    PSingle(@Result)^ := TEnumerable.Sum(IEnumerable<System.Single>(this))
+    PSingle(@Result)^ := Sum(nil, TSelector<System.Single>.GetCurrentWithSelector)
   else if TypeInfo(T) = TypeInfo(Double) then
-    PDouble(@Result)^ := TEnumerable.Sum(IEnumerable<Double>(this))
+    PDouble(@Result)^ := Sum(nil, TSelector<Double>.GetCurrentWithSelector)
   else if TypeInfo(T) = TypeInfo(Currency) then
-    PCurrency(@Result)^ := TEnumerable.Sum(IEnumerable<Currency>(this))
+    PCurrency(@Result)^ := Sum(nil, TSelector<Currency>.GetCurrentWithSelector)
   else
     // if T is not of any of the above types this way of calling Sum is not supported
-    // consider using TEnumerable.Sum with a selector function to turn the values
+    // consider using Sum with a selector function to turn the values
     // to any of the supported types for calculating the sum
     RaiseHelper.NotSupported;
+end;
+
+function TEnumerableBase<T>.Sum(const selector: Func<T, Integer>): Integer;
+begin
+  Result := Sum(PInterface(@selector)^, TSelector<T, Integer>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Sum(const selector: Func<T, Int64>): Int64;
+begin
+  Result := Sum(PInterface(@selector)^, TSelector<T, Int64>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Sum(const selector: Func<T, Single>): Single;
+begin
+  Result := Sum(PInterface(@selector)^, TSelector<T, System.Single>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Sum(const selector: Func<T, Double>): Double;
+begin
+  Result := Sum(PInterface(@selector)^, TSelector<T, Double>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.Sum(const selector: Func<T, Currency>): Currency;
+begin
+  Result := Sum(PInterface(@selector)^, TSelector<T, Currency>.GetCurrent);
 end;
 
 function TEnumerableBase<T>.Take(count: Integer): IEnumerable<T>;
@@ -3982,6 +4416,87 @@ begin
   end;
   DoMoveNext := Methods.MoveNext;
   Result := Methods.MoveNext(@Self);
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TSelector<T>'}
+
+class function TSelector<T>.GetCurrentWithSelector(const enumerator, selector: IInterface): T;
+{$IFDEF RSP31615}
+var
+  item: T;
+{$ENDIF}
+begin
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(enumerator).GetCurrent(Result)
+  else
+  {$ENDIF}
+  Result := IEnumerator<T>(enumerator).Current;
+end;
+
+class procedure TSelector<T>.GetCurrent(const enumerator: IInterface; var value);
+begin
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(enumerator).GetCurrent(value)
+  else
+  {$ENDIF}
+  T(value) := IEnumerator<T>(enumerator).Current;
+end;
+
+class procedure TSelector<T>.GetCurrentIfGreaterThan(const enumerator,
+  comparer: IInterface; var result);
+var
+  item: T;
+begin
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(enumerator).GetCurrent(item)
+  else
+  {$ENDIF}
+  item := IEnumerator<T>(enumerator).Current;
+  if IComparer<T>(comparer).Compare(item, T(result)) > 0 then
+    T(result) := item;
+end;
+
+class procedure TSelector<T>.GetCurrentIfLessThan(const enumerator,
+  comparer: IInterface; var result);
+var
+  item: T;
+begin
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(enumerator).GetCurrent(item)
+  else
+  {$ENDIF}
+  item := IEnumerator<T>(enumerator).Current;
+  if IComparer<T>(comparer).Compare(item, T(result)) < 0 then
+    T(result) := item;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TSelector<T, TResult>'}
+
+class function TSelector<T, TResult>.GetCurrent(const enumerator, selector: IInterface): TResult;
+{$IFDEF RSP31615}
+var
+  item: T;
+{$ENDIF}
+begin
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+  begin
+    IEnumeratorInternal(enumerator).GetCurrent(item);
+    Result := Func<T, TResult>(selector)(item);
+  end
+  else
+  {$ENDIF}
+  Result := Func<T, TResult>(selector)(IEnumerator<T>(enumerator).Current);
 end;
 
 {$ENDREGION}
