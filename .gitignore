@@ -19,6 +19,8 @@ __recovery/
 *.plist
 *.rsm
 *.tds
+*.dcp
+*.bpl
 
 # 64bit Delphi files
 *.o
@@ -37,3 +39,9 @@ Tests/Bin/
 
 # TestInsight files
 TestInsightSettings.ini
+# FinalBuilder files
+*.fbl8
+*.fb8lck
+*.fbpbrk
+*.fbpInf
+buildlog.html
