@@ -1,12 +1,12 @@
 {
   "metadata": {
     "id": "Spring4D.Core",
-    "version": "2.0.0-dev13",
+    "version": "2.0.0-dev14",
     "description": "Spring4D Core",
     "authors": "Spring4D Team",
     "projectUrl": "https://bitbucket.org/sglienke/spring4d",
     "license": "Apache-2.0",
-    "copyright": "2009-2022 Spring4D Team",
+    "copyright": "2009-2023 Spring4D Team",
     "tags": "spring4d core ioc container"
   },
   "targetPlatforms": [
@@ -86,7 +86,7 @@
       "dependencies": [
         {
           "id": "Spring4D.Base",
-          "version": "2.0.0-dev13"
+          "version": "2.0.0-dev14"
         }
       ],
       "source": [

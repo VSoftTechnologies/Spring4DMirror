@@ -1,0 +1,796 @@
+﻿project
+begin
+  projectid = {BD9E2A9C-9CBE-4859-836F-541A48CBEFA2}
+  target
+  begin
+    name = Default
+    targetid = {B70A6C63-8981-46C9-93C8-CE83E7AF2302}
+    rootaction
+    begin
+      action.try
+      begin
+        id = {CFD61E5A-3B6C-42D8-B154-33555E996EBE}
+        action.group
+        begin
+          description = XE2
+          id = {C6021A21-AA71-461F-A338-FD0E2BFB1CB5}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {6C29C6E8-2EE9-429A-B0BF-881BDD5295AC}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = DelphiXE2
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = DelphiXE2
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = XE3
+          id = {CA83249B-E7CE-4D5F-A3F8-80CD7BCF34C1}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {BEA03631-A752-4CBA-88E5-95C643DE69C0}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = DelphiXE3
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = DelphiXE3
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = XE4
+          id = {507184FB-0F3C-4C1E-80B7-8F3A89165B94}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {22A0FC8F-8F89-41D3-B7E8-56EA9441089A}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = DelphiXE4
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = DelphiXE4
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = XE5
+          id = {81CB5AC7-2814-4F6D-8C25-3FC5248E3A1F}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {0CE9B613-182B-4C3E-A82A-E941BCDC2449}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = DelphiXE5
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = DelphiXE5
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = XE6
+          id = {1AEB4CC6-F16C-44F6-A970-07080E799886}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {B8C1F030-71EA-4D1C-8C0F-B2C8ADC0D09F}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = DelphiXE6
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = DelphiXE6
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = XE7
+          id = {08E37623-6FBA-4FE7-A452-2D8870E75DDA}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {0B687479-9208-43D1-965F-FD2CD2A4C20F}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = DelphiXE7
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = DelphiXE7
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = XE8
+          id = {75B83D44-93D3-4E16-B2C6-A40CF28B3DE0}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {1D103AA6-7981-449F-AFB0-F27BD58A36B8}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = DelphiXE8
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = DelphiXE7
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = Delphi10Seattle
+          id = {792D0638-BA45-42E0-A323-C123DDEF2E09}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {B3CE2191-6E82-4EE7-951F-6E6E0692DC39}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = Delphi10Seattle
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = Delphi10Seattle
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = Delphi10Berlin
+          id = {EB3947F3-754B-499F-919B-489E6E1952CD}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {DEFC92F3-44FE-4879-AE38-47834B4D96AD}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = Delphi10Berlin
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = Delphi10Berlin
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = Delphi10Tokyo
+          id = {09FF517A-0732-49CC-BD7D-BB386DD54F05}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {C80E39A2-2B50-41BF-847B-4689F18BAF89}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = Delphi10Tokyo
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = Delphi10Tokyo
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = Delphi10_3
+          id = {8116ADE3-AFC3-4352-8655-9B3EC05C9DE5}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {1A967610-3026-4037-B78F-36C6703988A2}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = Delphi10_3
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = Delphi10Rio
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = Delphi10_4
+          id = {F4C2F12D-1481-4AB9-8C88-570D85399A9A}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {4AAF2D7C-15FA-45C6-9701-118DB455F246}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = Delphi10_4
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = Delphi10Sydney
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+        action.group
+        begin
+          description = Delphi11
+          id = {E207F812-03D4-4B5F-9C12-ACBE6786F0C3}
+          action.target.execute
+          begin
+            actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            id = {0FD63129-922C-4318-896D-5C24F14ECB3E}
+            target.argvalues
+            begin
+              target.argvalue
+              begin
+                value = Delphi11
+                variablename = CompilerVersion
+              end
+              target.argvalue
+              begin
+                value = Delphi11
+                variablename = PackageFolder
+              end
+            end
+          end
+        end
+      end
+      action.finally
+      begin
+        id = {EDFB5F4B-3337-4642-9D1B-025FF6D7C2A5}
+        action.log.export
+        begin
+          actionlistid = {B70A6C63-8981-46C9-93C8-CE83E7AF2302}
+          erroractionsonly = false
+          exportformat = efHTML
+          exportfragment = expFull
+          exportfromparenttarget = false
+          exportfromroot = false
+          htmlstyle = Tree
+          htmltheme = Dark
+          id = {F9F9DEB7-4416-4F29-BE90-13153AF8F8D8}
+          includeactionendtime = false
+          includeactionruntime = true
+          includeactionstarttime = false
+          includeactiontype = true
+          includeheading = true
+          includehiddenactions = false
+          includelinenumbers = false
+          includeoutput = true
+          includesearch = true
+          includesummary = true
+          noheaderforfragment = false
+          outputfile = %Root%\\buildlog.html
+          recursiveactions = true
+        end
+      end
+      action.end
+      begin
+        id = {09EB53A5-7A05-4B78-9D0E-EF3C32ADE956}
+      end
+    end
+  end
+  target
+  begin
+    name = BuildForCompiler
+    targetid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+    target.arg
+    begin
+      displayorder = 0
+      name = CompilerVersion
+    end
+    target.arg
+    begin
+      displayorder = 0
+      name = PackageFolder
+    end
+    rootaction
+    begin
+      action.directory.clean
+      begin
+        directory = %root%\\Library\\%PackageFolder%
+        enabledelay = false
+        failifnodirectory = false
+        id = {9A5A64B0-CA28-4EA8-928F-9CA68464E274}
+      end
+      action.group
+      begin
+        description = Win32
+        id = {E7CF0CB8-F90F-4A24-8D51-8560EC457807}
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Base Win32"
+          id = {11F466BB-34BA-4C86-91EA-99E2854EF0E9}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Base.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win32
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Core Win32"
+          id = {AE984BE5-A46A-47EA-BD3D-665991156C81}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Core.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win32
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Extensions Win32"
+          id = {264120D5-F9E9-4937-AE9C-6BDFB27841A8}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Extensions.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win32
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Persistence Win32"
+          id = {86C493BE-E5B6-4712-AA5E-6EC6A58F7937}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Data.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win32
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Persistence Win32"
+          id = {1D7C3347-D2C7-4FF8-A236-54B084DD38D2}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Persistence.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win32
+              variablename = TargetPlatform
+            end
+          end
+        end
+      end
+      action.group
+      begin
+        description = Win64
+        id = {C05D5501-0858-4B4F-9576-DC88BF798B02}
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Base Win64"
+          id = {E29D08AD-F874-40DA-BC95-91007E8B0E0F}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Base.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win64
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Core Win64"
+          id = {C2827686-602E-405C-8519-4B7853DF2F1A}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Core.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win64
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Extensions Win64"
+          id = {946516F3-83B8-4B16-A91D-6F466009ADF2}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Extensions.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win64
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Persistence Win64"
+          id = {457902B6-3039-4EA0-8194-798FCF9BC40F}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Data.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win64
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Persistence Win64"
+          id = {049D3CB1-58ED-4168-8BB1-9A788E1EF38F}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Persistence.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win64
+              variablename = TargetPlatform
+            end
+          end
+        end
+      end
+    end
+  end
+  target
+  begin
+    name = Build
+    targetid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+    target.arg
+    begin
+      displayorder = 0
+      name = CompilerVersion
+    end
+    target.arg
+    begin
+      displayorder = 0
+      name = OutputPath
+    end
+    target.arg
+    begin
+      displayorder = 0
+      name = ProjectFile
+    end
+    target.arg
+    begin
+      displayorder = 0
+      name = TargetPlatform
+    end
+    rootaction
+    begin
+      action.delphi.build
+      begin
+        allowimplicitimport = true
+        alwaysuseconditionalsfromdof = true
+        autoincbuild = true
+        autoupdatefileversion = true
+        autoupdateproductversion = false
+        buildall = true
+        buildversion = 0
+        codepage = 1252
+        compileprojectresources = false
+        compileridl = true
+        configname = Release
+        debugversionnumbers = false
+        delphiversion = Delphi11
+        description = "Build %CompilerVersion% -  %TargetPlatform%  [ %ProjectFile% ]"
+        enabletimeout = false
+        eurekalogverboselogging = false
+        frameworktype = VCL
+        hintsaserror = false
+        id = {4AE4BC6C-90B3-4498-B3A1-2F3322B6BAB1}
+        ignorefailure = true
+        includecompiledate = false
+        includemanifest = false
+        includeverinfo = false
+        isdebug = false
+        isdll = false
+        isprerelease = false
+        isprivate = false
+        isspecial = false
+        keepcfg = false
+        linkproductversiontofileversion = true
+        locale = 3081
+        majorversion = 0
+        minorversion = 0
+        noconfig = false
+        platform = Win64
+        platformsdktype = ProjectSDK
+        projectfile = %ProjectFile%
+        regenerateresource = true
+        releaseversion = 0
+        resourcecompilertype = rcBorland
+        ridloutputsamefolder = true
+        timeoutlength = 1
+        updatedoffile = false
+        updatepackagesource = false
+        updateversioninfokeys = false
+        useeurekalogcompiler = false
+        usefastdcccompiler = false
+        useprojectsettings = [usPackages,usCompiler,usLinker,usDirectories]
+        usepropertyset = false
+        useversionfromdof = false
+        verboseoutput = false
+        versioninfokeys = "CompanyName\=" +
+                          "FileDescription\=" +
+                          "FileVersion\=0.0.0.0" +
+                          "InternalName\=" +
+                          "LegalCopyright\=" +
+                          "LegalTrademarks\=" +
+                          "OriginalFilename\=" +
+                          "ProductName\=" +
+                          "ProductVersion\=0.0.0.0" +
+                          "Comments\=" +
+                          ""
+        warningsaserror = false
+        workaroundd5bug = false
+        action.script
+        begin
+          name = BeforeAction
+          script >
+          beginscript
+            //alert(TargetPlatform);
+            Action.Platform = StringToDelphiPlatform(TargetPlatform);
+            Action.CompilerVersion = StringToDelphiCompilerVersion(CompilerVersion);
+          endscript
+          scriptlanguage = JavaScript
+        end
+        delphi.compileroptions
+        begin
+          alwaysuseconditionalsfromdof = true
+          alwaysusedelphilibrarypath = true
+          alwaysusedofsearchpath = true
+          assertions = true
+          assignableconst = false
+          booleval = false
+          conditionals = RELEASE
+          consoleapp = false
+          debuginfo = false
+          definitionsonly = false
+          emitruntimetypeinformation = false
+          exedescription = "Spring4D Persistence package"
+          exportallsymbols = false
+          extendedsyntax = true
+          externaltd32 = false
+          frameworktype = None
+          generatedocumentation = false
+          generatehpp = false
+          hugestrings = true
+          imagebase = 4194304
+          includenamespaces = false
+          includeremotesymbols = false
+          includetd32 = false
+          inlining = inOn
+          iochecking = true
+          librarypath = $(BDSLIB)\\$(TargetPlatform)\\release;$(BDSUSERDIR)\\Imports;$(BDS)\\Imports;$(BDSCOMMONDIR)\\Dcp;$(BDS)\\include;C:\\Users\\vincent.OFFICE\\AppData\\Local\\Programs\\TestInsight\\Source;I:\\FBAT_HG_LIBS8\\madCollection\\madBasic\\BDS18\\win32;I:\\FBAT_HG_LIBS8\\madCollection\\madDisAsm\\BDS18\\win32;I:\\FBAT_HG_LIBS8\\madCollection\\madExcept\\BDS18\\win32;I:\\FBAT_HG_LIBS8\\madCollection\\madExcept\\..\\Plugins\\win32;I:\\FBAT_HG_LIBS8\\madCollection\\madRemote\\BDS18\\win32;I:\\FBAT_HG_LIBS8\\madCollection\\madKernel\\BDS18\\win32;I:\\FBAT_HG_LIBS8\\madCollection\\madCodeHook\\BDS18\\win32;I:\\FBAT_HG_LIBS8\\madCollection\\madSecurity\\BDS18\\win32;I:\\FBAT_HG_LIBS8\\madCollection\\madShell\\BDS18\\win32
+          linkeroutput = 0
+          localsymbols = false
+          mapfile = 0
+          maxstacksize = 1048576
+          minstacksize = 16384
+          namespaceprefixes = Winapi;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;DDC;System.Win;Data.Win;Web.Win;Soap.Win;
+          openstrings = true
+          optimisation = true
+          overflowchecking = false
+          rangechecking = false
+          recordfieldalign = fa8
+          referenceinfo = false
+          safedivide = false
+          searchpath = ..\\..\\Source
+          showhints = true
+          showwarnings = true
+          stackframes = false
+          stringchecks = true
+          typedpointers = false
+          unitaliases = WinTypes\=Windows;WinProcs\=Windows;DbiTypes\=BDE;DbiProcs\=BDE;DbiErrs\=BDE
+          unitoutputdir = ..\\..\\Library\\Delphi11\\$(Platform)\\$(Config)
+          usedebugdcu = false
+          usepackages = false
+          varstringchecks = true
+        end
+      end
+    end
+  end
+  variable
+  begin
+    defaultvalue = Release
+    name = Config
+    variablescope = vtProject
+  end
+  variable
+  begin
+    canonicalizepath = true
+    defaultvalue = %FBPROJECTDIR%\\..\\
+    name = Root
+    variablescope = vtProject
+    variabletype = btString
+  end
+end
