@@ -1707,7 +1707,8 @@ type
   ICollection<T> = interface(IEnumerable<T>) //FI:W524
     ['{9BFD9B06-45CD-4C80-B145-01B09D432CF0}']
     // IMPORTANT NOTICE:
-    // keep this in sync with ICollectionInternal<T> in Spring.Collections.Lists
+    // keep this in sync with ICollectionInternal
+    // in Spring.Collections.Base and Spring.Collections.Lists
   {$REGION 'Property Accessors'}
     function GetOnChanged: ICollectionChangedEvent<T>;
   {$ENDREGION}
@@ -1741,6 +1742,18 @@ type
     ///   <c>values</c> is <c>nil</c>.
     /// </exception>
     procedure AddRange(const values: IEnumerable<T>); overload;
+
+    /// <summary>
+    ///   Removes the first occurrence of a specific element from the
+    ///   collection without triggering lifetime management for objects.
+    /// </summary>
+    /// <param name="item">
+    ///   The element to remove from the collection.
+    /// </param>
+    /// <returns>
+    ///   The element that was removed from the collection.
+    /// </returns>
+    function Extract(const item: T): T;
 
     /// <summary>
     ///   Removes all items from the collection.
@@ -1858,18 +1871,6 @@ type
     ///   <c>values</c> is <c>nil</c>.
     /// </exception>
     function RemoveRange(const values: IEnumerable<T>): Integer; overload;
-
-    /// <summary>
-    ///   Removes the first occurrence of a specific element from the
-    ///   collection without triggering lifetime management for objects.
-    /// </summary>
-    /// <param name="item">
-    ///   The element to remove from the collection.
-    /// </param>
-    /// <returns>
-    ///   The element that was removed from the collection.
-    /// </returns>
-    function Extract(const item: T): T;
 
     /// <summary>
     ///   Removes all the elements that match the conditions defined by the
@@ -10798,8 +10799,7 @@ begin
     RaiseHelper.ArgumentOutOfRange_Count;
 end;
 
-class function TEnumerable.Repeated<T>(const element: T;
-  count: Integer): IEnumerable<T>;
+class function TEnumerable.Repeated<T>(const element: T; count: Integer): IEnumerable<T>; //FI:W521
 begin
   if count = 0 then
     Result := TEnumerable.Empty<T>

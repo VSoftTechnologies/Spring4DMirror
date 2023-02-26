@@ -57,9 +57,7 @@ uses
 
 procedure TCollectionChangedEventImpl<T>.AfterConstruction;
 begin
-  inherited AfterConstruction;
   TCollectionChangedEvent<T>(fInvoke) := Invoke;
-  _AddRef;
 end;
 
 procedure TCollectionChangedEventImpl<T>.Free;

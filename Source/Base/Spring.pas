@@ -1576,7 +1576,7 @@ type
     /// </summary>
     class procedure RaiseInvalidEnumArgumentException(const argumentName: string); overload; static;
 
-    class procedure RaiseInvalidTypeCast(sourceType, targetType: PTypeInfo); static;
+    class function RaiseInvalidTypeCast(sourceType, targetType: PTypeInfo): Boolean; static;
   end;
 
   TArgument = Guard deprecated 'Use Guard instead';
@@ -3641,7 +3641,7 @@ begin
     goto NotEqual;
 
   i := 1;
-  for n := 1 to left^ div 4 do
+  for n := 1 to left^ div 4 do //FI:W528
   begin
     if PCardinal(@left[i])^ and $80808080 <> 0 then
       goto Utf8Compare;
@@ -3651,7 +3651,7 @@ begin
       goto NotEqual;
     Inc(i, 4);
   end;
-  for n := 1 to left^ mod 4 do
+  for n := 1 to left^ mod 4 do //FI:W528
   begin
     if left[i] and $80 <> 0 then
       goto Utf8Compare;
@@ -8190,7 +8190,7 @@ begin
     @SInvalidEnumArgument, [argumentName]) at ReturnAddress;
 end;
 
-class procedure Guard.RaiseInvalidTypeCast(sourceType, targetType: PTypeInfo);
+class function Guard.RaiseInvalidTypeCast(sourceType, targetType: PTypeInfo): Boolean;
 begin
   raise EInvalidCastException.CreateResFmt(@SInvalidTypeCast, [
     sourceType.TypeName, targetType.TypeName]) at ReturnAddress;
@@ -10014,68 +10014,66 @@ end;
 {$REGION 'Weak'}
 
 class procedure Weak.MakeFromObject(const value; var result);
-label
-  Assign;
 var
   ref: PReference absolute result;
 begin
-  if Assigned(ref) then
-  begin
-    if ref.Target = Pointer(value) then
-      Exit;
-
-    if AtomicDecrement(ref.RefCount) = 0 then
+  repeat
+    if Assigned(ref) then
     begin
-      if Assigned(ref.Target) then
-        UnregisterWeakRef(@ref.Target, ref.Target);
-      if Assigned(Pointer(value)) then
-        goto Assign;
+      if ref.Target = Pointer(value) then
+        Exit;
 
-      FreeMem(ref);
-      Exit;
+      if AtomicDecrement(ref.RefCount) = 0 then
+      begin
+        if Assigned(ref.Target) then
+          UnregisterWeakRef(@ref.Target, ref.Target);
+        if Assigned(Pointer(value)) then
+          Break;
+
+        FreeMem(ref);
+        Exit;
+      end;
     end;
-  end;
 
-  if not Assigned(Pointer(value)) then
-    Exit;
+    if not Assigned(Pointer(value)) then
+      Exit;
 
-  GetMem(ref, SizeOf(TReference));
-  ref.Vtable := @Weak.ObjectReferenceVtable;
-Assign:
+    GetMem(ref, SizeOf(TReference));
+    ref.Vtable := @Weak.ObjectReferenceVtable;
+  until True;
   ref.RefCount := 1;
   ref.Target := Pointer(value);
   RegisterWeakRef(@ref.Target, ref.Target);
 end;
 
 class procedure Weak.MakeFromInterface(const value; var result);
-label
-  Assign;
 var
   ref: PReference absolute result;
 begin
-  if Assigned(ref) then
-  begin
-    if ref.Target = Pointer(value) then
-      Exit;
-
-    if AtomicDecrement(ref.RefCount) = 0 then
+  repeat
+    if Assigned(ref) then
     begin
-      if Assigned(ref.Target) then
-        UnregisterWeakRef(@ref.Target, IInterface(ref.Target) as TObject);
-      if Assigned(Pointer(value)) then
-        goto Assign;
+      if ref.Target = Pointer(value) then
+        Exit;
 
-      FreeMem(ref);
-      Exit;
+      if AtomicDecrement(ref.RefCount) = 0 then
+      begin
+        if Assigned(ref.Target) then
+          UnregisterWeakRef(@ref.Target, IInterface(ref.Target) as TObject);
+        if Assigned(Pointer(value)) then
+          Break;
+
+        FreeMem(ref);
+        Exit;
+      end;
     end;
-  end;
 
-  if not Assigned(Pointer(value)) then
-    Exit;
+    if not Assigned(Pointer(value)) then
+      Exit;
 
-  GetMem(ref, SizeOf(TReference));
-  ref.Vtable := @Weak.InterfaceReferenceVtable;
-Assign:
+    GetMem(ref, SizeOf(TReference));
+    ref.Vtable := @Weak.InterfaceReferenceVtable;
+  until True;
   ref.RefCount := 1;
   ref.Target := Pointer(value);
   RegisterWeakRef(@ref.Target, IInterface(ref.Target) as TObject);

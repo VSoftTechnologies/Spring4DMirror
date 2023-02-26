@@ -133,6 +133,7 @@ type
     procedure TestOrdered;
     procedure TestOrdered_Issue179;
     procedure TestRemove;
+    procedure TestRemoveRange;
     procedure TestSetItem;
     procedure TestSetItemOrder;
     procedure TestSetItem_Issue318;
@@ -1010,6 +1011,13 @@ begin
   CheckTrue(SUT.ContainsKey(2));
   CheckTrue(SUT.ContainsValue('a'));
   CheckTrue(SUT.ContainsValue('b'));
+end;
+
+procedure TTestDictionaryBase.TestRemoveRange;
+begin
+  FillTestData;
+
+  CheckEquals(4, SUT.RemoveRange(TEnumerable.From<Integer>(SUT.Keys.ToArray)));
 end;
 
 procedure TTestDictionaryBase.TestSetItem;
