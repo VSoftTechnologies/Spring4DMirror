@@ -1293,7 +1293,7 @@ end;
 
 function Equals_LString(const inst: Pointer; const left, right: RawByteString): Boolean;
 begin
-  Result := Compare_LString(inst, left, right) = 0;
+  Result := left = right;
 end;
 
 function GetHashCode_LString(const inst: Pointer; const value: RawByteString): Integer;

@@ -640,6 +640,14 @@ begin
         4: hashCode := PInteger(@key)^ and not RemovedFlag;
         8: hashCode := Integer(PInt64Rec(@key).Cardinals[0] xor PInt64Rec(@key).Cardinals[1]) and not RemovedFlag;
       end;
+    tkLString:
+    begin
+      hashCode := 0;
+      if PPointer(@key)^ <> nil then
+      {$R-}
+        hashCode := DefaultHashFunction(PPointer(@key)^^, PCardinal(PByte((@key)^) - 4)^) and not RemovedFlag;
+      {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+    end;
     tkUString:
     begin
       hashCode := 0;
@@ -707,6 +715,8 @@ deletedFound:
           8: if TItem<Int64>(item^).Key <> PInt64(@key)^ then Continue;
           {$ENDIF}
         end;
+      tkLString:
+        if PAnsiString(@key)^ <> TItem<AnsiString>(item^).Key then Continue;
       tkUString:
         if PString(@key)^ <> TItem<string>(item^).Key then Continue;
       tkRecord:
