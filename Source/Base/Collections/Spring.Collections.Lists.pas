@@ -132,6 +132,7 @@ type
     function Contains(const value: T; const comparer: IEqualityComparer<T>): Boolean; overload;
 
     function Single: T; overload;
+    function SingleOrDefault: T; overload;
     function SingleOrDefault(const defaultValue: T): T; overload;
 
     function ToArray: TArray<T>;
@@ -716,6 +717,16 @@ function TAbstractArrayList<T>.Single: T; //FI:W521
 begin
   case Count of
     0: RaiseHelper.NoElements;
+    1: Result := fItems[0];
+  else
+    RaiseHelper.MoreThanOneElement;
+  end;
+end;
+
+function TAbstractArrayList<T>.SingleOrDefault: T; //FI:W521
+begin
+  case Count of
+    0: Result := Default(T);
     1: Result := fItems[0];
   else
     RaiseHelper.MoreThanOneElement;
