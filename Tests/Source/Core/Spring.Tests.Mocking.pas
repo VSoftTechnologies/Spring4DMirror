@@ -51,7 +51,9 @@ type
     procedure TestEnum;
     procedure TestSet;
     procedure TestClass;
+    {$IF not defined(WIN64) or defined(DELPHIXE4_UP)}
     procedure TestMethod;
+    {$IFEND}
     {$IFDEF DELPHIX_SYDNEY_UP}
     procedure TestMRecord;
     {$ENDIF}
@@ -380,6 +382,7 @@ begin
   Pass;
 end;
 
+{$IF not defined(WIN64) or defined(DELPHIXE4_UP)}
 procedure TParameterMatchingTests.TestMethod;
 var
   mock: Mock<IMockTest>;
@@ -392,6 +395,7 @@ begin
   mock.Received.TestMethod(nil);
   Pass;
 end;
+{$IFEND}
 
 {$IFDEF DELPHIX_SYDNEY_UP}
 procedure TParameterMatchingTests.TestMRecord;
