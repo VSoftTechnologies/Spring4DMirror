@@ -186,6 +186,12 @@ uses
   Spring.Hash,
   Spring.ResourceStrings;
 
+{$IF defined(DELPHIXE6) or defined(DELPHIXE7)}
+  // there seems to be some compiler glitch in XE6 and XE7 that causes
+  // internal compiler error in some rare cases when using goto - here is one
+  {$DEFINE GOTO_OFF}
+{$IFEND}
+
 // copied here from Spring.pas to enable inlining
 function DynArrayLength(const A: Pointer): NativeInt; inline;
 begin
@@ -342,10 +348,12 @@ begin
 end;
 
 function THashTable.FindEntry(const key; var entry: THashTableEntry): Boolean;
+{$IFNDEF GOTO_OFF}
 label
   first;
+{$ENDIF}
 var
-  mask, perturb: Integer;
+  perturb, mask: Integer;
   hashTable: PHashTable;
   item: PByte;
 begin
@@ -357,6 +365,7 @@ begin
     mask := PInteger(@PByte(hashTable.Buckets)[-SizeOf(NativeInt)])^ - 1;
     entry.BucketIndex := entry.HashCode and mask;
 
+    {$IFNDEF GOTO_OFF}
     goto first;
     repeat
     {$IFDEF DEBUG}
@@ -374,10 +383,33 @@ begin
       begin
         entry.ItemIndex := entry.ItemIndex and mask;
         item := @hashTable.Items[NativeInt(hashTable.ItemSize) * entry.ItemIndex];
-        if hashTable.fEquals(Pointer(hashTable.fComparer), item[KeyOffset], key) then
-          Exit(True);
+        Result := hashTable.fEquals(Pointer(hashTable.fComparer), item[KeyOffset], key);
+        if Result then Exit;
       end;
     until False;
+    {$ELSE}
+    repeat
+      entry.ItemIndex := hashTable.Buckets[entry.BucketIndex];
+      if entry.ItemIndex <> UsedBucket then
+      begin
+        if entry.ItemIndex = EmptyBucket then Break;
+        if (entry.ItemIndex xor entry.HashCode) and not mask = 0 then
+        begin
+          entry.ItemIndex := entry.ItemIndex and mask;
+          item := @hashTable.Items[NativeInt(hashTable.ItemSize) * entry.ItemIndex];
+          Result := hashTable.fEquals(Pointer(hashTable.fComparer), item[KeyOffset], key);
+          if Result then Exit;
+        end;
+      end;
+
+    {$IFDEF DEBUG}
+      Inc(CollisionCount);
+    {$ENDIF}
+
+      perturb := perturb shr PerturbShift;
+      entry.BucketIndex := (5 * entry.BucketIndex + 1 + perturb) and mask;
+    until False;
+    {$ENDIF}
   end;
   entry.ItemIndex := hashTable.ItemCount;
   Result := False;
