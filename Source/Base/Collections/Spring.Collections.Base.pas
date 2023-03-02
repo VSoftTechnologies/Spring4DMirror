@@ -2700,26 +2700,28 @@ function TIterator<T>.MoveNext: Boolean;
 label
   _STATE_RUNNING;
 begin
-  case fState of
-    STATE_RUNNING:
-    _STATE_RUNNING:
-    begin
-      Result := fTryMoveNext(Self, fCurrent);
-      if Result then
-        Exit;
+  repeat
+    case fState of
+      STATE_RUNNING:
+      _STATE_RUNNING:
+      begin
+        Result := fTryMoveNext(Self, fCurrent);
+        if Result then
+          Exit;
 
-      Dispose;
-      fCurrent := Default(T);
-      fState := STATE_FINISHED;
+        Dispose;
+        fCurrent := Default(T);
+        fState := STATE_FINISHED;
+      end;
+      STATE_ENUMERATOR:
+      begin
+        Start;
+        fState := STATE_RUNNING;
+        Continue;
+      end;
     end;
-    STATE_ENUMERATOR:
-    begin
-      Start;
-      fState := STATE_RUNNING;
-      goto _STATE_RUNNING;
-    end;
-  end;
-  Result := False;
+    Exit(False);
+  until False;
 end;
 
 procedure TIterator<T>.Start;

@@ -11083,31 +11083,30 @@ begin
   Result := fCurrent;
 end;
 
-function TOfTypeIterator.TEnumerator.MoveNext: Boolean; //FI:W521
-label
-  HasEnumerator;
+function TOfTypeIterator.TEnumerator.MoveNext: Boolean;
 var
   current: TObject;
 begin
-  if Assigned(fEnumerator) then
-  begin
-  HasEnumerator:
-    repeat
-      Result := fEnumerator.MoveNext;
-      if not Result then
-        Break;
-      current := fEnumerator.Current;
-      fCurrent := current;
-      Result := current.InheritsFrom(fResultClass);
-    until Result;
-    Exit;
-  end;
-{$IFDEF MSWINDOWS}
-  IEnumerableInternal(Parent.fSource).GetEnumerator(IEnumerator(fEnumerator));
-{$ELSE}
-  fEnumerator := Parent.fSource.GetEnumerator;
-{$ENDIF}
-  goto HasEnumerator;
+  repeat
+    if Assigned(fEnumerator) then
+    begin
+      repeat
+        Result := fEnumerator.MoveNext;
+        if not Result then
+          Break;
+        current := fEnumerator.Current;
+        fCurrent := current;
+        Result := current.InheritsFrom(fResultClass);
+      until Result;
+      Exit;
+    end;
+  {$IFDEF MSWINDOWS}
+    IEnumerableInternal(Parent.fSource).GetEnumerator(IEnumerator(fEnumerator));
+  {$ELSE}
+    fEnumerator := Parent.fSource.GetEnumerator;
+  {$ENDIF}
+  until True;
+  Result := False;
 end;
 
 {$ENDREGION}
