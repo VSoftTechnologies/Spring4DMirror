@@ -4322,8 +4322,10 @@ type
   /// </summary>
   TCollections = class
   protected
-    const FoldedTypeKinds = [tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64, tkUString, tkClass, tkClassRef, tkPointer, tkProcedure, tkInterface];
+    const FoldedTypeKinds = [tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64,
+      tkUString, tkClass, tkClassRef, tkPointer, tkProcedure, tkInterface];
 
+  {$REGION 'Internal factory methods'}
     class procedure CreateDictionary_Int8_Int8(capacity: Integer;
       keyComparer, valueComparer: Pointer; ownerships: TDictionaryOwnerships;
       var result; keyType, valueType, elementType: PTypeInfo); static;
@@ -4822,6 +4824,7 @@ type
 
     class procedure CreateObservableList_Interface(var result; elementType: Pointer); static;
     class procedure CreateObservableList_Object(ownsObjects: Boolean; var result; elementType: Pointer); static;
+  {$ENDREGION}
   public
     class function CreateList<T>: IList<T>; overload; static;
     class function CreateList<T>(const comparer: IComparer<T>): IList<T>; overload; static;
@@ -4884,6 +4887,20 @@ type
     class function CreateDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IOrderedDictionary<TKey, TValue>; overload; static;
     class function CreateDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IOrderedDictionary<TKey, TValue>; overload; static;
 
+    class function CreateSortedDictionary<TKey, TValue>: IDictionary<TKey, TValue>; overload; static;
+    class function CreateSortedDictionary<TKey, TValue>(ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>; overload; static;
+    class function CreateSortedDictionary<TKey, TValue>(const keyComparer: IComparer<TKey>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
+    class function CreateSortedDictionary<TKey, TValue>(const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
+    class function CreateSortedDictionary<TKey, TValue>(const keyComparer: IComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
+
+    class function CreateBidiDictionary<TKey, TValue>: IBidiDictionary<TKey, TValue>; overload; static;
+    class function CreateBidiDictionary<TKey, TValue>(ownerships: TDictionaryOwnerships): IBidiDictionary<TKey, TValue>; overload; static;
+    class function CreateBidiDictionary<TKey, TValue>(capacity: Integer; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
+    class function CreateBidiDictionary<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
+    class function CreateBidiDictionary<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
+    class function CreateBidiDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
+    class function CreateBidiDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
+
     class function CreateMultiMap<TKey, TValue>(ownerships: TDictionaryOwnerships = []): IMultiMap<TKey, TValue>; overload; static;
     class function CreateMultiMap<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IMultiMap<TKey, TValue>; overload; static;
 
@@ -4905,14 +4922,6 @@ type
     class function CreateSortedTreeMultiMap<TKey, TValue>(ownerships: TDictionaryOwnerships = []): IMultiMap<TKey, TValue>; overload; static;
     class function CreateSortedTreeMultiMap<TKey, TValue>(const keyComparer: IComparer<TKey>; ownerships: TDictionaryOwnerships = []): IMultiMap<TKey, TValue>; overload; static;
     class function CreateSortedTreeMultiMap<TKey, TValue>(const keyComparer: IComparer<TKey>; const valueComparer: IComparer<TValue>; ownerships: TDictionaryOwnerships = []): IMultiMap<TKey, TValue>; overload; static;
-
-    class function CreateBidiDictionary<TKey, TValue>: IBidiDictionary<TKey, TValue>; overload; static;
-    class function CreateBidiDictionary<TKey, TValue>(ownerships: TDictionaryOwnerships): IBidiDictionary<TKey, TValue>; overload; static;
-    class function CreateBidiDictionary<TKey, TValue>(capacity: Integer; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
-    class function CreateBidiDictionary<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
-    class function CreateBidiDictionary<TKey, TValue>(const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
-    class function CreateBidiDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
-    class function CreateBidiDictionary<TKey, TValue>(capacity: Integer; const keyComparer: IEqualityComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IBidiDictionary<TKey, TValue>; overload; static;
 
     class function CreateStack<T>: IStack<T>; overload; static;
     class function CreateStack<T: class>(ownsObjects: Boolean): IStack<T>; overload; static;
@@ -4953,13 +4962,6 @@ type
     class function CreateSet<T>(const values: array of T; const comparer: IEqualityComparer<T>): IOrderedSet<T>; overload; static;
     class function CreateSet<T>(const values: IEnumerable<T>; const comparer: IEqualityComparer<T>): IOrderedSet<T>; overload; static;
 
-    class function CreateMultiSet<T>: IMultiSet<T>; overload; static;
-    class function CreateMultiSet<T>(const comparer: IEqualityComparer<T>): IMultiSet<T>; overload; static;
-    class function CreateMultiSet<T>(const values: array of T): IMultiSet<T>; overload; static;
-    class function CreateMultiSet<T>(const values: IEnumerable<T>): IMultiSet<T>; overload; static;
-    class function CreateMultiSet<T>(const values: array of T; const comparer: IEqualityComparer<T>): IMultiSet<T>; overload; static;
-    class function CreateMultiSet<T>(const values: IEnumerable<T>; const comparer: IEqualityComparer<T>): IMultiSet<T>; overload; static;
-
     class function CreateSortedSet<T>: ISet<T>; overload; static;
     class function CreateSortedSet<T>(const comparer: IComparer<T>): ISet<T>; overload; static;
     class function CreateSortedSet<T>(const values: array of T): ISet<T>; overload; static;
@@ -4967,18 +4969,19 @@ type
     class function CreateSortedSet<T>(const values: array of T; const comparer: IComparer<T>): ISet<T>; overload; static;
     class function CreateSortedSet<T>(const values: IEnumerable<T>; const comparer: IComparer<T>): ISet<T>; overload; static;
 
+    class function CreateMultiSet<T>: IMultiSet<T>; overload; static;
+    class function CreateMultiSet<T>(const comparer: IEqualityComparer<T>): IMultiSet<T>; overload; static;
+    class function CreateMultiSet<T>(const values: array of T): IMultiSet<T>; overload; static;
+    class function CreateMultiSet<T>(const values: IEnumerable<T>): IMultiSet<T>; overload; static;
+    class function CreateMultiSet<T>(const values: array of T; const comparer: IEqualityComparer<T>): IMultiSet<T>; overload; static;
+    class function CreateMultiSet<T>(const values: IEnumerable<T>; const comparer: IEqualityComparer<T>): IMultiSet<T>; overload; static;
+
     class function CreateSortedMultiSet<T>: IMultiSet<T>; overload; static;
     class function CreateSortedMultiSet<T>(const comparer: IComparer<T>): IMultiSet<T>; overload; static;
     class function CreateSortedMultiSet<T>(const values: array of T): IMultiSet<T>; overload; static;
     class function CreateSortedMultiSet<T>(const values: IEnumerable<T>): IMultiSet<T>; overload; static;
     class function CreateSortedMultiSet<T>(const values: array of T; const comparer: IComparer<T>): IMultiSet<T>; overload; static;
     class function CreateSortedMultiSet<T>(const values: IEnumerable<T>; const comparer: IComparer<T>): IMultiSet<T>; overload; static;
-
-    class function CreateSortedDictionary<TKey, TValue>: IDictionary<TKey, TValue>; overload; static;
-    class function CreateSortedDictionary<TKey, TValue>(ownerships: TDictionaryOwnerships): IDictionary<TKey, TValue>; overload; static;
-    class function CreateSortedDictionary<TKey, TValue>(const keyComparer: IComparer<TKey>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
-    class function CreateSortedDictionary<TKey, TValue>(const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
-    class function CreateSortedDictionary<TKey, TValue>(const keyComparer: IComparer<TKey>; const valueComparer: IEqualityComparer<TValue>; ownerships: TDictionaryOwnerships = []): IDictionary<TKey, TValue>; overload; static;
   end;
 
   TEnumerable = class
