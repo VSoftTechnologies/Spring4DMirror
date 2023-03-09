@@ -75,15 +75,12 @@ type
       function GetCurrent: TKeyValuePair;
       class var Enumerator_Vtable: TEnumeratorVtable;
     end;
-
-    TKeyCollection = THashMapInnerCollection<TKey>;
-    TValueCollection = THashMapInnerCollection<TValue>;
   {$ENDREGION}
   private
     fHashTable: THashTable;
     fValueComparer: IEqualityComparer<TValue>;
-    fKeys: TKeyCollection;
-    fValues: TValueCollection;
+    fKeys: THashMapInnerCollection;
+    fValues: THashMapInnerCollection;
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
     function GetCount: Integer;
@@ -438,17 +435,14 @@ type
       function GetCurrent: TKeyValuePair;
       class var Enumerator_Vtable: TEnumeratorVtable;
     end;
-
-    TKeyCollection = TTreeMapInnerCollection<TKey>;
-    TValueCollection = TTreeMapInnerCollection<TValue>;
   {$ENDREGION}
   private
     fTree: TRedBlackTreeBase<TKey,TValue>;
     fKeyComparer: IComparer<TKey>;
     fValueComparer: IEqualityComparer<TValue>;
     fVersion: Integer;
-    fKeys: TKeyCollection;
-    fValues: TValueCollection;
+    fKeys: TTreeMapInnerCollection;
+    fValues: TTreeMapInnerCollection;
     fOwnerships: TDictionaryOwnerships;
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
@@ -605,8 +599,26 @@ begin
   {$ENDIF}
     fHashTable.Find := @THashTable<TKey>.FindWithComparer;
 
-  fKeys := TKeyCollection.Create(Self, @fHashTable, nil, keyType, 0);
-  fValues := TValueCollection.Create(Self, @fHashTable, fValueComparer, valueType, SizeOf(TKey));
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(TKey) of
+    tkClass: fKeys := THashMapInnerCollection.Create_Object(
+      Self, @fHashTable, nil, keyType, 0);
+    tkInterface: fKeys := THashMapInnerCollection.Create_Interface(
+      Self, @fHashTable, nil, keyType, 0);
+  else{$ELSE}begin{$ENDIF}
+    fKeys := THashMapInnerCollection.Create(THashMapInnerCollection<TKey>,
+      Self, @fHashTable, nil, keyType, 0);
+  end;
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(TValue) of
+    tkClass: fValues := THashMapInnerCollection.Create_Object(
+      Self, @fHashTable, fValueComparer, valueType, SizeOf(TKey));
+    tkInterface: fValues := THashMapInnerCollection.Create_Interface(
+      Self, @fHashTable, fValueComparer, valueType, SizeOf(TKey));
+  else{$ELSE}begin{$ENDIF}
+    fValues := THashMapInnerCollection.Create(THashMapInnerCollection<TValue>,
+      Self, @fHashTable, fValueComparer, valueType, SizeOf(TKey));
+  end;
 end;
 
 procedure TDictionary<TKey, TValue>.BeforeDestruction;
@@ -819,7 +831,7 @@ end;
 
 function TDictionary<TKey, TValue>.ContainsValue(const value: TValue): Boolean;
 begin
-  Result := fValues.Contains(value);
+  Result := IEnumerable<TValue>(fValues._this).Contains(value);
 end;
 
 function TDictionary<TKey, TValue>.Extract(const key: TKey): TValue;
@@ -960,7 +972,7 @@ end;
 
 function TDictionary<TKey, TValue>.GetKeys: IReadOnlyCollection<TKey>;
 begin
-  Result := fKeys;
+  Result := IReadOnlyCollection<TKey>(fKeys._this);
 end;
 
 function TDictionary<TKey, TValue>.GetValueOrDefault(const key: TKey): TValue;
@@ -988,7 +1000,7 @@ end;
 
 function TDictionary<TKey, TValue>.GetValues: IReadOnlyCollection<TValue>;
 begin
-  Result := fValues;
+  Result := IReadOnlyCollection<TValue>(fValues._this);
 end;
 
 function TDictionary<TKey, TValue>.IndexOf(const key: TKey): Integer;
@@ -2382,8 +2394,26 @@ begin
 
   fTree := TRedBlackTreeBase<TKey,TValue>.Create(fKeyComparer);
 
-  fKeys := TKeyCollection.Create(Self, fTree, @fVersion, nil, keyType, 0);
-  fValues := TValueCollection.Create(Self, fTree, @fVersion, fValueComparer, valueType, SizeOf(TKey));
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(TKey) of
+    tkClass: fKeys := TTreeMapInnerCollection.Create_Object(
+      Self, fTree, @fVersion, nil, keyType, 0);
+    tkInterface: fKeys := TTreeMapInnerCollection.Create_Interface(
+      Self, fTree, @fVersion, nil, keyType, 0);
+  else{$ELSE}begin{$ENDIF}
+    fKeys := TTreeMapInnerCollection.Create(TTreeMapInnerCollection<TKey>,
+      Self, fTree, @fVersion, nil, keyType, 0);
+  end;
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(TValue) of
+    tkClass: fValues := TTreeMapInnerCollection.Create_Object(
+      Self, fTree, @fVersion, fValueComparer, valueType, SizeOf(TKey));
+    tkInterface: fValues := TTreeMapInnerCollection.Create_Interface(
+      Self, fTree, @fVersion, fValueComparer, valueType, SizeOf(TKey));
+  else{$ELSE}begin{$ENDIF}
+    fValues := TTreeMapInnerCollection.Create(TTreeMapInnerCollection<TValue>,
+      Self, fTree, @fVersion, fValueComparer, valueType, SizeOf(TKey));
+  end;
 end;
 
 procedure TSortedDictionary<TKey, TValue>.BeforeDestruction;
@@ -2582,7 +2612,7 @@ end;
 
 function TSortedDictionary<TKey, TValue>.GetKeys: IReadOnlyCollection<TKey>;
 begin
-  Result := fKeys;
+  Result := IReadOnlyCollection<TKey>(fKeys._this);
 end;
 
 function TSortedDictionary<TKey, TValue>.GetNonEnumeratedCount: Integer;
@@ -2615,7 +2645,7 @@ end;
 
 function TSortedDictionary<TKey, TValue>.GetValues: IReadOnlyCollection<TValue>;
 begin
-  Result := fValues;
+  Result := IReadOnlyCollection<TValue>(fValues._this);
 end;
 
 function TSortedDictionary<TKey, TValue>.Remove(const key: TKey): Boolean;

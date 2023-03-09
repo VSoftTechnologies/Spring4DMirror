@@ -1157,10 +1157,10 @@ uses
   TypInfo;
 
 type
-  TListMultiMap = TListMultiMap<Integer,Integer>;
+  TMultiMap = TMultiMap<Integer,Integer>;
   THashMultiSet = THashMultiSet<string>;
   TTreeMultiSet = TTreeMultiSet<string>;
-  TSortedListMultiMap = TSortedListMultiMap<Integer,Integer>;
+  TSortedMultiMap = TSortedMultiMap<Integer,Integer>;
   TIntQueue = TQueue<Integer>;
 
 const
@@ -4281,29 +4281,41 @@ var
   values: IReadOnlyCollection<Integer>;
   pair: TPair<Integer,Integer>;
 begin
-  values := SUT[1];
-  CheckEquals(0, values.Count);
   SUT.Add(1, 1);
-  CheckEquals(1, values.Count);
+  values := SUT[1];
+  CheckTrue(values.Contains(1));
+  Check(values.EqualsTo([1]));
+  SUT.Remove(1);
+  CheckFalse(values.Contains(1));
+  Check(values.EqualsTo([]));
+  SUT.Add(1, 1);
+  CheckTrue(values.Contains(1));
+  Check(values.EqualsTo([1]));
+  SUT.Clear;
+
+  values := SUT[1];
+  Check(values.EqualsTo([]));
+  SUT.Add(1, 1);
+  Check(values.EqualsTo([1]));
   SUT.Add(1, 2);
-  CheckEquals(2, values.Count);
+  Check(values.EqualsTo([1, 2]));
   SUT.Remove(1, 2);
-  CheckEquals(1, values.Count);
+  Check(values.EqualsTo([1]));
   SUT.Remove(1);
   SUT.Add(1, 1);
   SUT.Add(1, 2);
-  CheckEquals(2, values.Count);
+  Check(values.EqualsTo([1, 2]));
   SUT.Extract(1);
-  CheckEquals(0, values.Count);
+  Check(values.EqualsTo([]));
   SUT.Add(1, 2);
-  CheckEquals(1, values.Count);
+  Check(values.EqualsTo([2]));
   pair := SUT.Extract(1, 2);
   CheckEquals(1, pair.Key);
   CheckEquals(2, pair.Value);
   SUT.Add(1, 1);
 
   SUT.Clear;
-  CheckEquals(0, values.Count);
+  Check(values.EqualsTo([]));
   SUT.Add(1, 1);
   Check(values.EqualsTo([1]));
 

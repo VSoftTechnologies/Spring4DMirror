@@ -69,13 +69,7 @@ type
 
       // internal helper type to solve compiler issue with using Slice on the
       // overloaded AddRange method in older Delphi versions
-      // keep this in sync with the ICollection<T> interface from Spring.Collections
-      ICollectionInternal = interface(IEnumerable<T>)
-        function GetOnChanged: ICollectionChangedEvent<T>;
-        function Add(const item: T): Boolean;
-        procedure AddRange(const values: array of T);
-      end;
-
+      ICollectionInternal = TCollectionThunks<T>.ICollectionInternal;
   {$ENDREGION}
     {$IFDEF DELPHIXE7_UP}
     class var DefaultComparer: Pointer;

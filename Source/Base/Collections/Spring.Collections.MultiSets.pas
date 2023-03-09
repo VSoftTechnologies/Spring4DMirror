@@ -88,14 +88,11 @@ type
       function MoveNext: Boolean;
       class var Enumerator_Vtable: TEnumeratorVtable;
     end;
-
-    TItemCollection = THashMapInnerCollection<T>;
-    TEntryCollection = THashMapInnerCollection<TPair<T,Integer>>;
   {$ENDREGION}
   private
     fHashTable: THashTable;
-    fItems: TItemCollection;
-    fEntries: TEntryCollection;
+    fItems: THashMapInnerCollection;
+    fEntries: THashMapInnerCollection;
   {$REGION 'Property Accessors'}
     function GetEntries: IReadOnlyCollection<TEntry>;
     function GetItems: IReadOnlyCollection<T>;
@@ -155,15 +152,12 @@ type
       function MoveNext: Boolean;
       class var Enumerator_Vtable: TEnumeratorVtable;
     end;
-
-    TItemCollection = TTreeMapInnerCollection<T>;
-    TEntryCollection = TTreeMapInnerCollection<TPair<T,Integer>>;
   {$ENDREGION}
   private
     fTree: TRedBlackTreeBase<T, Integer>;
     fVersion: Integer;
-    fItems: TItemCollection;
-    fEntries: TEntryCollection;
+    fItems: TTreeMapInnerCollection;
+    fEntries: TTreeMapInnerCollection;
   {$REGION 'Property Accessors'}
     function GetEntries: IReadOnlyCollection<TEntry>;
     function GetItems: IReadOnlyCollection<T>;
@@ -291,8 +285,28 @@ begin
   {$ENDIF}
     fHashTable.Find := @THashTable<T>.FindWithComparer;
 
-  fItems := TItemCollection.Create(Self, @fHashTable, nil, elementType, 0);
-  fEntries := TEntryCollection.Create(Self, @fHashTable, nil, TypeInfo(TEntry), 0);
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkClass:
+    begin
+      fItems := THashMapInnerCollection.Create_Object(
+        Self, @fHashTable, nil, elementType, 0);
+      fEntries := THashMapInnerCollection.Create(THashMapInnerCollection<TPair<TObject,Integer>>,
+        Self, @fHashTable, nil, TypeInfo(TEntry), 0);
+    end;
+    tkInterface:
+    begin
+      fItems := THashMapInnerCollection.Create_Interface(
+        Self, @fHashTable, nil, elementType, 0);
+      fEntries := THashMapInnerCollection.Create(THashMapInnerCollection<TPair<IInterface,Integer>>,
+        Self, @fHashTable, nil, TypeInfo(TEntry), 0);
+    end;
+  else{$ELSE}begin{$ENDIF}
+    fItems := THashMapInnerCollection.Create(THashMapInnerCollection<T>,
+      Self, @fHashTable, nil, elementType, 0);
+    fEntries := THashMapInnerCollection.Create(THashMapInnerCollection<TPair<T,Integer>>,
+      Self, @fHashTable, nil, TypeInfo(TEntry), 0);
+  end;
 end;
 
 procedure THashMultiSet<T>.BeforeDestruction;
@@ -386,12 +400,12 @@ end;
 
 function THashMultiSet<T>.GetEntries: IReadOnlyCollection<TEntry>;
 begin
-  IReadOnlyCollection<TPair<T,Integer>>(Result) := fEntries;
+  Result := IReadOnlyCollection<TEntry>(fEntries._this);
 end;
 
 function THashMultiSet<T>.GetItems: IReadOnlyCollection<T>;
 begin
-  Result := fItems;
+  Result := IReadOnlyCollection<T>(fItems._this);
 end;
 
 function THashMultiSet<T>.GetEnumerator: IEnumerator<T>; //FI:W521
@@ -559,8 +573,10 @@ end;
 constructor TTreeMultiSet<T>.Create(const comparer: IComparer<T>);
 begin
   fTree := TRedBlackTreeBase<T, Integer>.Create(comparer);
-  fItems := TItemCollection.Create(Self, fTree, @fVersion, nil, GetElementType, 0);
-  fEntries := TEntryCollection.Create(Self, fTree, @fVersion, nil, TypeInfo(TEntry), 0);
+  fItems := TTreeMapInnerCollection.Create(TTreeMapInnerCollection<T>,
+    Self, fTree, @fVersion, nil, GetElementType, 0);
+  fEntries := TTreeMapInnerCollection.Create(TTreeMapInnerCollection<TPair<T,Integer>>,
+    Self, fTree, @fVersion, nil, TypeInfo(TEntry), 0);
 end;
 
 procedure TTreeMultiSet<T>.BeforeDestruction;
@@ -660,12 +676,12 @@ end;
 
 function TTreeMultiSet<T>.GetEntries: IReadOnlyCollection<TEntry>;
 begin
-  IReadOnlyCollection<TPair<T,Integer>>(Result) := fEntries;
+  Result := IReadOnlyCollection<TEntry>(fEntries._this);
 end;
 
 function TTreeMultiSet<T>.GetItems: IReadOnlyCollection<T>;
 begin
-  Result := fItems;
+  Result := IReadOnlyCollection<T>(fItems._this);
 end;
 
 function TTreeMultiSet<T>.GetEnumerator: IEnumerator<T>; //FI:W521

@@ -210,49 +210,38 @@ uses
 {$REGION 'TSetBase<T>'}
 
 procedure TSetBase<T>.ExceptWith(const other: IEnumerable<T>);
-var
-  enumerator: IEnumerator<T>;
-  item: T;
 begin
-  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
-
-  enumerator := other.GetEnumerator;
-  while enumerator.MoveNext do
-  begin
-    item := enumerator.Current;
-    ICollection<T>(this).Remove(item);
-  end;
+  ICollection<T>(this).RemoveRange(other);
 end;
 
 procedure TSetBase<T>.IntersectWith(const other: IEnumerable<T>);
 var
-  count, i: Integer;
+  count, capacity: NativeInt;
   enumerator: IEnumerator<T>;
-  items: TArray<T>;
   item: T;
+  items: TArray<T>;
 begin
   if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
-  count := IEnumerable<T>(this).Count;
+  count := 0;
+  capacity := 0;
+  enumerator := IEnumerable<T>(this).GetEnumerator;
+  while enumerator.MoveNext do
+  begin
+    if count >= capacity then
+      capacity := DynArrayGrow(Pointer(items), TypeInfo(TArray<T>), capacity);
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(items[count])
+    else
+    {$ENDIF}
+    items[count] := enumerator.Current;
+    Inc(count, Ord(not other.Contains(items[count])));
+  end;
   if count > 0 then
   begin
     SetLength(items, count);
-    i := 0;
-    enumerator := IEnumerable<T>(this).GetEnumerator;
-    while enumerator.MoveNext do
-    begin
-      item := enumerator.Current;
-      if not other.Contains(item) then
-      begin
-        items[i] := item;
-        Inc(i);
-      end;
-    end;
-    if i > 0 then
-    begin
-      SetLength(items, i);
-      ICollection<T>(this).RemoveRange(items);
-    end;
+    ICollection<T>(this).RemoveRange(items);
   end;
 end;
 
@@ -266,6 +255,11 @@ begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
     if not other.Contains(item) then
       Exit(False);
@@ -284,6 +278,11 @@ begin
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
     if not IEnumerable<T>(this).Contains(item) then
       Exit(False);
@@ -302,6 +301,11 @@ begin
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
     if IEnumerable<T>(this).Contains(item) then
       Exit(True);
@@ -318,11 +322,19 @@ var
 begin
   if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
+  if other = IEnumerable<T>(this) then
+    Exit(True);
+
   localSet := CreateSet;
 
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
     localSet.Add(item);
     if not IEnumerable<T>(this).Contains(item) then
@@ -332,6 +344,11 @@ begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
     if not localSet.Contains(item) then
       Exit(False);
@@ -341,18 +358,8 @@ begin
 end;
 
 procedure TSetBase<T>.UnionWith(const other: IEnumerable<T>);
-var
-  enumerator: IEnumerator<T>;
-  item: T;
 begin
-  if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
-
-  enumerator := other.GetEnumerator;
-  while enumerator.MoveNext do
-  begin
-    item := enumerator.Current;
-    ICollection<T>(this).Add(item);
-  end;
+  ICollection<T>(this).AddRange(other);
 end;
 
 {$ENDREGION}

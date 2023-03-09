@@ -555,19 +555,23 @@ type
   end;
 
   TCollectionThunks<T> = record
-  {$IFDEF RSP31615}
-  public type FuncInternal = reference to procedure(
-    {$IFDEF CPUX64}var result;{$ENDIF}
-    const arg1, arg2: T
-    {$IFDEF CPUX86}; var result{$ENDIF});
-    ICollectionInternal = interface(IEnumerable<T>)
+  public type
+    {$IFDEF RSP31615}
+    FuncInternal = reference to procedure({$IFDEF CPUX64}var result;{$ENDIF}const arg1, arg2: T{$IFDEF CPUX86}; var result{$ENDIF});
+    {$ENDIF}
+    ICollectionInternal = interface(IReadOnlyCollection<T>)
+      // IMPORTANT NOTICE:
+      // keep this in sync with ICollection<T> in Spring.Collections
       function GetOnChanged: ICollectionChangedEvent<T>;
       function Add(const item: T): Boolean;
-      procedure AddRange(const values: array of T); overload;
+      // internal helper type to solve compiler issue with using Slice on the
+      // overloaded AddRange method in older Delphi versions
+      procedure AddRange(const values: array of T);
+      {$IFDEF RSP31615}overload;
       procedure AddRange(const values: IEnumerable<T>); overload;
       procedure Extract({$IFDEF CPUX64}var result; {$ENDIF}const item: T{$IFDEF CPUX86}; var result{$ENDIF});
+      {$ENDIF}
     end;
-  {$ENDIF}
   public
     class procedure AggregateCurrentWithValue(const enumerator, func: IInterface; var result); static;
     class procedure Assign(var target; const source); static;
@@ -728,7 +732,7 @@ type
       const predicate: Predicate<T>): Integer; overload;
   end;
 
-  THashMapInnerCollection = class sealed(TEnumerableBase)
+  THashMapInnerCollection = class(TEnumerableBase)
   public type
   {$REGION 'Nested Types'}
     PEnumerator = ^TEnumerator;
@@ -764,9 +768,23 @@ type
     procedure ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
     function TryGetElementAt(var value; index: Integer;
       assign: TAssign; default: TGetDefault; getCurrent: TGetCurrent): Boolean;
+  public
+    class function Create(classType: TClass; source: TRefCountedObject;
+      hashTable: PHashTable; const valueComparer: IInterface;
+      elementType: PTypeInfo; offset: Integer = 0; count: PInteger = nil;
+      contains: TContains = nil): THashMapInnerCollection; static;
+    class function Create_Object(source: TRefCountedObject;
+      hashTable: PHashTable; const valueComparer: IInterface;
+      elementType: PTypeInfo; offset: Integer = 0; count: PInteger = nil;
+      contains: TContains = nil): THashMapInnerCollection; static;
+    class function Create_Interface(source: TRefCountedObject;
+      hashTable: PHashTable; const valueComparer: IInterface;
+      elementType: PTypeInfo; offset: Integer = 0; count: PInteger = nil;
+      contains: TContains = nil): THashMapInnerCollection; static;
+    property _this: Pointer read this;
   end;
 
-  THashMapInnerCollection<T> = class sealed(TEnumerableBase<T>,
+  THashMapInnerCollection<T> = class(TEnumerableBase<T>,
     IEnumerable<T>, IReadOnlyCollection<T>)
   private type
   {$REGION 'Nested Types'}
@@ -806,10 +824,6 @@ type
   protected
     function GetElementType: PTypeInfo; override;
   public
-    class function Create(const source: TRefCountedObject; hashTable: PHashTable;
-      const valueComparer: IEqualityComparer<T>; elementType: PTypeInfo;
-      offset: Integer = 0; count: PInteger = nil; contains: TContains = nil): THashMapInnerCollection<T>; static;
-
   {$REGION 'Implements IInterface'}
     function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
@@ -824,7 +838,7 @@ type
   end;
 
   TCompareMethod = function(self: Pointer; const left, right): Integer;
-  TTreeMapInnerCollection = class sealed(TEnumerableBase)
+  TTreeMapInnerCollection = class(TEnumerableBase)
   public type
   {$REGION 'Nested Types'}
     PNode = ^TNode;
@@ -866,6 +880,20 @@ type
     function Contains(const value; comparer: Pointer;
       compare: TCompareMethod; equals: TEqualsMethod): Boolean;
     procedure ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
+  public
+    class function Create(classType: TClass; source: TRefCountedObject;
+      tree: TBinaryTree; version: PInteger; const valueComparer: IInterface;
+      elementType: PTypeInfo; offset: Integer; count: PInteger = nil;
+      contains: TContains = nil): TTreeMapInnerCollection; static;
+    class function Create_Object(source: TRefCountedObject;
+      tree: TBinaryTree; version: PInteger; const valueComparer: IInterface;
+      elementType: PTypeInfo; offset: Integer; count: PInteger = nil;
+      contains: TContains = nil): TTreeMapInnerCollection; static;
+    class function Create_Interface(source: TRefCountedObject;
+      tree: TBinaryTree; version: PInteger; const valueComparer: IInterface;
+      elementType: PTypeInfo; offset: Integer; count: PInteger = nil;
+      contains: TContains = nil): TTreeMapInnerCollection; static;
+    property _this: Pointer read this;
   end;
 
   TTreeMapInnerCollection<T> = class(TEnumerableBase<T>,
@@ -899,7 +927,7 @@ type
       class var Enumerator_Vtable_Values: TEnumeratorVtable;
     end;
   {$ENDREGION}
-  private
+  protected
     fSource: TRefCountedObject;
     fElementType: PTypeInfo;
     fTree: TBinaryTree;
@@ -915,11 +943,6 @@ type
   protected
     function GetElementType: PTypeInfo; override;
   public
-    class function Create(const source: TRefCountedObject; const tree: TBinaryTree;
-      const version: PInteger; const valueComparer: IEqualityComparer<T>;
-      elementType: PTypeInfo; offset: Integer;
-      count: PInteger = nil; contains: TContains = nil): TTreeMapInnerCollection<T>; static;
-
   {$REGION 'Implements IInterface'}
     function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
@@ -3382,6 +3405,40 @@ end;
 
 {$REGION 'THashMapInnerCollection'}
 
+class function THashMapInnerCollection.Create(classType: TClass;
+  source: TRefCountedObject; hashTable: PHashTable;
+  const valueComparer: IInterface; elementType: PTypeInfo;
+  offset: Integer; count: PInteger; contains: TContains): THashMapInnerCollection;
+begin
+  Result := THashMapInnerCollection(classType.NewInstance);
+  Result.fSource := source;
+  Result.fElementType := elementType;
+  Result.fHashTable := hashTable;
+  Result.fValueComparer := valueComparer;
+  Result.fOffset := KeyOffset + offset;
+  Result.fCount := count;
+  Result.fContains := contains;
+  Result.AfterConstruction;
+end;
+
+class function THashMapInnerCollection.Create_Interface(
+  source: TRefCountedObject; hashTable: PHashTable;
+  const valueComparer: IInterface; elementType: PTypeInfo; offset: Integer;
+  count: PInteger; contains: TContains): THashMapInnerCollection;
+begin
+  Result := Create(THashMapInnerCollection<IInterface>,
+    source, hashTable, valueComparer, elementType, offset, count, contains);
+end;
+
+class function THashMapInnerCollection.Create_Object(source: TRefCountedObject;
+  hashTable: PHashTable; const valueComparer: IInterface;
+  elementType: PTypeInfo; offset: Integer; count: PInteger;
+  contains: TContains): THashMapInnerCollection;
+begin
+  Result := Create(THashMapInnerCollection<TObject>,
+    source, hashTable, valueComparer, elementType, offset, count, contains);
+end;
+
 function THashMapInnerCollection.Contains(const value; comparer: Pointer; equals: TEqualsMethod): Boolean;
 var
   hashTable: PHashTable;
@@ -3606,21 +3663,6 @@ end;
 
 {$REGION 'THashMapInnerCollection<T>'}
 
-class function THashMapInnerCollection<T>.Create(const source: TRefCountedObject;
-  hashTable: PHashTable; const valueComparer: IEqualityComparer<T>;
-  elementType: PTypeInfo; offset: Integer; count: PInteger; contains: TContains): THashMapInnerCollection<T>;
-begin
-  Result := THashMapInnerCollection<T>(THashMapInnerCollection<T>.NewInstance);
-  Result.fSource := source;
-  Result.fElementType := elementType;
-  Result.fHashTable := hashTable;
-  Result.fValueComparer := valueComparer;
-  Result.fOffset := KeyOffset + offset;
-  Result.fCount := count;
-  Result.fContains := contains;
-  Result.AfterConstruction;
-end;
-
 function THashMapInnerCollection<T>.Contains(const value: T;
   const comparer: IEqualityComparer<T>): Boolean;
 begin
@@ -3701,6 +3743,42 @@ end;
 
 
 {$REGION 'TTreeMapInnerCollection'}
+
+class function TTreeMapInnerCollection.Create(classType: TClass;
+  source: TRefCountedObject; tree: TBinaryTree; version: PInteger;
+  const valueComparer: IInterface; elementType: PTypeInfo;
+  offset: Integer; count: PInteger; contains: TContains): TTreeMapInnerCollection;
+begin
+  Result := TTreeMapInnerCollection(classType.NewInstance);
+  Result.fComparer := tree.Comparer;
+  Result.fSource := source;
+  Result.fElementType := elementType;
+  Result.fTree := tree;
+  Result.fVersion := version;
+  Result.fValueComparer := valueComparer;
+  Result.fOffset := offset;
+  Result.fCount := count;
+  Result.fContains := contains;
+  Result.AfterConstruction;
+end;
+
+class function TTreeMapInnerCollection.Create_Interface(
+  source: TRefCountedObject; tree: TBinaryTree; version: PInteger;
+  const valueComparer: IInterface; elementType: PTypeInfo; offset: Integer;
+  count: PInteger; contains: TContains): TTreeMapInnerCollection;
+begin
+  Result := Create(TTreeMapInnerCollection<IInterface>,
+    source, tree, version, valueComparer, elementType, offset, count, contains);
+end;
+
+class function TTreeMapInnerCollection.Create_Object(source: TRefCountedObject;
+  tree: TBinaryTree; version: PInteger; const valueComparer: IInterface;
+  elementType: PTypeInfo; offset: Integer; count: PInteger;
+  contains: TContains): TTreeMapInnerCollection;
+begin
+  Result := Create(TTreeMapInnerCollection<TObject>,
+    source, tree, version, valueComparer, elementType, offset, count, contains);
+end;
 
 function TTreeMapInnerCollection.Contains(const value; comparer: Pointer;
   compare: TCompareMethod; equals: TEqualsMethod): Boolean;
@@ -3896,24 +3974,6 @@ end;
 
 
 {$REGION 'TTreeMapInnerCollection<T>'}
-
-class function TTreeMapInnerCollection<T>.Create(const source: TRefCountedObject;
-  const tree: TBinaryTree; const version: PInteger;
-  const valueComparer: IEqualityComparer<T>; elementType: PTypeInfo;
-  offset: Integer; count: PInteger; contains: TContains): TTreeMapInnerCollection<T>;
-begin
-  Result := TTreeMapInnerCollection<T>(TTreeMapInnerCollection<T>.NewInstance);
-  Result.fComparer := IComparer<T>(tree.Comparer);
-  Result.fSource := source;
-  Result.fElementType := elementType;
-  Result.fTree := tree;
-  Result.fVersion := version;
-  Result.fValueComparer := valueComparer;
-  Result.fOffset := offset;
-  Result.fCount := count;
-  Result.fContains := contains;
-  Result.AfterConstruction;
-end;
 
 function TTreeMapInnerCollection<T>.Contains(const value: T;
   const comparer: IEqualityComparer<T>): Boolean;
