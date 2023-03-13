@@ -11086,7 +11086,7 @@ begin
   Result := fCurrent;
 end;
 
-function TOfTypeIterator.TEnumerator.MoveNext: Boolean;
+function TOfTypeIterator.TEnumerator.MoveNext: Boolean; //FI:W521
 var
   current: TObject;
 begin
@@ -11098,9 +11098,12 @@ begin
         if not Result then
           Break;
         current := fEnumerator.Current;
+        if current = nil then
+          Continue;
         fCurrent := current;
         Result := current.InheritsFrom(fResultClass);
-      until Result;
+        if Result then Break;
+      until False;
       Exit;
     end;
   {$IFDEF MSWINDOWS}
@@ -11108,8 +11111,7 @@ begin
   {$ELSE}
     fEnumerator := Parent.fSource.GetEnumerator;
   {$ENDIF}
-  until True;
-  Result := False;
+  until False;
 end;
 
 {$ENDREGION}
