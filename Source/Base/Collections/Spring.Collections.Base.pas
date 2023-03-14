@@ -524,7 +524,7 @@ type
       function Add(const item: T): Boolean;
       procedure AddRange(const values: array of T); overload;
       procedure AddRange(const values: IEnumerable<T>); overload;
-      procedure Extract(const item: T; var result: T);
+      procedure Extract({$IFDEF CPUX64}var result; {$ENDIF}const item: T{$IFDEF CPUX86}; var result{$ENDIF});
     end;
   {$ENDIF}
   public
@@ -4715,7 +4715,7 @@ begin
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
-    ICollectionInternal(collection).Extract(item, res);
+    ICollectionInternal(collection).Extract({$IFDEF CPUX64}res, {$ENDIF}item{$IFDEF CPUX86}, res{$ENDIF});
   end
   else
   {$ENDIF}
