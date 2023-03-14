@@ -5271,6 +5271,9 @@ begin
 
     for f in t.GetDeclaredFields do
     begin
+      if not Assigned(f.FieldType) then
+        Continue;
+
       for a in f.FieldType.GetAttributes do
         if a is DefaultAttribute then
           AddDefaultField(f.FieldType.Handle, DefaultAttribute(a).Value, f.Offset)
