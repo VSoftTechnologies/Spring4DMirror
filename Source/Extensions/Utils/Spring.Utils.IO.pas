@@ -349,10 +349,13 @@ type
     // property SizeOnDisk: TSize read GetSizeOnDisk;
     property CreationTime: TDateTime read GetCreationTime;
     property CreationTimeUtc: TDateTime read GetCreationTimeUtc;
+    property CreationTimeRaw: TFileTime read fCreationTime;
     property LastAccessTime: TDateTime read GetLastAccessTime;
     property LastAccessTimeUtc: TDateTime read GetLastAccessTimeUtc;
+    property LastAccessTimeRaw: TFileTime read fLastAccessTime;
     property LastWriteTime: TDateTime read GetLastWriteTime;
     property LastWriteTimeUtc: TDateTime read GetLastWriteTimeUtc;
+    property LastWriteTimeRaw: TFileTime read fLastWriteTime;
     property AttributeFlags: Cardinal read fAttributeFlags;
 
     /// <summary>

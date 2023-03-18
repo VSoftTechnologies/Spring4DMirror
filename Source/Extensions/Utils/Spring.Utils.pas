@@ -807,7 +807,7 @@ type
   /// <summary>
   ///   Converts a Delphi TDatetime value to a Windows TFiletime value.
   /// </summary>
-  function ConvertDateTimeToFileTime(const datetime: TDateTime; const useLocalTimeZone: Boolean): TFileTime; overload;
+  function ConvertDateTimeToFileTime(const dateTime: TDateTime; const useLocalTimeZone: Boolean): TFileTime; overload;
 
   /// <summary>
   ///   Converts a Windows TFiletime value to a Delphi TDatetime value. Not
@@ -1110,49 +1110,43 @@ begin
 end;
 
 {$IFDEF MSWINDOWS}
-function ConvertDateTimeToFileTime(const datetime: TDateTime;
+{$IFNDEF DELPHIX_RIO_UP}
+function TzSpecificLocalTimeToSystemTime(lpTimeZoneInformation: PTimeZoneInformation;
+  var lpLocalTime, lpUniversalTime: TSystemTime): BOOL; stdcall; external kernel32;
+{$ENDIF}
+
+function ConvertDateTimeToFileTime(const dateTime: TDateTime;
   const useLocalTimeZone: Boolean): TFileTime;
 var
-  systemTime: TSystemTime;
+  localTime, systemTime: TSystemTime;
   fileTime: TFileTime;
 begin
   Result.dwLowDateTime := 0;
   Result.dwHighDateTime := 0;
-  DateTimeToSystemTime(datetime, systemTime);
-  if SystemTimeToFileTime(systemTime, fileTime) then
-  begin
-    if useLocalTimeZone then
-    begin
-      LocalFileTimeToFileTime(fileTime, Result);
-    end
+  DateTimeToSystemTime(datetime, localTime);
+  if useLocalTimeZone then
+    if TzSpecificLocalTimeToSystemTime(nil, localTime, systemTime)
+      and SystemTimeToFileTime(systemTime, fileTime) then
+      Result := fileTime
     else
-    begin
+  else
+    if SystemTimeToFileTime(localTime, fileTime) then
       Result := fileTime;
-    end;
-  end;
 end;
 
-function ConvertFileTimeToDateTime(const fileTime: TFileTime; const useLocalTimeZone: Boolean): TDateTime;
+function ConvertFileTimeToDateTime(const fileTime: TFileTime;
+  const useLocalTimeZone: Boolean): TDateTime;
 var
-  localFileTime: TFileTime;
-  systemTime: TSystemTime;
+  systemTime, localTime: TSystemTime;
 begin
-  if useLocalTimeZone then
-  begin
-    FileTimeToLocalFileTime(fileTime, localFileTime);
-  end
-  else
-  begin
-    localFileTime := fileTime;
-  end;
-  if FileTimeToSystemTime(localFileTime, systemTime) then
-  begin
-    Result := SystemTimeToDateTime(systemTime);
-  end
-  else
-  begin
-    Result := 0;
-  end;
+  if FileTimeToSystemTime(fileTime, systemTime) then
+    if useLocalTimeZone then
+      if SystemTimeToTzSpecificLocalTime(nil, systemTime, localTime) then
+        Exit(SystemTimeToDateTime(localTime))
+      else
+    else
+      Exit(SystemTimeToDateTime(systemTime));
+  Result := 0;
 end;
 {$ENDIF MSWINDOWS}
 
