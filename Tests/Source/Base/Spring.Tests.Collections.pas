@@ -7275,8 +7275,9 @@ end;
 
 procedure TMemoizeTests.MemoizeEnumeratesOnlyOnce;
 var
-  count: Integer;
+  count, i, n: Integer;
   range, memoized: IEnumerable<Integer>;
+  arr: TArray<Integer>;
 begin
   count := 10;
   range := TEnumerable.Range(1, count).Where(
@@ -7293,6 +7294,15 @@ begin
   CheckEquals(10, memoized.Count);
   CheckEquals(0, count);
   CheckEquals(10, memoized.Count);
+
+  i := 0;
+  SetLength(arr, 10);
+  for n in memoized do
+  begin
+    arr[i] := n;
+    Inc(i);
+  end;
+  CheckEquals([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], arr);
 end;
 
 procedure TMemoizeTests.MemoizeWithMemoizedSourceReturnsSame;

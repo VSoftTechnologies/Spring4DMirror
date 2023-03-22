@@ -4157,7 +4157,7 @@ begin
     Inc(iterator.fCount);
   end;
 
-  assign(Current, PByte(iterator.fItems)[count*elSize]);
+  assign(Current, PByte(iterator.fItems)[Index*elSize]);
   Inc(Index);
   Result := True;
 end;
