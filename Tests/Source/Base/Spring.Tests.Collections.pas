@@ -1489,6 +1489,7 @@ procedure TTestIntegerList.EqualsToEnumerable;
 begin
   SimpleFillList;
   CheckFalse(SUT.EqualsTo(TEnumerable.From<Integer>([1, 2])));
+  CheckFalse(SUT.EqualsTo(TEnumerable.From<Integer>([2, 3, 4])));
   CheckTrue(SUT.EqualsTo(TEnumerable.From<Integer>([1, 2, 3])));
   CheckFalse(SUT.EqualsTo(TEnumerable.From<Integer>([1, 2, 3, 4])));
 end;

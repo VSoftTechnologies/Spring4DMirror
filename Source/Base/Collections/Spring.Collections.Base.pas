@@ -4655,7 +4655,7 @@ begin
   else
   {$ENDIF}
   Result := IEqualityComparer<T>(comparer).Equals(
-    IEnumerator<T>(enumerator1).Current, IEnumerator<T>(enumerator1).Current);
+    IEnumerator<T>(enumerator1).Current, IEnumerator<T>(enumerator2).Current);
 end;
 
 class function TCollectionThunks<T>.EqualsCurrentWithArrayElement(
