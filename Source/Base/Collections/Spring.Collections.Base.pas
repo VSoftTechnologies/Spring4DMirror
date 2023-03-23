@@ -398,6 +398,7 @@ type
       kind: TExtensionKind): TEnumerableExtension; static;
 
     function GetNonEnumeratedCount: Integer;
+    procedure MemoizeToArray(var values: Pointer; typeInfo: PTypeInfo);
     function PartitionToArray(var values: Pointer; typeInfo: PTypeInfo): Boolean;
     procedure Skip(count: Integer; var result; this: Pointer; classType: TClass);
     procedure Take(count: Integer; var result; this: Pointer; classType: TClass);
@@ -4926,6 +4927,14 @@ begin
   Result := -1;
 end;
 
+procedure TEnumerableExtension.MemoizeToArray(var values: Pointer; typeInfo: PTypeInfo);
+var
+  count: Integer;
+begin
+  count := IEnumerable(this).Count;
+  DynArrayCopyRange(values, fItems, typeInfo, 0, count);
+end;
+
 function TEnumerableExtension.PartitionToArray(var values: Pointer; typeInfo: PTypeInfo): Boolean;
 var
   count, index, i, elSize: NativeInt;
@@ -5165,6 +5174,11 @@ begin
   case fKind of //FI:W535
     TExtensionKind.Partition:
       if TEnumerableExtension(Self).PartitionToArray(Pointer(Result), TypeInfo(TArray<T>)) then Exit;
+    TExtensionKind.Memoize:
+    begin
+      TEnumerableExtension(Self).MemoizeToArray(Pointer(Result), TypeInfo(TArray<T>));
+      Exit;
+    end;
     TExtensionKind.Ordered:
     begin
       Result := fSource.ToArray;
