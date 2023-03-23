@@ -96,6 +96,8 @@ type
 
     procedure Returns(const values: array of TValue);
 
+    procedure SetDefaultExpectations(const target: TValue);
+
     procedure When; overload;
     procedure When(const match: TArgMatch); overload;
 
@@ -468,6 +470,26 @@ procedure TMockInterceptor.Returns(const values: array of TValue);
 begin
   fCurrentAction := nil;
   fCurrentValues := TArray.Copy<TValue>(values);
+end;
+
+procedure TMockInterceptor.SetDefaultExpectations(const target: TValue);
+type
+  TCallInfoAccess = record
+    Invocation: IInvocation;
+    CallCount: Integer;
+  end;
+var
+  instance: TValue;
+  method: TRttiMethod;
+begin
+  instance := target;
+  for method in TType.GetType(target.TypeInfo).GetMethods do
+    fExpectedCalls.Add(method, TMethodCall.Create(
+      function(const call: TCallInfo): TValue
+      begin
+        Result := TCallInfoAccess(call).Invocation.Method.Invoke(
+          instance, TCallInfoAccess(call).Invocation.Arguments);
+      end, Args.Any, nil));
 end;
 
 procedure TMockInterceptor.SetSequence(const value: IMockSequence);

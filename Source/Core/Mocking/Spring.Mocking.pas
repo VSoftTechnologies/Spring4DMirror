@@ -121,6 +121,8 @@ type
 
   ISetup<T> = interface(IInvokable) //FI:W524
     ['{CD661866-EB29-400C-ABC8-19FC8D59FFAD}']
+    function Default(const target: T): ISetup<T>;
+
     function Executes: IWhen<T>; overload;
     function Executes(const action: TMockAction): IWhen<T>; overload;
 
@@ -180,6 +182,8 @@ type
   private
     fSetup: ISetup<T>;
   public
+    function Default(const target: T): Setup<T>;
+
     function Executes: IWhen<T>; overload;
     function Executes(const action: TMockAction): IWhen<T>; overload;
 
@@ -313,6 +317,11 @@ end;
 function Setup<T>.Executes: IWhen<T>;
 begin
   Result := fSetup.Executes;
+end;
+
+function Setup<T>.Default(const target: T): Setup<T>;
+begin
+  Result.fSetup := fSetup.Default(target);
 end;
 
 function Setup<T>.Executes(const action: TMockAction): IWhen<T>;

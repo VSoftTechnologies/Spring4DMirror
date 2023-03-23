@@ -77,6 +77,8 @@ type
   {$ENDREGION}
 
   {$REGION 'Implements ISetup'}
+    function Default(const target): ISetup;
+
     function Executes: IWhen; overload;
     function Executes(const action: TMockAction): IWhen; overload;
 
@@ -116,6 +118,8 @@ type
   {$ENDREGION}
 
   {$REGION 'Implements ISetup<T>'}
+    function Default(const target: T): ISetup<T>;
+
     function Executes: IWhen<T>; overload;
     function Executes(const action: TMockAction): IWhen<T>; overload;
 
@@ -245,6 +249,12 @@ begin
   Result := fTypeInfo;
 end;
 
+function TMock.Default(const target): ISetup;
+begin
+  fInterceptor.SetDefaultExpectations(TValue.From(@target, fTypeInfo));
+  Result := Self;
+end;
+
 function TMock.Executes: IWhen;
 var
   action: TResultMockAction;
@@ -371,6 +381,12 @@ end;
 function TMock<T>.GetInstance: T;
 begin
   fProxy.AsType(System.TypeInfo(T), Result);
+end;
+
+function TMock<T>.Default(const target: T): ISetup<T>;
+begin
+  inherited Default(target);
+  Result := Self;
 end;
 
 function TMock<T>.Executes: IWhen<T>;
