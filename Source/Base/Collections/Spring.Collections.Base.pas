@@ -5364,6 +5364,7 @@ var
   iterator: TFoldedArrayIterator<T>;
 begin
   iterator := TFoldedArrayIterator<T>.Create;
+  iterator.fElementType := elementType;
   if count > 0 then
   begin
     SetLength(iterator.fItems, count);
