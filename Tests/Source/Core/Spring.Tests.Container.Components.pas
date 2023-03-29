@@ -466,6 +466,14 @@ type
     constructor Create(const chicken: IChicken);
   end;
 
+  TEggWeakChicken = class(TInterfacedObject, IEgg)
+  private
+    fChicken: Weak<IChicken>;
+    function Chicken: IChicken;
+  public
+    constructor Create(const chicken: IChicken);
+  end;
+
   {$ENDREGION}
 
 
@@ -1152,6 +1160,18 @@ begin
 end;
 
 function TEggLazyChicken.Chicken: IChicken;
+begin
+  Result := fChicken;
+end;
+
+{ TEggWeakChicken }
+
+constructor TEggWeakChicken.Create(const chicken: IChicken);
+begin
+  fChicken := chicken;
+end;
+
+function TEggWeakChicken.Chicken: IChicken;
 begin
   Result := fChicken;
 end;

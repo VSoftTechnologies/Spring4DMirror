@@ -199,6 +199,7 @@ type
     procedure SetUp; override;
   published
     procedure TestResolve;
+    procedure TestWeakSingleton;
   end;
 
   TTestCrossedCircularDependency = class(TContainerTestCase)
@@ -1184,6 +1185,23 @@ begin
   ExpectedException := ECircularDependencyException;
   chicken := fContainer.Resolve<IChicken>;
   Pass;
+end;
+
+procedure TTestDirectCircularDependency.TestWeakSingleton;
+var
+  chicken: IChicken;
+begin
+  fContainer.Registry.UnregisterAll;
+  fContainer.RegisterType<IChicken, TChicken>(
+    function: TChicken
+    begin
+      Result := TChicken.Create(nil);
+    end).AsSingleton.InjectProperty('Egg');
+  fContainer.RegisterType<IEgg, TEggWeakChicken>;
+  fContainer.Build;
+  chicken := fContainer.Resolve<IChicken>;
+  CheckNotNull(chicken);
+  CheckNotNull(chicken.Egg);
 end;
 
 {$ENDREGION}

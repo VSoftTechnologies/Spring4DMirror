@@ -78,6 +78,14 @@ uses
 type
   TInterfacedObjectAccess = class(TInterfacedObject);
 
+const
+  SingletonLifetimes = [
+    TLifetimeType.Singleton,
+    TLifetimeType.PerResolve,
+    TLifetimeType.SingletonPerThread
+  ];
+
+
 {$REGION 'TCreationContext'}
 
 constructor TCreationContext.Create(const model: TComponentModel;
@@ -103,7 +111,7 @@ var
   interfacedObject: TInterfacedObject;
 begin
   for instance in fPerResolveInstances do
-    if (instance.Key.LifetimeType = TLifetimeType.PerResolve)
+    if (instance.Key.LifetimeType in SingletonLifetimes)
       and instance.Value.TryAsType(TypeInfo(TInterfacedObject), interfacedObject)
       and Assigned(interfacedObject) then
       TInterfacedObjectAccess(interfacedObject)._Release;
@@ -133,7 +141,7 @@ begin
   fLock.BeginWrite;
   try
     fPerResolveInstances.Add(model, instance);
-    if (model.LifetimeType = TLifetimeType.PerResolve)
+    if (model.LifetimeType in SingletonLifetimes)
       and instance.TryAsType(TypeInfo(TInterfacedObject), interfacedObject)
       and Assigned(interfacedObject) then
       TInterfacedObjectAccess(interfacedObject)._AddRef;
