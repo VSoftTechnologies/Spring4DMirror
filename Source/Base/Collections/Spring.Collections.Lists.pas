@@ -983,7 +983,7 @@ begin
     else
     begin
       if ItemType.IsManaged then
-        fItems[index] := Default(T);
+        System.Finalize(fItems[index]);
       System.Move(fItems[index + 1], fItems[index], SizeOf(T) * tailCount);
       if ItemType.IsManaged then
         if SizeOf(T) = SizeOf(Pointer) then
@@ -991,6 +991,15 @@ begin
         else
           System.FillChar(fItems[index + tailCount], SizeOf(T), 0);
     end;
+  // RSP-41506: Default(T) cannot be used here
+  {$IF defined(DELPHI27) or defined(DELPHI28)}
+  if ItemType.IsManaged and (GetTypeKind(T) in [tkArray, tkRecord, tkMRecord]) then
+  begin
+    var p := @fItems[index + tailCount];
+    T(p^) := Default(T);
+  end
+  else
+  {$IFEND}
   fItems[index + tailCount] := Default(T);
 
   if Assigned(Notify) then
@@ -1257,7 +1266,7 @@ begin
 
   temp := fItems[currentIndex];
   if ItemType.IsManaged then
-    fItems[currentIndex] := Default(T);
+    System.Finalize(fItems[currentIndex]);
   if currentIndex < newIndex then
   begin
     targetIndex := currentIndex;

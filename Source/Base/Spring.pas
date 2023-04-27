@@ -12160,7 +12160,7 @@ begin
       else
       begin
         if TType.IsManaged<T> then
-          values[start] := Default(T);
+          System.Finalize(values[start]);
         Move(values[index], values[index+1], SizeOf(T) * (start - index));
         if TType.IsManaged<T> then
           if SizeOf(T) = SizeOf(Pointer) then
@@ -12931,7 +12931,7 @@ begin
       else
       begin
         if TType.IsManaged<T> then
-          values[start] := Default(T);
+          System.Finalize(values[start]);
         Move(values[index], values[index+1], SizeOf(T) * (start - index));
         if TType.IsManaged<T> then
           System.FillChar(values[index], SizeOf(T), 0);
