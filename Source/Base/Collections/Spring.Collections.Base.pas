@@ -139,14 +139,14 @@ type
     procedure ForEach(const action: IInterface; actionCall: TActionCall); overload;
     function ForEach(const values: IInterface; operation: TCollectionOperation): Integer; overload;
 
-    procedure Max(const comparer: IInterface; var result; getCurrent: TGetCurrent; getGreaterValue: TGetCurrentWithSelector); overload;
+    procedure MaxMin(const comparer: IInterface; var result; getCurrent: TGetCurrent; getValue: TGetCurrentWithSelector);
+
     function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Integer>): Integer; overload;
     function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Int64>): Int64; overload;
     function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Single>): Single; overload;
     function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Double>): Double; overload;
     function Max(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Currency>): Currency; overload;
 
-    procedure Min(const comparer: IInterface; var result; getCurrent: TGetCurrent; getLesserValue: TGetCurrentWithSelector); overload;
     function Min(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Integer>): Integer; overload;
     function Min(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Int64>): Int64; overload;
     function Min(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Single>): Single; overload;
@@ -1702,8 +1702,8 @@ begin
     and (TEnumerableExtension(Self).fKind = TExtensionKind.Memoize));
 end;
 
-procedure TEnumerableBase.Max(const comparer: IInterface; var result;
-  getCurrent: TGetCurrent; getGreaterValue: TGetCurrentWithSelector);
+procedure TEnumerableBase.MaxMin(const comparer: IInterface; var result;
+  getCurrent: TGetCurrent; getValue: TGetCurrentWithSelector);
 var
   enumerator: IEnumerator;
 begin
@@ -1715,7 +1715,7 @@ begin
 
   getCurrent(enumerator, result);
   while enumerator.MoveNext do
-    getGreaterValue(enumerator, comparer, result);
+    getValue(enumerator, comparer, result);
 end;
 
 function TEnumerableBase.Max(const selector: IInterface;
@@ -1815,22 +1815,6 @@ begin
   else
     with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Memoize) do
       IInterface(result) := IInterface(@IMT);
-end;
-
-procedure TEnumerableBase.Min(const comparer: IInterface; var result;
-  getCurrent: TGetCurrent; getLesserValue: TGetCurrentWithSelector);
-var
-  enumerator: IEnumerator;
-begin
-  if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
-
-  enumerator := IEnumerable(this).GetEnumerator;
-  if not enumerator.MoveNext then
-    RaiseHelper.NoElements;
-
-  getCurrent(enumerator, result);
-  while enumerator.MoveNext do
-    getLesserValue(enumerator, comparer, result);
 end;
 
 function TEnumerableBase.Min(const selector: IInterface;
@@ -2657,17 +2641,17 @@ end;
 
 function TEnumerableBase<T>.Max: T;
 begin
-  Max(fComparer, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfGreaterThan);
+  MaxMin(fComparer, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfGreaterThan);
 end;
 
 function TEnumerableBase<T>.Max(const comparer: IComparer<T>): T;
 begin
-  Max(comparer, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfGreaterThan);
+  MaxMin(comparer, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfGreaterThan);
 end;
 
 function TEnumerableBase<T>.Max(const comparer: TComparison<T>): T;
 begin
-  Max(PInterface(@comparer)^, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfGreaterThan);
+  MaxMin(PInterface(@comparer)^, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfGreaterThan);
 end;
 
 function TEnumerableBase<T>.Max(const selector: Func<T, Integer>): Integer;
@@ -2697,17 +2681,17 @@ end;
 
 function TEnumerableBase<T>.Min: T;
 begin
-  Max(fComparer, Result,  TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfLessThan);
+  MaxMin(fComparer, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfLessThan);
 end;
 
 function TEnumerableBase<T>.Min(const comparer: IComparer<T>): T;
 begin
-  Max(comparer, Result,  TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfLessThan);
+  MaxMin(comparer, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfLessThan);
 end;
 
 function TEnumerableBase<T>.Min(const comparer: TComparison<T>): T;
 begin
-  Max(PInterface(@comparer)^, Result,  TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfLessThan);
+  MaxMin(PInterface(@comparer)^, Result, TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentIfLessThan);
 end;
 
 function TEnumerableBase<T>.Min(const selector: Func<T, Integer>): Integer;
