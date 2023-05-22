@@ -94,7 +94,7 @@ type
     procedure EnsureCompact;
     procedure Grow;
     procedure Pack;
-    function FindItem(const key): Pointer;
+    function FindItem(const key; options: Byte = 0): Pointer;
     function FindEntry(const key; var entry: THashTableEntry): Boolean;
     procedure Rehash(newCapacity: NativeInt);
 
@@ -178,6 +178,10 @@ const
   RaiseOnNonExisting = 32;
   ExistingMask       = IgnoreExisting or OverwriteExisting or RaiseOnExisting or DeleteExisting;
 
+{$IF defined(DELPHIXE6) or defined(DELPHIXE7)}
+function HashTableFindItem(hashTable: PHashTable; const key; options: Byte = 0): Pointer;
+{$IFEND}
+
 implementation
 
 uses
@@ -190,6 +194,11 @@ uses
   // there seems to be some compiler glitch in XE6 and XE7 that causes
   // internal compiler error in some rare cases when using goto - here is one
   {$DEFINE GOTO_OFF}
+
+function HashTableFindItem(hashTable: PHashTable; const key; options: Byte = 0): Pointer;
+begin
+  Result := hashTable.FindItem(key, options);
+end;
 {$IFEND}
 
 // copied here from Spring.pas to enable inlining
@@ -307,23 +316,28 @@ begin
   FinalizeArray(targetItem, itemType, Cardinal(fItemCount - fCount)); // clear remaining items that were previously moved
 end;
 
-function THashTable.FindItem(const key): Pointer;
+function THashTable.FindItem(const key; options: Byte): Pointer;
 label
-  first;
+  loopStart, notFound, findAgain;
 var
   hashCode, bucketIndex, itemIndex, perturb, mask: Integer;
   hashTable: PHashTable;
   item: PByte;
 begin
   hashTable := @vTable;
-  if hashTable.Buckets <> nil then
-  begin
-    hashCode := hashTable.fGetHashCode(Pointer(hashTable.fComparer), key) and not RemovedFlag;
-    perturb := hashCode;
-    mask := PInteger(@PByte(hashTable.Buckets)[-SizeOf(NativeInt)])^ - 1;
-    bucketIndex := hashCode and mask;
 
-    goto first;
+  hashCode := hashTable.fGetHashCode(Pointer(hashTable.fComparer), key) and not RemovedFlag;
+
+  if hashTable.Buckets = nil then goto notFound;
+
+findAgain:
+  perturb := hashCode;
+  mask := PInteger(@PByte(hashTable.Buckets)[-SizeOf(NativeInt)])^ - 1;
+  bucketIndex := hashCode and mask;
+  goto loopStart;
+
+  repeat
+    // lookup Item and deal with collisions
     repeat
     {$IFDEF DEBUG}
       Inc(CollisionCount);
@@ -332,20 +346,81 @@ begin
       perturb := perturb shr PerturbShift;
       bucketIndex := (5 * bucketIndex + 1 + perturb) and mask;
 
-    first:
+    loopStart:
       itemIndex := hashTable.Buckets[bucketIndex];
       if itemIndex = UsedBucket then Continue;
-      if itemIndex = EmptyBucket then Break;
-      if (itemIndex xor hashCode) and not mask = 0 then
-      begin
-        item := @hashTable.Items[NativeInt(hashTable.ItemSize) * (itemIndex and mask)];
-        if hashTable.fEquals(Pointer(hashTable.fComparer), item[KeyOffset], key) then
-          Exit(item);
-      end;
+      if itemIndex = EmptyBucket then goto notFound;
+      if (itemIndex xor hashCode) and not mask = 0 then Break;
     until False;
-  end;
-  Result := nil;
+
+    item := @hashTable.Items[NativeInt(hashTable.ItemSize) * (itemIndex and mask)];
+
+    if not hashTable.fEquals(Pointer(hashTable.fComparer), item[KeyOffset], key) then Continue;
+
+    if options and ExistingMask <> 0 then
+      if options and IgnoreExisting <> 0 then
+        Exit(nil)
+      else if options and OverwriteExisting <> 0 then
+      begin
+        {$Q-}
+        Inc(hashTable.fVersion);
+        {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+
+        // mark hashCode to indicate overwriting - caller needs to unset the bit again!
+        PInteger(item)^ := PInteger(item)^ or RemovedFlag;
+      end
+      else if options and DeleteExisting <> 0 then
+      begin
+        {$Q-}
+        Inc(hashTable.fVersion);
+        {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+
+        hashTable.Buckets[bucketIndex] := UsedBucket;
+        Dec(hashTable.fCount);
+
+        PInteger(item)^ := RemovedFlag;
+      end
+      else
+      begin
+        RaiseHelper.DuplicateKey;
+        Exit(nil);
+      end;
+    Exit(item);
+
+  notFound:
+    if options and RaiseOnNonExisting = 0 then
+    begin
+      if options and InsertNonExisting <> 0 then
+      begin
+        if Assigned(hashTable.fItems) then
+        if hashTable.ItemCount < PInteger(@PByte(hashTable.Items)[-SizeOf(NativeInt)])^ then
+        begin
+          {$Q-}
+          Inc(hashTable.fVersion);
+          {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+
+          itemIndex := hashTable.ItemCount;
+          hashTable.Buckets[bucketIndex] := itemIndex or (hashCode and not mask);
+          Inc(hashTable.fCount);
+          Inc(hashTable.fItemCount);
+
+          Result := @hashTable.Items[NativeInt(hashTable.ItemSize) * itemIndex];
+          PInteger(Result)^ := hashCode;
+          Exit;
+        end;
+        hashTable.Grow;
+        goto findAgain;
+      end;
+      Exit(nil);
+    end;
+    RaiseHelper.KeyNotFound;
+    Exit(nil);
+  until False;
+// the compiler issues two warnings about possibly not initialied variables
+// however that is because of the goto when fItems is nil which is checked again
+{$WARN USE_BEFORE_DEF OFF}
 end;
+{$WARN USE_BEFORE_DEF ON}
 
 function THashTable.FindEntry(const key; var entry: THashTableEntry): Boolean;
 {$IFNDEF GOTO_OFF}
