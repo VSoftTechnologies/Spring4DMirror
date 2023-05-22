@@ -183,6 +183,7 @@ type
     procedure ToArray(var result: Pointer; typeInfo: Pointer; getCurrent: TGetCurrent);
 
     procedure Concat(const second: IInterface; var result; classType: TClass);
+    procedure DefaultIfEmpty(defaultValue: Pointer; var result; typeInfo: Pointer; classType: TClass);
     procedure Distinct(comparer: Pointer; var result; classType: TClass);
     procedure Exclude(const second: IInterface; comparer: Pointer; var result; classType: TClass);
     procedure Intersect(const second: IInterface; comparer: Pointer; var result; classType: TClass);
@@ -249,6 +250,9 @@ type
     function Contains(const value: T): Boolean; overload;
     function Contains(const value: T; const comparer: IEqualityComparer<T>): Boolean; overload;
     function Contains(const value: T; const comparer: TEqualityComparison<T>): Boolean; overload;
+
+    function DefaultIfEmpty: IEnumerable<T>; overload;
+    function DefaultIfEmpty(const defaultValue: T): IEnumerable<T>; overload;
 
     function Distinct: IEnumerable<T>; overload;
     function Distinct(const comparer: IEqualityComparer<T>): IEnumerable<T>; overload;
@@ -382,7 +386,7 @@ type
   end;
 
   TExtensionKind = (
-    Empty, Partition, PartitionFromEnd, &Array,
+    Empty, DefaultIfEmpty, Partition, PartitionFromEnd,
     Distinct, Exclude, Intersect, Union,
     Concat, Memoize, Ordered, Reversed, Shuffled,
     SkipWhile, SkipWhileIndex,
@@ -471,6 +475,7 @@ type
 
     function GetEnumerator: Boolean;
     function GetEnumeratorAndSkip: Boolean;
+    function GetEnumeratorDefaultIfEmpty: Boolean;
     function GetEnumeratorHashTable(getCurrent: TGetCurrent; assign: TAssign): Boolean;
     function GetEnumeratorMemoize: Boolean;
     function GetEnumeratorPartitionFromEnd: Boolean;
@@ -1488,6 +1493,25 @@ begin
   end;
 end;
 
+procedure TEnumerableBase.DefaultIfEmpty(defaultValue: Pointer; var result; typeInfo: Pointer; classType: TClass);
+const
+  Len: NativeInt = 1;
+var
+  p: PDynArrayTypeInfo;
+begin
+  with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.DefaultIfEmpty) do
+  begin
+    DynArraySetLength(fItems, typeInfo, 1, @Len);
+    p := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name));
+    IInterface(result) := IInterface(@IMT);
+    if defaultValue <> nil then
+      if p.elType <> nil then
+        MoveManaged(defaultValue, fItems, p.elType^, 1)
+      else
+        Move(defaultValue^, fItems^, p.elSize);
+  end;
+end;
+
 procedure TEnumerableBase.Distinct(comparer: Pointer; var result; classType: TClass);
 var
   elementType: PTypeInfo;
@@ -2466,6 +2490,16 @@ end;
 function TEnumerableBase<T>.CopyTo(var values: TArray<T>; index: Integer): Integer;
 begin
   Result := inherited CopyTo(Pointer(values), index, SizeOf(T), TCollectionThunks<T>.GetCurrent);
+end;
+
+function TEnumerableBase<T>.DefaultIfEmpty: IEnumerable<T>;
+begin
+  inherited DefaultIfEmpty(nil, Result, TypeInfo(TArray<T>), TEnumerableExtension<T>);
+end;
+
+function TEnumerableBase<T>.DefaultIfEmpty(const defaultValue: T): IEnumerable<T>;
+begin
+  inherited DefaultIfEmpty(@defaultValue, Result, TypeInfo(TArray<T>), TEnumerableExtension<T>);
 end;
 
 function TEnumerableBase<T>.Distinct: IEnumerable<T>;
@@ -4221,6 +4255,20 @@ begin
   end;
 end;
 
+function TIteratorBlock.GetEnumeratorDefaultIfEmpty: Boolean;
+begin
+{$IFDEF MSWINDOWS}
+  IEnumerableInternal(Source).GetEnumerator(Enumerator);
+{$ELSE}
+  Enumerator := Source.GetEnumerator;
+{$ENDIF}
+  if Methods.MoveNext(@Self) then
+    DoMoveNext := Methods.MoveNext
+  else
+    DoMoveNext := @TIteratorBlock.MoveNextEmpty;
+  Result := True;
+end;
+
 function TIteratorBlock.GetEnumeratorHashTable(
   getCurrent: TGetCurrent; assign: TAssign): Boolean;
 var
@@ -4404,6 +4452,12 @@ procedure TIteratorBlock<T>.Initialize(extension: TEnumerableExtension);
 begin
   DoMoveNext := @TIteratorBlock.GetEnumerator;
   case Kind of //FI:W535
+    TExtensionKind.DefaultIfEmpty:
+    begin
+      Methods.MoveNext := @TIteratorBlock<T>.MoveNextEnumerator;
+      DoMoveNext := @TIteratorBlock.GetEnumeratorDefaultIfEmpty;
+      Current := Items[0];
+    end;
     TExtensionKind.Partition:
       if Assigned(Source) then
         if SupportsIndexedAccess(Source) then

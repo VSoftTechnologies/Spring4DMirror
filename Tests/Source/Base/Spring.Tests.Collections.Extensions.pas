@@ -2768,7 +2768,7 @@ var
   query: IEnumerable<Integer>;
 begin
   source := TCollections.CreateList<Integer>;
-  query := TDefaultIfEmptyIterator<Integer>.Create(source, Default(Integer));
+  query := source.DefaultIfEmpty;
   CheckTrue(query.EqualsTo([0]));
 end;
 
@@ -2778,7 +2778,7 @@ var
   query: IEnumerable<Integer>;
 begin
   source := TCollections.CreateList<Integer>;
-  query := TDefaultIfEmptyIterator<Integer>.Create(source, 5);
+  query := source.DefaultIfEmpty(5);
   CheckTrue(query.EqualsTo([5]));
 end;
 
@@ -2787,7 +2787,7 @@ begin
   CheckExceptionDeferred(
     function(const source: IEnumerable<Integer>): IEnumerable<Integer>
     begin
-      Result := TDefaultIfEmptyIterator<Integer>.Create(source, Default(Integer));
+      Result := source.DefaultIfEmpty;
     end);
 end;
 
@@ -2797,7 +2797,7 @@ var
   query: IEnumerable<Integer>;
 begin
   source := TCollections.CreateList<Integer>([3, 1, 4]);
-  query := TDefaultIfEmptyIterator<Integer>.Create(source, Default(Integer));
+  query := source.DefaultIfEmpty;
   CheckTrue(query.EqualsTo(source));
 end;
 
@@ -2807,7 +2807,7 @@ var
   query: IEnumerable<Integer>;
 begin
   source := TCollections.CreateList<Integer>([3, 1, 4]);
-  query := TDefaultIfEmptyIterator<Integer>.Create(source, 5);
+  query := source.DefaultIfEmpty(5);
   CheckTrue(query.EqualsTo(source));
 end;
 

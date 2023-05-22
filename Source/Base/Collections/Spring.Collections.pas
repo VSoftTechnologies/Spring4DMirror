@@ -508,6 +508,29 @@ type
     function Contains(const value: T; const comparer: TEqualityComparison<T>): Boolean; overload;
 
     /// <summary>
+    ///   Returns the elements of the sequence or the default value in a
+    ///   sequence if the sequence is empty.
+    /// </summary>
+    /// <returns>
+    ///   A sequence that contains <c>Default(T)</c> if <c>source</c> is empty;
+    ///   otherwise, <c>source</c>.
+    /// </returns>
+    function DefaultIfEmpty: IEnumerable<T>; overload;
+
+    /// <summary>
+    ///   Returns the elements of the sequence or the specified default value
+    ///   in sequence if the sequence is empty.
+    /// </summary>
+    /// <param name="defaultValue">
+    ///   The value to return if the sequence is empty.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains <c>defaultValue</c> if <c>source</c> is
+    ///   empty; otherwise, <c>source</c>.
+    /// </returns>
+    function DefaultIfEmpty(const defaultValue: T): IEnumerable<T>; overload;
+
+    /// <summary>
     ///   Returns distinct elements from a sequence by using the default
     ///   equality comparer to compare values.
     /// </summary>
@@ -5242,6 +5265,7 @@ type
     ///   <c>source</c> is <c>nil</c>.
     /// </exception>
     class function DefaultIfEmpty<T>(const source: IEnumerable<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use source.DefaultIfEmpty instead';
 
     /// <summary>
     ///   Returns the elements of the specified sequence or the specified value
@@ -5264,6 +5288,7 @@ type
     ///   <c>source</c> is <c>nil</c>.
     /// </exception>
     class function DefaultIfEmpty<T>(const source: IEnumerable<T>; const defaultValue: T): IEnumerable<T>; overload; static;
+      deprecated 'Use source.DefaultIfEmpty(defaultValue) instead';
 
     /// <summary>
     ///   Returns distinct elements from a sequence by using the default
