@@ -622,7 +622,7 @@ end;
 
 function TSortedSet<T>.CreateSet: ISet<T>;
 begin
-  Result := TSortedSet<T>.Create(Comparer);
+  Result := TSortedSet<T>.Create(fComparer);
 end;
 
 function TSortedSet<T>.Add(const item: T): Boolean;

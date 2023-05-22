@@ -1680,9 +1680,9 @@ begin
   if Result > 0 then
   begin
     // If the new item is smaller than the last one in the list ...
-    if Comparer.Compare(fItems[Result - 1], item) > 0 then
+    if fComparer.Compare(fItems[Result - 1], item) > 0 then
       // ... search for the correct insertion point
-      TArray.BinarySearch<T>(fItems, item, Result, Comparer, 0, Count);
+      TArray.BinarySearch<T>(fItems, item, Result, fComparer, 0, Count);
   end;
   inherited Insert(Result, item);
 end;
@@ -1719,7 +1719,7 @@ function TSortedList<T>.Contains(const value: T): Boolean;
 var
   index: Integer;
 begin
-  Result := TArray.BinarySearch<T>(fItems, value, index, Comparer, 0, Count);
+  Result := TArray.BinarySearch<T>(fItems, value, index, fComparer, 0, Count);
 end;
 
 procedure TSortedList<T>.Exchange(index1, index2: Integer);
@@ -1729,7 +1729,7 @@ end;
 
 function TSortedList<T>.IndexOf(const item: T): Integer;
 begin
-  if not TArray.BinarySearch<T>(fItems, item, Result, Comparer, 0, Count) then
+  if not TArray.BinarySearch<T>(fItems, item, Result, fComparer, 0, Count) then
     Result := -1;
 end;
 
@@ -1740,7 +1740,7 @@ begin
   listCount := Count;
   if Cardinal(index) > Cardinal(listCount) then RaiseHelper.ArgumentOutOfRange_Index;
 
-  if not TArray.BinarySearch<T>(fItems, item, Result, Comparer, index, listCount - index) then
+  if not TArray.BinarySearch<T>(fItems, item, Result, fComparer, index, listCount - index) then
     Result := -1;
 end;
 
@@ -1751,7 +1751,7 @@ begin
   listCount := Self.Count;
   CheckRange(index, count, listCount);
 
-  if not TArray.BinarySearch<T>(fItems, item, Result, Comparer, index, count) then
+  if not TArray.BinarySearch<T>(fItems, item, Result, fComparer, index, count) then
     Result := -1;
 end;
 
@@ -1772,7 +1772,7 @@ begin
     Exit(-1);
 
   if not TArray.BinarySearchUpperBound<T>(
-    fItems, item, Result, Comparer, index, count) then
+    fItems, item, Result, fComparer, index, count) then
     Result := -1;
 end;
 

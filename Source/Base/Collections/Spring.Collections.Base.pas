@@ -224,7 +224,6 @@ type
     function TryGetLast(var value: T; const predicate: Predicate<T>): Boolean; overload;
     function TryGetSingle(var value: T): Boolean; overload;
     function TryGetSingle(var value: T; const predicate: Predicate<T>): Boolean; overload;
-    property Comparer: IComparer<T> read fComparer;
   public
     procedure AfterConstruction; override;
 
