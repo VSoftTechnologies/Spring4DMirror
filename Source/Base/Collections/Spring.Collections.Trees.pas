@@ -522,16 +522,6 @@ uses
 
 {$REGION 'TBlockAllocatedArray<T>'}
 
-type
-  PDynArrayTypeInfo = ^TDynArrayTypeInfo;
-  TDynArrayTypeInfo = packed record
-    kind: TTypeKind;
-    name: Byte;
-    elSize: Integer;
-    elType: ^PDynArrayTypeInfo;
-    varType: Integer;
-  end;
-
 procedure TBlockAllocatedArray.Grow(arrayType: PTypeInfo);
 var
   n, blockLength: NativeInt;

@@ -482,7 +482,7 @@ begin
   if fServiceTypeMappings.TryGetValues(serviceType, models) then
   begin
     if fUnnamedRegistrations.TryGetValues(serviceType, unnamedModels) then
-      Result := TEnumerable.&Except<TComponentModel>(models, unnamedModels)
+      Result := models.Exclude(unnamedModels)
     else
       Result := models;
   end

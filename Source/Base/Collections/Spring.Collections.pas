@@ -508,6 +508,27 @@ type
     function Contains(const value: T; const comparer: TEqualityComparison<T>): Boolean; overload;
 
     /// <summary>
+    ///   Returns distinct elements from a sequence by using the default
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <returns>
+    ///   A sequence that contains distinct elements from the source sequence.
+    /// </returns>
+    function Distinct: IEnumerable<T>; overload;
+
+    /// <summary>
+    ///   Returns distinct elements from the sequence by using a specified
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <param name="comparer">
+    ///   An equality comparer to compare values.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains distinct elements from the source sequence.
+    /// </returns>
+    function Distinct(const comparer: IEqualityComparer<T>): IEnumerable<T>; overload;
+
+    /// <summary>
     ///   Returns the element at a specified index in the sequence.
     /// </summary>
     /// <param name="index">
@@ -623,6 +644,43 @@ type
     function Exactly(count: Integer): Boolean;
 
     /// <summary>
+    ///   Produces the set difference of two sequences by using the default
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <param name="second">
+    ///   A sequence whose elements that also occur in the first sequence will
+    ///   cause those elements to be removed from the returned sequence.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the set difference of the elements of two
+    ///   sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>second</c> is <c>nil</c>.
+    /// </exception>
+    function Exclude(const second: IEnumerable<T>): IEnumerable<T>; overload;
+
+    /// <summary>
+    ///   Produces the set difference of two sequences by using the specified
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <param name="second">
+    ///   A sequence whose elements that also occur in the first sequence will
+    ///   cause those elements to be removed from the returned sequence.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare values.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the set difference of the elements of two
+    ///   sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>second</c> is <c>nil</c>.
+    /// </exception>
+    function Exclude(const second: IEnumerable<T>; const comparer: IEqualityComparer<T>): IEnumerable<T>; overload;
+
+    /// <summary>
     ///   Returns the first element of the sequence.
     /// </summary>
     /// <returns>
@@ -725,6 +783,43 @@ type
     ///   <c>action</c> is <c>nil</c>.
     /// </exception>
     procedure ForEach(const action: Action<T>);
+
+    /// <summary>
+    ///   Produces the set intersection of two sequences by using the default
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <param name="second">
+    ///   A sequence whose distinct elements that also appear in the first
+    ///   sequence will be returned.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements that form the set intersection
+    ///   of two sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>second</c> is <c>nil</c>.
+    /// </exception>
+    function Intersect(const second: IEnumerable<T>): IEnumerable<T>; overload;
+
+    /// <summary>
+    ///   Produces the set intersection of two sequences by using the specified
+    ///   equality comparer to compare values.
+    /// </summary>
+    /// <param name="second">
+    ///   A sequence whose distinct elements that also appear in the first
+    ///   sequence will be returned.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare values.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements that form the set intersection
+    ///   of two sequences.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>second</c> is <c>nil</c>.
+    /// </exception>
+    function Intersect(const second: IEnumerable<T>; const comparer: IEqualityComparer<T>): IEnumerable<T>; overload;
 
     /// <summary>
     ///   Returns the last element of the sequence.
@@ -1602,6 +1697,41 @@ type
     ///   <c>predicate</c> is <c>nil</c>.
     /// </exception>
     function TryGetSingle(var value: T; const predicate: Predicate<T>): Boolean; overload;
+
+    /// <summary>
+    ///   Produces the set union of two sequences by using the default equality
+    ///   comparer.
+    /// </summary>
+    /// <param name="second">
+    ///   A sequence whose distinct elements form the second set for the union.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements from both input sequences,
+    ///   excluding duplicates.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>second</c> is <c>nil</c>.
+    /// </exception>
+    function Union(const second: IEnumerable<T>): IEnumerable<T>; overload;
+
+    /// <summary>
+    ///   Produces the set union of two sequences by using a specified equality
+    ///   comparer.
+    /// </summary>
+    /// <param name="second">
+    ///   A sequence whose distinct elements form the second set for the union.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare values.
+    /// </param>
+    /// <returns>
+    ///   A sequence that contains the elements from both input sequences,
+    ///   excluding duplicates.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>second</c> is <c>nil</c>.
+    /// </exception>
+    function Union(const second: IEnumerable<T>; const comparer: IEqualityComparer<T>): IEnumerable<T>; overload;
 
     /// <summary>
     ///   Filters the sequence based on the specified predicate.
@@ -5152,6 +5282,7 @@ type
     ///   <c>source</c> is <c>nil</c>.
     /// </exception>
     class function Distinct<T>(const source: IEnumerable<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use source.Distinct instead';
 
     /// <summary>
     ///   Returns distinct elements from a sequence by using a specified
@@ -5178,6 +5309,7 @@ type
     /// </remarks>
     class function Distinct<T>(const source: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use source.Distinct(comparer) instead';
 
     /// <summary>
     ///   Returns distinct elements from a sequence according to a specified
@@ -5260,6 +5392,7 @@ type
     ///   <c>first</c> or <c>second</c> is <c>nil</c>.
     /// </exception>
     class function &Except<T>(const first, second: IEnumerable<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use first.Exclude(second) instead';
 
     /// <summary>
     ///   Produces the set difference of two sequences by using the specified
@@ -5292,6 +5425,7 @@ type
     /// </remarks>
     class function &Except<T>(const first, second: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use first.Exclude(second, comparer) instead';
 
     /// <summary>
     ///   Returns an empty sequence that has the specified type argument.
@@ -5376,7 +5510,7 @@ type
     ///   A function to extract the key for each element.
     /// </param>
     /// <param name="comparer">
-    ///   A equality comparer to compare keys.
+    ///   An equality comparer to compare keys.
     /// </param>
     /// <returns>
     ///   A sequence where each element is a group that contains a collection of
@@ -5665,6 +5799,7 @@ type
     ///   <c>first</c> or <c>second</c> is <c>nil</c>.
     /// </exception>
     class function Intersect<T>(const first, second: IEnumerable<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use first.Intersect(second) instead';
 
     /// <summary>
     ///   Produces the set intersection of two sequences by using the specified
@@ -5697,6 +5832,7 @@ type
     /// </remarks>
     class function Intersect<T>(const first, second: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use first.Intersect(second, comparer) instead';
 
     /// <summary>
     ///   Returns the maximum value in a generic sequence according to a
@@ -5717,7 +5853,7 @@ type
     /// <returns>
     ///   The value with the maximum key in the sequence.
     /// </returns>
-    /// <exception cref="EArgumentNilException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
     /// </exception>
     class function MaxBy<T, TKey>(const source: IEnumerable<T>;
@@ -5745,7 +5881,7 @@ type
     /// <returns>
     ///   The value with the maximum key in the sequence.
     /// </returns>
-    /// <exception cref="EArgumentNilException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
     /// </exception>
     class function MaxBy<T, TKey>(const source: IEnumerable<T>;
@@ -5771,7 +5907,7 @@ type
     /// <returns>
     ///   The value with the minimum key in the sequence.
     /// </returns>
-    /// <exception cref="EArgumentNilException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
     /// </exception>
     class function MinBy<T, TKey>(const source: IEnumerable<T>;
@@ -5799,7 +5935,7 @@ type
     /// <returns>
     ///   The value with the minimum key in the sequence.
     /// </returns>
-    /// <exception cref="EArgumentNilException">
+    /// <exception cref="Spring|EArgumentNilException">
     ///   <c>source</c> or <c>keySelector</c> or <c>comparer</c> is <c>nil</c>.
     /// </exception>
     class function MinBy<T, TKey>(const source: IEnumerable<T>;
@@ -6161,7 +6297,7 @@ type
       const resultSelector: Func<T, TCollection, TResult>): IEnumerable<TResult>; overload; static;
 
     /// <summary>
-    ///   Creates a dictionary from an sequence according to a specified key
+    ///   Creates a dictionary from a sequence according to a specified key
     ///   selector function.
     /// </summary>
     /// <typeparam name="TSource">
@@ -6190,7 +6326,7 @@ type
       const keySelector: Func<TSource, TKey>): IOrderedDictionary<TKey, TSource>; overload; static;
 
     /// <summary>
-    ///   Creates a dictionary from an sequence according to a specified key
+    ///   Creates a dictionary from a sequence according to a specified key
     ///   selector function and key comparer.
     /// </summary>
     /// <typeparam name="TSource">
@@ -6484,6 +6620,7 @@ type
     ///   <c>first</c> or <c>second</c> is <c>nil</c>.
     /// </exception>
     class function Union<T>(const first, second: IEnumerable<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use first.Union(second) instead';
 
     /// <summary>
     ///   Produces the set union of two sequences by using a specified equality
@@ -6514,6 +6651,7 @@ type
     /// </remarks>
     class function Union<T>(const first, second: IEnumerable<T>;
       const comparer: IEqualityComparer<T>): IEnumerable<T>; overload; static;
+      deprecated 'Use first.Union(second, comparer) instead';
 
     /// <summary>
     ///   Produces a sequence of tuples with elements from the two specified
@@ -10541,13 +10679,13 @@ end;
 class function TEnumerable.Distinct<T>(
   const source: IEnumerable<T>): IEnumerable<T>;
 begin
-  Result := TDistinctIterator<T>.Create(source, nil);
+  Result := source.Distinct;
 end;
 
 class function TEnumerable.Distinct<T>(const source: IEnumerable<T>;
   const comparer: IEqualityComparer<T>): IEnumerable<T>;
 begin
-  Result := TDistinctIterator<T>.Create(source, comparer);
+  Result := source.Distinct(comparer);
 end;
 
 class function TEnumerable.DistinctBy<T, TKey>(const source: IEnumerable<T>;
@@ -10587,13 +10725,13 @@ end;
 class function TEnumerable.&Except<T>(const first,
   second: IEnumerable<T>): IEnumerable<T>;
 begin
-  Result := TExceptIterator<T>.Create(first, second);
+  Result := first.Exclude(second);
 end;
 
 class function TEnumerable.&Except<T>(const first, second: IEnumerable<T>;
   const comparer: IEqualityComparer<T>): IEnumerable<T>;
 begin
-  Result := TExceptIterator<T>.Create(first, second, comparer);
+  Result := first.Exclude(second, comparer);
 end;
 
 class procedure TEnumerable.InternalFrom_Object_DynArray(source: Pointer;
@@ -10723,13 +10861,13 @@ end;
 class function TEnumerable.Intersect<T>(const first,
   second: IEnumerable<T>): IEnumerable<T>;
 begin
-  Result := TIntersectIterator<T>.Create(first, second);
+  Result := first.Intersect(second);
 end;
 
 class function TEnumerable.Intersect<T>(const first, second: IEnumerable<T>;
   const comparer: IEqualityComparer<T>): IEnumerable<T>;
 begin
-  Result := TIntersectIterator<T>.Create(first, second, comparer);
+  Result := first.Intersect(second, comparer);
 end;
 
 class function TEnumerable.MaxBy<T, TKey>(const source: IEnumerable<T>;
@@ -11002,13 +11140,13 @@ end;
 
 class function TEnumerable.Union<T>(const first, second: IEnumerable<T>): IEnumerable<T>;
 begin
-  Result := TUnionIterator<T>.Create(first, second);
+  Result := first.Union(second);
 end;
 
 class function TEnumerable.Union<T>(const first, second: IEnumerable<T>;
   const comparer: IEqualityComparer<T>): IEnumerable<T>;
 begin
-  Result := TUnionIterator<T>.Create(first, second, comparer);
+  Result := first.Union(second, comparer);
 end;
 
 class function TEnumerable.Zip<TFirst, TSecond>(

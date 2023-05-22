@@ -3120,7 +3120,7 @@ var
 begin
   first := TCollections.CreateList<string>(['a', 'b', 'B', 'c', 'b']);
   second := TCollections.CreateList<string>(['d', 'e', 'd', 'a']);
-  query := TUnionIterator<string>.Create(first, second, TStringComparer.OrdinalIgnoreCase);
+  query := first.Union(second, TStringComparer.OrdinalIgnoreCase);
   CheckTrue(query.EqualsTo(['a', 'b', 'c', 'd', 'e']));
 end;
 
@@ -3132,7 +3132,7 @@ var
 begin
   first := TCollections.CreateList<string>;
   second := TCollections.CreateList<string>(['d', 'e', 'd', 'a']);
-  query := TUnionIterator<string>.Create(first, second);
+  query := first.Union(second);
   CheckTrue(query.EqualsTo(['d', 'e', 'a']));
 end;
 
@@ -3144,7 +3144,7 @@ var
 begin
   first := TCollections.CreateList<string>(['a', 'b', 'B', 'c', 'b']);
   second := TCollections.CreateList<string>;
-  query := TUnionIterator<string>.Create(first, second);
+  query := first.Union(second);
   CheckTrue(query.EqualsTo(['a', 'b', 'B', 'c']));
 end;
 
@@ -3157,7 +3157,7 @@ var
 begin
   first := TThrowingEnumerable.Create;
   second := TCollections.CreateList<Integer>([2]);
-  query := TUnionIterator<Integer>.Create(first, second);
+  query := first.Union(second);
   iterator := query.GetEnumerator;
   CheckException(EInvalidOperationException,
     procedure
@@ -3174,7 +3174,7 @@ var
 begin
   first := TCollections.CreateList<string>(['a', 'b', 'B', 'c', 'b']);
   second := TCollections.CreateList<string>(['d', 'e', 'd', 'a']);
-  query := TUnionIterator<string>.Create(first, second, nil);
+  query := first.Union(second, nil);
   CheckTrue(query.EqualsTo(['a', 'b', 'B', 'c', 'd', 'e']));
 end;
 
@@ -3242,7 +3242,7 @@ var
 begin
   first := TCollections.CreateList<string>(['a', 'b', 'B', 'c', 'b']);
   second := TCollections.CreateList<string>(['d', 'e', 'd', 'a']);
-  query := TUnionIterator<string>.Create(first, second);
+  query := first.Union(second);
   CheckTrue(query.EqualsTo(['a', 'b', 'B', 'c', 'd', 'e']));
 end;
 
@@ -3255,7 +3255,7 @@ var
 begin
   first := TCollections.CreateList<Integer>([3, 5, 3]);
   second := TThrowingEnumerable.Create;
-  query := TUnionIterator<Integer>.Create(first, second);
+  query := first.Union(second);
   iterator := query.GetEnumerator;
   CheckTrue(iterator.MoveNext);
   CheckEquals(3, iterator.Current);
@@ -3276,7 +3276,7 @@ var
 begin
   first := TCollections.CreateList<string>;
   second := TCollections.CreateList<string>;
-  query := TUnionIterator<string>.Create(first, second);
+  query := first.Union(second);
   CheckTrue(query.EqualsTo([]));
 end;
 
@@ -3290,7 +3290,7 @@ var
 begin
   first := TCollections.CreateList<string>(['A', 'a', 'b', 'c', 'b']);
   second := TCollections.CreateList<string>(['b', 'a', 'd', 'a']);
-  query := TIntersectIterator<string>.Create(first, second, TStringComparer.OrdinalIgnoreCase);
+  query := first.Intersect(second, TStringComparer.OrdinalIgnoreCase);
   CheckTrue(query.EqualsTo(['A', 'b']));
 end;
 
@@ -3308,7 +3308,7 @@ begin
       Result := 10 div x;
     end);
   second := TCollections.CreateList<Integer>([1]);
-  query := TIntersectIterator<Integer>.Create(first, second);
+  query := first.Intersect(second);
   iterator := query.GetEnumerator;
   CheckTrue(iterator.MoveNext);
   CheckEquals(1, iterator.Current);
@@ -3328,7 +3328,7 @@ var
 begin
   first := TCollections.CreateList<string>(['A', 'a', 'b', 'c', 'b']);
   second := TCollections.CreateList<string>(['b', 'a', 'd', 'a']);
-  query := TIntersectIterator<string>.Create(first, second, nil);
+  query := first.Intersect(second, nil);
   CheckTrue(query.EqualsTo(['a', 'b']));
 end;
 
@@ -3448,7 +3448,7 @@ var
 begin
   first := TCollections.CreateList<string>(['A', 'a', 'b', 'c', 'b']);
   second := TCollections.CreateList<string>(['b', 'a', 'd', 'a']);
-  query := TExceptIterator<string>.Create(first, second, TStringComparer.OrdinalIgnoreCase);
+  query := first.Exclude(second, TStringComparer.OrdinalIgnoreCase);
   CheckTrue(query.EqualsTo(['c']));
 end;
 
@@ -3466,7 +3466,7 @@ begin
       Result := 10 div x;
     end);
   second := TCollections.CreateList<Integer>([1]);
-  query := TExceptIterator<Integer>.Create(first, second);
+  query := first.Exclude(second);
   iterator := query.GetEnumerator;
   CheckTrue(iterator.MoveNext);
   CheckEquals(5, iterator.Current);
@@ -3486,7 +3486,7 @@ var
 begin
   first := TCollections.CreateList<string>(['A', 'a', 'b', 'c', 'b', 'c']);
   second := TCollections.CreateList<string>(['b', 'a', 'd', 'a']);
-  query := TExceptIterator<string>.Create(first, second, nil);
+  query := first.Exclude(second);
   CheckTrue(query.EqualsTo(['A', 'c']));
 end;
 
@@ -3554,7 +3554,7 @@ var
 begin
   first := TCollections.CreateList<string>(['A', 'a', 'b', 'c', 'b', 'c']);
   second := TCollections.CreateList<string>(['b', 'a', 'd', 'a']);
-  query := TExceptIterator<string>.Create(first, second);
+  query := first.Exclude(second);
   CheckTrue(query.EqualsTo(['A', 'c']));
 end;
 
@@ -3567,7 +3567,7 @@ var
 begin
   first := TThrowingEnumerable.Create;
   second := TThrowingEnumerable.Create;
-  query := TExceptIterator<Integer>.Create(first, second);
+  query := first.Exclude(second);
   iterator := query.GetEnumerator;
   Pass;
 end;
@@ -3586,7 +3586,7 @@ begin
     begin
       Result := 10 div x;
     end);
-  query := TExceptIterator<Integer>.Create(first, second);
+  query := first.Exclude(second);
   iterator := query.GetEnumerator;
   CheckException(EDivByZero,
     procedure
