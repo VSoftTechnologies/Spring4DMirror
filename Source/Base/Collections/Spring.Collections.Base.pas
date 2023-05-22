@@ -366,7 +366,7 @@ type
   end;
 
   TExtensionKind = (
-    Partition, PartitionFromEnd, &Array,
+    Empty, Partition, PartitionFromEnd, &Array,
     Concat, Memoize, Ordered, Reversed, Shuffled,
     SkipWhile, SkipWhileIndex,
     TakeWhile, TakeWhileIndex,
@@ -3930,28 +3930,49 @@ end;
 class function TIteratorBlock.Create(enumerator: PPointer;
   extension: TEnumerableExtension; size: NativeInt;
   finalize, initMethods, initVTable: Pointer): PIteratorBlock;
+const
+  EmptyEnumerator: record
+    VTable: Pointer;
+    QueryInterface,
+    AddRef,
+    Release,
+    GetCurrent,
+    MoveNext: Pointer;
+  end = (
+    VTable: @EmptyEnumerator.QueryInterface;
+    QueryInterface: @NopQueryInterface;
+    AddRef: @NopRef;
+    Release: @NopRef;
+    GetCurrent: @RaiseHelper.NoElements;
+    MoveNext: @TIteratorBlock.MoveNextEmpty
+  );
 type
   TInit = procedure(self: Pointer);
 begin
-  IInterface(enumerator^) := nil;
-  Result := AllocMem(size);
-  enumerator^ := Result;
-
-  Result.RefCount := 1;
-  Result.Source := extension.fSource;
-  if extension.fKind = Memoize then
-    Pointer(Result.Predicate) := extension
-  else
+  if extension.fKind <> Empty then
   begin
-    Result.Predicate := extension.fPredicate;
-    Result.Items := extension.fItems;
-  end;
-  Result.Index := extension.fIndex;
-  Result.Count := extension.fCount;
-  Result.Kind := extension.fKind;
-  Result.Methods.Finalize := finalize;
-  TInit(initMethods)(Result);
-  TInit(initVTable)(Result);
+    IInterface(enumerator^) := nil;
+    Result := AllocMem(size);
+    enumerator^ := Result;
+
+    Result.RefCount := 1;
+    Result.Source := extension.fSource;
+    if extension.fKind = Memoize then
+      Pointer(Result.Predicate) := extension
+    else
+    begin
+      Result.Predicate := extension.fPredicate;
+      Result.Items := extension.fItems;
+    end;
+    Result.Index := extension.fIndex;
+    Result.Count := extension.fCount;
+    Result.Kind := extension.fKind;
+    Result.Methods.Finalize := finalize;
+    TInit(initMethods)(Result);
+    TInit(initVTable)(Result);
+  end
+  else
+    IInterface(enumerator^) := IInterface(@EmptyEnumerator);
 end;
 
 function TIteratorBlock.MoveNext: Boolean;

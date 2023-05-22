@@ -4986,11 +4986,22 @@ type
 
   TEnumerable = class
   protected
+  {$REGION 'Internal factory methods'}
+    class procedure CreateEmpty_Int8(var result; elementType: Pointer); static;
+    class procedure CreateEmpty_Int16(var result; elementType: Pointer); static;
+    class procedure CreateEmpty_Int32(var result; elementType: Pointer); static;
+    class procedure CreateEmpty_Int64(var result; elementType: Pointer); static;
+    class procedure CreateEmpty_Method(var result; elementType: Pointer); static;
+    class procedure CreateEmpty_Interface(var result; elementType: Pointer); static;
+    class procedure CreateEmpty_Object(var result; elementType: Pointer); static;
+    class procedure CreateEmpty_String(var result; elementType: Pointer); static;
+
     class procedure InternalFrom_Object_DynArray(source: Pointer; var result; elementType: PTypeInfo); static;
     class procedure InternalFrom_Object_OpenArray(source: Pointer; count: Integer; var result; elementType: PTypeInfo); static;
     class procedure InternalFrom_Interface_DynArray(source: Pointer; var result; elementType: PTypeInfo); static;
     class procedure InternalFrom_Interface_OpenArray(source: Pointer; count: Integer; var result; elementType: PTypeInfo); static;
     class procedure InternalOfType_Object(const source: IEnumerable<TObject>; var result; resultType: PTypeInfo); static;
+  {$ENDREGION}
   public
     /// <summary>
     ///   Applies an accumulator function over a sequence. The specified seed
@@ -10424,6 +10435,54 @@ end;
 
 {$REGION 'TEnumerable'}
 
+class procedure TEnumerable.CreateEmpty_Int8(var result; elementType: Pointer);
+begin
+  with TEnumerableExtension.Create(TEnumerableExtension<Int8>, nil, TExtensionKind.Empty) do
+    IInterface(result) := IInterface(@IMT);
+end;
+
+class procedure TEnumerable.CreateEmpty_Int16(var result; elementType: Pointer);
+begin
+  with TEnumerableExtension.Create(TEnumerableExtension<Int16>, nil, TExtensionKind.Empty) do
+    IInterface(result) := IInterface(@IMT);
+end;
+
+class procedure TEnumerable.CreateEmpty_Int32(var result; elementType: Pointer);
+begin
+  with TEnumerableExtension.Create(TEnumerableExtension<Int32>, nil, TExtensionKind.Empty) do
+    IInterface(result) := IInterface(@IMT);
+end;
+
+class procedure TEnumerable.CreateEmpty_Int64(var result; elementType: Pointer);
+begin
+  with TEnumerableExtension.Create(TEnumerableExtension<Int64>, nil, TExtensionKind.Empty) do
+    IInterface(result) := IInterface(@IMT);
+end;
+
+class procedure TEnumerable.CreateEmpty_Interface(var result; elementType: Pointer);
+begin
+  with TEnumerableExtension.Create(TEnumerableExtension<IInterface>, nil, TExtensionKind.Empty) do
+    IInterface(result) := IInterface(@IMT);
+end;
+
+class procedure TEnumerable.CreateEmpty_Method(var result; elementType: Pointer);
+begin
+  with TEnumerableExtension.Create(TEnumerableExtension<TMethodPointer>, nil, TExtensionKind.Empty) do
+    IInterface(result) := IInterface(@IMT);
+end;
+
+class procedure TEnumerable.CreateEmpty_Object(var result; elementType: Pointer);
+begin
+  with TEnumerableExtension.Create(TEnumerableExtension<TObject>, nil, TExtensionKind.Empty) do
+    IInterface(result) := IInterface(@IMT);
+end;
+
+class procedure TEnumerable.CreateEmpty_String(var result; elementType: Pointer);
+begin
+  with TEnumerableExtension.Create(TEnumerableExtension<string>, nil, TExtensionKind.Empty) do
+    IInterface(result) := IInterface(@IMT);
+end;
+
 class function TEnumerable.Aggregate<TSource, TAccumulate>(
   const source: IEnumerable<TSource>; const seed: TAccumulate;
   const func: Func<TAccumulate, TSource, TAccumulate>): TAccumulate;
@@ -10506,7 +10565,23 @@ end;
 
 class function TEnumerable.Empty<T>: IReadOnlyList<T>;
 begin
-  Result := TEmptyEnumerable<T>.Instance;
+{$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkClass: CreateEmpty_Object(Result, TypeInfo(T));
+    tkInterface: CreateEmpty_Interface(Result, TypeInfo(T));
+    tkUString: CreateEmpty_String(Result, TypeInfo(T));
+    tkMethod: CreateEmpty_Method(Result, TypeInfo(T));
+    tkInteger, tkChar, tkWChar, tkEnumeration, tkInt64, tkClassRef, tkPointer, tkProcedure:
+      case SizeOf(T) of
+        1: CreateEmpty_Int8(Result, TypeInfo(T));
+        2: CreateEmpty_Int16(Result, TypeInfo(T));
+        4: CreateEmpty_Int32(Result, TypeInfo(T));
+        8: CreateEmpty_Int64(Result, TypeInfo(T));
+      end;
+  else{$ELSE}begin{$ENDIF}
+    with TEnumerableExtension.Create(TEnumerableExtension<T>, nil, TExtensionKind.Empty) do
+      IInterface(result) := IInterface(@IMT);
+  end;
 end;
 
 class function TEnumerable.&Except<T>(const first,
