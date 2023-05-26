@@ -113,6 +113,7 @@ type
   protected
     fRoot: PNode;
     fCount: Integer;
+    fComparer: IInterface;
 
   {$REGION 'Property Accessors'}
     function GetCount: Integer; inline;
@@ -120,6 +121,7 @@ type
     function GetRoot: PNode; inline;
   {$ENDREGION}
   public
+    property Comparer: IInterface read fComparer;
     property Count: Integer read fCount;
     property Root: PNode read fRoot;
   end;
@@ -409,7 +411,6 @@ type
     function GetCapacity: Integer;
     procedure SetCapacity(value: Integer);
   protected
-    fComparer: IComparer<T>;
     function AddNode(const key: T): PNode;
     function CreateNode(const key: T; parent: PNode): PNode;
     function FindNode(const key: T): PNode;
@@ -462,7 +463,6 @@ type
     function GetCapacity: Integer;
     procedure SetCapacity(value: Integer);
   protected
-    fComparer: IComparer<TKey>;
     // IMPORTANT: When returning an existing node the lowest bit is set
     function AddNode(const key: TKey; allowReplace: Boolean = False): PNode;
     function CreateNode(const key: TKey; parent: PNode): PNode;
@@ -477,7 +477,6 @@ type
     procedure TrimExcess;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
-    property Comparer: IComparer<TKey> read fComparer write fComparer;
     property Count: Integer read GetCount;
   end;
 
@@ -530,7 +529,7 @@ begin
   n := DynArrayLength(fItems) + 1;
   Inc(fCapacity, BlockSize);
   DynArraySetLength(fItems, arrayType, 1, @n);
-  elemType := Pointer(PDynArrayTypeInfo(PByte(arrayType) + PDynArrayTypeInfo(arrayType).name).elType^);
+  elemType := Pointer(PDynArrayTypeInfo(PByte(arrayType) + Byte(PDynArrayTypeInfo(arrayType).name)).elType^);
   blockLength := BlockSize;
   DynArraySetLength(TArray<Pointer>(fItems)[n-1], elemType, 1, @blockLength);
 end;
@@ -546,7 +545,7 @@ begin
     Inc(newLength);
   fCapacity := newLength * BlockSize;
   DynArraySetLength(fItems, arrayType, 1, @newLength);
-  elemType := Pointer(PDynArrayTypeInfo(PByte(arrayType) + PDynArrayTypeInfo(arrayType).name).elType^);
+  elemType := Pointer(PDynArrayTypeInfo(PByte(arrayType) + Byte(PDynArrayTypeInfo(arrayType).name)).elType^);
   blockLength := BlockSize;
   for i := oldLength to newLength - 1 do
     DynArraySetLength(TArray<Pointer>(fItems)[i], elemType, 1, @blockLength);
@@ -1319,7 +1318,7 @@ begin
     child := fRoot;
     repeat
       node := child;
-      compareResult := fComparer.Compare(PNode(node).Key, key);
+      compareResult := IComparer<T>(fComparer).Compare(PNode(node).Key, key);
       if compareResult = 0 then
         Exit(Pointer(compareResult)); //FI:W541
       i := compareResult shr 31; // left -> 0, right -> 1
@@ -1372,7 +1371,7 @@ begin
   begin
     node := root;
     repeat
-      compareResult := fComparer.Compare(node.Key, key);
+      compareResult := IComparer<T>(fComparer).Compare(node.Key, key);
       if compareResult = 0 then Break;
       i := compareResult shr 31; // left -> 0, right -> 1
       node := PNode(PRedBlackTreeNode(node).fChilds[i]);
@@ -1531,7 +1530,7 @@ begin
   begin
     node := Pointer(fRoot);
     repeat
-      compareResult := fComparer.Compare(node.fPair.Key, key);
+      compareResult := IComparer<TKey>(fComparer).Compare(node.fPair.Key, key);
       if compareResult = 0 then Break;
       i := compareResult shr 31; // left -> 0, right -> 1
       if Assigned(PRedBlackTreeNode(node).fChilds[i]) then
@@ -1593,7 +1592,7 @@ begin
   begin
     node := root;
     repeat
-      compareResult := fComparer.Compare(node.fPair.Key, key);
+      compareResult := IComparer<TKey>(fComparer).Compare(node.fPair.Key, key);
       if compareResult = 0 then Break;
       i := compareResult shr 31; // left -> 0, right -> 1
       node := PNode(PRedBlackTreeNode(node).fChilds[i]);

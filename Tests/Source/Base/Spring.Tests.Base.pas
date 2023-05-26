@@ -594,6 +594,11 @@ type
   end;
 
   TArrayTest = class(TTestCase)
+  private const
+    TestData: array[0..9] of Integer = (1, 2, 3, 4, 5, 5, 5, 6, 7, 9);
+    ExpectedResults: array[0..9] of ShortInt = (0, 1, 1, 1, 1, 1, 1, 1, 0, 1);
+    ExpectedIndexesLowerBound: array[0..9] of Integer = (0, 0, 1, 2, 3, 4, 7, 8, 9, 9);
+    ExpectedIndexesUpperBound: array[0..9] of Integer = (0, 0, 1, 2, 3, 6, 7, 8, 9, 9);
   published
     procedure TestBinarySearch;
     procedure TestBinarySearchSubRange;
@@ -3705,73 +3710,79 @@ end;
 
 procedure TArrayTest.TestBinarySearch;
 var
-  values: TArray<Integer>;
-  index: Integer;
+  i, index: Integer;
 begin
-  values := TArray<Integer>.Create(1, 2, 3, 4, 5, 5, 5, 6, 7, 9);
-  CheckFalse(TArray.BinarySearch<Integer>(values, 0, index));
-  CheckEquals(0, index);
-  CheckTrue(TArray.BinarySearch<Integer>(values, 5, index));
-  CheckEquals(4, index);
-  CheckFalse(TArray.BinarySearch<Integer>(values, 8, index));
-  CheckEquals(9, index);
+  for i := 0 to High(ExpectedResults) do
+  begin
+    CheckEquals(ExpectedResults[i], Ord(TArray.BinarySearch<Integer>(TestData, i, index)));
+    CheckEquals(ExpectedIndexesLowerBound[i], index);
+  end;
 end;
 
 procedure TArrayTest.TestBinarySearchSubRange;
 var
-  values: TArray<Integer>;
   index: Integer;
 begin
-  values := TArray<Integer>.Create(1, 2, 3, 4, 5, 5, 5, 6, 7, 9);
-  CheckTrue(TArray.BinarySearch<Integer>(values, 5, index, 2, 6));
+  CheckFalse(TArray.BinarySearch<Integer>(TestData, 5, index, 0, 0));
+  CheckEquals(0, index);
+  CheckFalse(TArray.BinarySearch<Integer>(TestData, 5, index, 9, 0));
+  CheckEquals(9, index);
+  CheckTrue(TArray.BinarySearch<Integer>(TestData, 5, index, 2, 8));
   CheckEquals(4, index);
-  CheckFalse(TArray.BinarySearch<Integer>(values, 8, index, 2, 8));
+  CheckTrue(TArray.BinarySearch<Integer>(TestData, 5, index, 5, 5));
+  CheckEquals(5, index);
+  CheckTrue(TArray.BinarySearch<Integer>(TestData, 5, index, 6, 4));
+  CheckEquals(6, index);
+  CheckFalse(TArray.BinarySearch<Integer>(TestData, 5, index, 7, 3));
+  CheckEquals(7, index);
+  CheckFalse(TArray.BinarySearch<Integer>(TestData, 8, index, 2, 8));
   CheckEquals(9, index);
 end;
 
 procedure TArrayTest.TestBinarySearchUpperBound;
 var
-  values: TArray<Integer>;
-  index: Integer;
+  i, index: Integer;
 begin
-  values := TArray<Integer>.Create(1, 2, 3, 4, 5, 5, 5, 6, 7, 9);
-  CheckFalse(TArray.BinarySearchUpperBound<Integer>(values, 0, index));
-  CheckEquals(0, index);
-  CheckTrue(TArray.BinarySearchUpperBound<Integer>(values, 5, index));
-  CheckEquals(7, index);
-  CheckFalse(TArray.BinarySearchUpperBound<Integer>(values, 8, index));
-  CheckEquals(9, index);
+  for i := 0 to High(ExpectedResults) do
+  begin
+    CheckEquals(ExpectedResults[i], Ord(TArray.BinarySearchUpperBound<Integer>(TestData, i, index)));
+    CheckEquals(ExpectedIndexesUpperBound[i], index);
+  end;
 end;
 
 procedure TArrayTest.TestBinarySearchUpperBoundSubRange;
 var
-  values: TArray<Integer>;
   index: Integer;
 begin
-  values := TArray<Integer>.Create(1, 2, 3, 4, 5, 5, 5, 6, 7, 9);
-  CheckTrue(TArray.BinarySearchUpperBound<Integer>(values, 5, index, 2, 6));
+  CheckFalse(TArray.BinarySearchUpperBound<Integer>(TestData, 5, index, 0, 0));
+  CheckEquals(0, index);
+  CheckFalse(TArray.BinarySearchUpperBound<Integer>(TestData, 5, index, 9, 0));
+  CheckEquals(9, index);
+  CheckTrue(TArray.BinarySearchUpperBound<Integer>(TestData, 5, index, 2, 8));
+  CheckEquals(6, index);
+  CheckTrue(TArray.BinarySearchUpperBound<Integer>(TestData, 5, index, 2, 4));
+  CheckEquals(5, index);
+  CheckTrue(TArray.BinarySearchUpperBound<Integer>(TestData, 5, index, 2, 3));
+  CheckEquals(4, index);
+  CheckFalse(TArray.BinarySearchUpperBound<Integer>(TestData, 5, index, 7, 3));
   CheckEquals(7, index);
-  CheckFalse(TArray.BinarySearchUpperBound<Integer>(values, 8, index, 2, 8));
+  CheckFalse(TArray.BinarySearchUpperBound<Integer>(TestData, 8, index, 2, 8));
   CheckEquals(9, index);
 end;
 
 procedure TArrayTest.TestLastIndexOf;
 var
-  values: TArray<Integer>;
   index: Integer;
 begin
-  values := TArray<Integer>.Create(1, 2, 3, 4, 5, 5, 5, 6, 7, 8, 9);
-  index := TArray.LastIndexOf<Integer>(values, 5);
+  index := TArray.LastIndexOf<Integer>(TestData, 5);
   CheckEquals(6, index);
 end;
 
 procedure TArrayTest.TestLastIndexOfSubRange;
 var
-  values: TArray<Integer>;
   index: Integer;
 begin
-  values := TArray<Integer>.Create(1, 2, 3, 4, 5, 5, 5, 6, 7, 8, 9);
-  index := TArray.LastIndexOf<Integer>(values, 5, 5, 6);
+  index := TArray.LastIndexOf<Integer>(TestData, 5, 5, 6);
   CheckEquals(5, index);
 end;
 

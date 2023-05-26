@@ -777,7 +777,9 @@ type
     procedure TestClear;
     procedure TestDestroy;
     procedure TestExtract;
+    procedure TestExtractPair;
     procedure TestRemove;
+    procedure TestRemovePair;
   end;
 
   TTestMultiSetChangedEventBase = class(TTestCollectionChangedEventBase)
@@ -804,6 +806,21 @@ type
   end;
 
   TTestTreeMultiMapChangedEvent = class(TTestMultiMapChangedEventBase)
+  protected
+    procedure SetUp; override;
+  end;
+
+  TTestSortedListMultiMapChangedEvent = class(TTestMultiMapChangedEventBase)
+  protected
+    procedure SetUp; override;
+  end;
+
+  TTestSortedHashMultiMapChangedEvent = class(TTestMultiMapChangedEventBase)
+  protected
+    procedure SetUp; override;
+  end;
+
+  TTestSortedTreeMultiMapChangedEvent = class(TTestMultiMapChangedEventBase)
   protected
     procedure SetUp; override;
   end;
@@ -1757,7 +1774,9 @@ begin
   SUT.Add(2);
   SUT.Add(3);
 
+  CheckEquals(1, SUT.LastIndexOf(1, 1));
   CheckEquals(2, SUT.LastIndexOf(1));
+  CheckEquals(-1, SUT.LastIndexOf(4));
 end;
 
 procedure TTestIntegerList.TestListClear;
@@ -4260,6 +4279,7 @@ end;
 procedure TTestMultiMapBase.WrappedCollection;
 var
   values: IReadOnlyCollection<Integer>;
+  pair: TPair<Integer,Integer>;
 begin
   values := SUT[1];
   CheckEquals(0, values.Count);
@@ -4275,8 +4295,12 @@ begin
   CheckEquals(2, values.Count);
   SUT.Extract(1);
   CheckEquals(0, values.Count);
-  SUT.Add(1, 1);
+  SUT.Add(1, 2);
   CheckEquals(1, values.Count);
+  pair := SUT.Extract(1, 2);
+  CheckEquals(1, pair.Key);
+  CheckEquals(2, pair.Value);
+  SUT.Add(1, 1);
 
   SUT.Clear;
   CheckEquals(0, values.Count);
@@ -5279,6 +5303,34 @@ begin
   CheckValueChanged(1, 'a', caExtracted);
 end;
 
+procedure TTestMultiMapChangedEventBase.TestExtractPair;
+begin
+  SUT.Add(1, 'a');
+  SUT.Add(2, 'b');
+  SUT.Add(2, 'c');
+  SUT.Add(3, 'd');
+  AddEventHandlers;
+  SUT.Extract(2, 'e');
+
+  CheckEquals(0, fChangedEvents.Count);
+  CheckEquals(0, fKeyChangedEvents.Count);
+  CheckEquals(0, fValueChangedEvents.Count);
+
+  SUT.Extract(2, 'c');
+  CheckEquals(1, fChangedEvents.Count);
+  CheckChanged(0, 2, 'c', caExtracted);
+  CheckEquals(0, fKeyChangedEvents.Count);
+  CheckEquals(1, fValueChangedEvents.Count);
+  CheckValueChanged(0, 'c', caExtracted);
+  SUT.Extract(2, 'b');
+  CheckEquals(2, fChangedEvents.Count);
+  CheckChanged(1, 2, 'b', caExtracted);
+  CheckEquals(1, fKeyChangedEvents.Count);
+  CheckKeyChanged(0, 2, caExtracted);
+  CheckEquals(2, fValueChangedEvents.Count);
+  CheckValueChanged(1, 'b', caExtracted);
+end;
+
 procedure TTestMultiMapChangedEventBase.TestRemove;
 begin
   SUT.Add(1, 'a');
@@ -5307,6 +5359,34 @@ begin
   CheckValueChanged(0, 'c', caRemoved);
   CheckValueChanged(1, 'd', caRemoved);
   CheckValueChanged(2, 'a', caRemoved);
+end;
+
+procedure TTestMultiMapChangedEventBase.TestRemovePair;
+begin
+  SUT.Add(1, 'a');
+  SUT.Add(2, 'b');
+  SUT.Add(2, 'c');
+  SUT.Add(3, 'd');
+  AddEventHandlers;
+  SUT.Remove(2, 'e');
+
+  CheckEquals(0, fChangedEvents.Count);
+  CheckEquals(0, fKeyChangedEvents.Count);
+  CheckEquals(0, fValueChangedEvents.Count);
+
+  SUT.Remove(2, 'c');
+  CheckEquals(1, fChangedEvents.Count);
+  CheckChanged(0, 2, 'c', caRemoved);
+  CheckEquals(0, fKeyChangedEvents.Count);
+  CheckEquals(1, fValueChangedEvents.Count);
+  CheckValueChanged(0, 'c', caRemoved);
+  SUT.Remove(2, 'b');
+  CheckEquals(2, fChangedEvents.Count);
+  CheckChanged(1, 2, 'b', caRemoved);
+  CheckEquals(1, fKeyChangedEvents.Count);
+  CheckKeyChanged(0, 2, caRemoved);
+  CheckEquals(2, fValueChangedEvents.Count);
+  CheckValueChanged(1, 'b', caRemoved);
 end;
 
 {$ENDREGION}
@@ -5342,6 +5422,41 @@ procedure TTestTreeMultiMapChangedEvent.SetUp;
 begin
   inherited;
   SUT := TCollections.CreateTreeMultiMap<Integer,string>;
+  Sender := SUT.AsObject;
+end;
+
+{$ENDREGION}
+
+{$REGION 'TTestSortedListMultiMapChangedEvent'}
+
+procedure TTestSortedListMultiMapChangedEvent.SetUp;
+begin
+  inherited;
+  SUT := TCollections.CreateSortedMultiMap<Integer,string>;
+  Sender := SUT.AsObject;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestSortedHashMultiMapChangedEvent'}
+
+procedure TTestSortedHashMultiMapChangedEvent.SetUp;
+begin
+  inherited;
+  SUT := TCollections.CreateSortedHashMultiMap<Integer,string>;
+  Sender := SUT.AsObject;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestSortedTreeMultiMapChangedEvent'}
+
+procedure TTestSortedTreeMultiMapChangedEvent.SetUp;
+begin
+  inherited;
+  SUT := TCollections.CreateSortedTreeMultiMap<Integer,string>;
   Sender := SUT.AsObject;
 end;
 

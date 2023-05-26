@@ -42,126 +42,51 @@ uses
 {$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
 type
-  TMultiMapItem<TKey, TValue> = packed record
-  public
-    HashCode: Integer;
-    Key: TKey;
-    Values: ICollection<TValue>;
-  end;
-
-  TValueCollection<T> = class(TEnumerableBase<T>,
-    IEnumerable<T>, IReadOnlyCollection<T>)
+  // same layout as TCollectionWrapper<T>
+  TCollectionWrapper = class(TEnumerableBase)
   private type
   {$REGION 'Nested Types'}
     PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // same layout as TCollectionWrapper<T>.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
-      Parent: TRefCountedObject;
-      fHashTable: PHashTable;
-      fIndex: Integer;
-      fVersion: Integer;
-      fEnumerator: IEnumerator<T>;
-      function GetCurrent: T;
+      Parent: TCollectionWrapper;
+      fCollection: IEnumerable;
+      fEnumerator: IEnumerator;
+      procedure ValidateEnumerator;
       function MoveNext: Boolean;
-      class var Enumerator_Vtable: TEnumeratorVtable;
     end;
-  {$ENDREGION}
-  private
-    fSource: TRefCountedObject;
-    fHashTable: PHashTable;
-    fCount: PInteger;
-  {$REGION 'Property Accessors'}
+  protected
+    // TEnumerableBase<T>
+    fComparer: IInterface;
+    fCollection: IEnumerable;
+    fOnDestroy: TNotifyEventImpl;
+    fUpdateValues: TNotifyEvent;
+    procedure RefreshIfEmpty;
+    procedure HandleDestroy(Sender: TObject);
     function GetCount: Integer;
+    procedure GetEnumerator(enumerator: PPointer; vtable: PEnumeratorVtable;
+      typeInfo, getCurrent: Pointer);
     function GetNonEnumeratedCount: Integer;
-  {$ENDREGION}
-  public
-    constructor Create(const source: TRefCountedObject;
-      hashTable: PHashTable; count: PInteger);
-
-  {$REGION 'Implements IInterface'}
-    function _AddRef: Integer; stdcall;
-    function _Release: Integer; stdcall;
-  {$ENDREGION}
-
-  {$REGION 'Implements IEnumerable<T>'}
-    function GetEnumerator: IEnumerator<T>;
-    function Contains(const value: T;
-      const comparer: IEqualityComparer<T>): Boolean; overload;
-    function ToArray: TArray<T>;
-  {$ENDREGION}
   end;
 
-  TTreeValueCollection<T> = class(TEnumerableBase<T>,
-    IEnumerable<T>, IReadOnlyCollection<T>)
-  private type
-  {$REGION 'Nested Types'}
-    PNode = ^TNode;
-    TNode = packed record
-      Parent, Left, Right: Pointer;
-      Key: array[0..0] of Byte;
-    end;
-
-    PEnumerator = ^TEnumerator;
-    TEnumerator = record
-      Vtable: Pointer;
-      RefCount: Integer;
-      TypeInfo: PTypeInfo;
-      Parent: TRefCountedObject;
-      fTree: TBinaryTree;
-      fSourceVersion: PInteger;
-      fVersion: Integer;
-      fOffset: Integer;
-      fNode: PBinaryTreeNode;
-      fEnumerator: IEnumerator<T>;
-      function GetCurrent: T;
-      function MoveNext: Boolean;
-      class var Enumerator_Vtable: TEnumeratorVtable;
-    end;
-  {$ENDREGION}
-  private
-    fSource: TRefCountedObject;
-    fTree: TBinaryTree;
-    fCount: PInteger;
-    fVersion: PInteger;
-    fOffset: Integer;
-  {$REGION 'Property Accessors'}
-    function GetCount: Integer;
-    function GetNonEnumeratedCount: Integer;
-  {$ENDREGION}
-  public
-    constructor Create(const source: TRefCountedObject; const tree: TBinaryTree;
-      const version, count: PInteger; const offset: Integer);
-
-  {$REGION 'Implements IInterface'}
-    function _AddRef: Integer; stdcall;
-    function _Release: Integer; stdcall;
-  {$ENDREGION}
-
-  {$REGION 'Implements IEnumerable<T>'}
-    function GetEnumerator: IEnumerator<T>;
-    function Contains(const value: T;
-      const comparer: IEqualityComparer<T>): Boolean; overload;
-    function ToArray: TArray<T>;
-  {$ENDREGION}
-  end;
-
+  // same layout as TCollectionWrapper
   TCollectionWrapper<T> = class(TEnumerableBase<T>,
     IEnumerable<T>, IReadOnlyCollection<T>)
   private type
   {$REGION 'Nested Types'}
     PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // same layout as TCollectionWrapper.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
-      fSource: TCollectionWrapper<T>;
+      Parent: TCollectionWrapper;
       fCollection: ICollection<T>;
       fEnumerator: IEnumerator<T>;
-      procedure ValidateEnumerator;
       function GetCurrent: T;
-      function MoveNext: Boolean;
       class var Enumerator_Vtable: TEnumeratorVtable;
     end;
   {$ENDREGION}
@@ -171,8 +96,6 @@ type
     fUpdateValues: TNotifyEvent;
     function GetCount: Integer;
     function GetNonEnumeratedCount: Integer;
-    procedure RefreshIfEmpty;
-    procedure HandleDestroy(Sender: TObject);
   public
     procedure BeforeDestruction; override;
 
@@ -182,36 +105,43 @@ type
     function ToArray: TArray<T>;
   end;
 
+  TCollectionWrapper<TKey, TValue> = class(TCollectionWrapper<TValue>)
+  private
+    fKey: TKey;
+  end;
+
   TMultiMapBase<TKey, TValue> = class abstract(TMapBase<TKey, TValue>)
   private type
   {$REGION 'Nested Types'}
     TKeyValuePair = TPair<TKey, TValue>;
-    TItem = TMultiMapItem<TKey, TValue>;
+    TItem = packed record
+      HashCode: Integer;
+      Key: TKey;
+      Values: ICollection<TValue>;
+    end;
     TItems = TArray<TItem>;
     PItem = ^TItem;
 
     PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // same layout as THashMapInnerCollection.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
-      fSource: TMultiMapBase<TKey, TValue>;
+      Parent: TRefCountedObject;
+      fHashTable: PHashTable;
+      fOffset: Integer;
       fIndex: Integer;
       fVersion: Integer;
-      fEnumerator: IEnumerator<TValue>;
       fItem: PItem;
+      fEnumerator: IEnumerator<TValue>;
       function GetCurrent: TKeyValuePair;
-      function MoveNext: Boolean;
       class var Enumerator_Vtable: TEnumeratorVtable;
     end;
 
-    TKeyCollection = TInnerCollection<TKey>;
-    TValueCollection = TValueCollection<TValue>;
-
-    TCollectionWrapper = class(TCollectionWrapper<TValue>)
-    private
-      fKey: TKey;
-    end;
+    TKeyCollection = THashMapInnerCollection<TKey>;
+    TValueCollection = THashMapInnerCollection<TValue>;
+    TCollectionWrapper = TCollectionWrapper<TKey, TValue>;
   {$ENDREGION}
   private
     fHashTable: THashTable;
@@ -220,8 +150,6 @@ type
     fCount: Integer;
     fOnDestroy: TNotifyEventImpl;
     function CreateWrappedCollection(const key: TKey): IReadOnlyCollection<TValue>;
-    procedure DoValueChanged(sender: TObject; const item: TValue;
-      action: TCollectionChangedAction);
     procedure UpdateValues(collection: TObject);
   protected
   {$REGION 'Property Accessors'}
@@ -234,8 +162,7 @@ type
     procedure CreateCollection(var result: ICollection<TValue>); virtual; abstract;
     procedure DoRemove(const entry: THashTableEntry;
       action: TCollectionChangedAction; const extractTarget: ICollection<TValue>);
-    procedure KeyChanged(const item: TKey; action: TCollectionChangedAction); inline;
-    procedure ValueChanged(const item: TValue; action: TCollectionChangedAction); inline;
+    procedure DoRemoveValues(item: PItem; action: TCollectionChangedAction);
   public
     constructor Create(const keyComparer: IEqualityComparer<TKey>;
       ownerships: TDictionaryOwnerships);
@@ -284,25 +211,25 @@ type
 
     PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // same layout as TTreeMapInnerCollection.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
-      fSource: TSortedMultiMapBase<TKey, TValue>;
-      fNode: PBinaryTreeNode;
+      Parent: TRefCountedObject;
+      fTree: TBinaryTree;
+      fOffset: Integer;
+      fSourceVersion: PInteger;
+      fNode: PNode;
       fVersion: Integer;
+      fItem: Pointer;
       fEnumerator: IEnumerator<TValue>;
       function GetCurrent: TKeyValuePair;
-      function MoveNext: Boolean;
       class var Enumerator_Vtable: TEnumeratorVtable;
     end;
 
-    TKeyCollection = TSortedKeyCollection<TKey>;
-    TValueCollection = TTreeValueCollection<TValue>;
-
-    TCollectionWrapper = class(TCollectionWrapper<TValue>)
-    private
-      fKey: TKey;
-    end;
+    TKeyCollection = TTreeMapInnerCollection<TKey>;
+    TValueCollection = TTreeMapInnerCollection<TValue>;
+    TCollectionWrapper = TCollectionWrapper<TKey, TValue>;
   {$ENDREGION}
   private
     fTree: TRedBlackTreeBase<TKey, IInterface>;
@@ -314,8 +241,6 @@ type
     fKeyComparer: IComparer<TKey>;
     fOwnerships: TDictionaryOwnerships;
     function CreateWrappedCollection(const key: TKey): IReadOnlyCollection<TValue>;
-    procedure DoValueChanged(sender: TObject; const item: TValue;
-      action: TCollectionChangedAction);
     procedure UpdateValues(collection: TObject);
   protected
   {$REGION 'Property Accessors'}
@@ -326,8 +251,9 @@ type
     function GetValues: IReadOnlyCollection<TValue>;
   {$ENDREGION}
     procedure CreateCollection(var result: ICollection<TValue>); virtual; abstract;
-    procedure DoRemove(const node: PNode;
-      action: TCollectionChangedAction; const extractTarget: ICollection<TValue>);
+    procedure DoRemove(const node: PNode; action: TCollectionChangedAction;
+      const extractTarget: ICollection<TValue>; deleteNode: Boolean = True);
+    procedure DoRemoveValues(node: PNode; action: TCollectionChangedAction);
     procedure KeyChanged(const item: TKey; action: TCollectionChangedAction); inline;
     procedure ValueChanged(const item: TValue; action: TCollectionChangedAction); inline;
   public
@@ -460,9 +386,6 @@ type
 
   TCollections = class(Spring.Collections.TCollections);
 
-procedure HandleOnChanged(const collection: IInterface;
-  const code: Pointer = nil; const data: Pointer = nil);
-
 implementation
 
 uses
@@ -473,311 +396,67 @@ uses
   Spring.Comparers,
   Spring.ResourceStrings;
 
-procedure HandleOnChanged(const collection: IInterface; const code, data: Pointer);
-var
-  onChanged: IEvent;
-  handler: TMethod;
+
+{$REGION 'TCollectionWrapper'}
+
+function TCollectionWrapper.GetCount: Integer;
 begin
-  onChanged := ICollection<Integer>(collection).OnChanged;
-  if Assigned(code) then
-  begin
-    onChanged.UseFreeNotification := False;
-    handler.Code := code;
-    handler.Data := data;
-    onChanged.Add(handler);
-  end
-  else
-    onChanged.Clear;
+  RefreshIfEmpty;
+  Result := fCollection.Count;
 end;
 
-
-{$REGION 'TValueCollection<T>'}
-
-constructor TValueCollection<T>.Create(
-  const source: TRefCountedObject; hashTable: PHashTable; count: PInteger);
-begin
-  fSource := source;
-  fHashTable := hashTable;
-  fCount := count;
-end;
-
-function TValueCollection<T>.Contains(const value: T;
-  const comparer: IEqualityComparer<T>): Boolean;
-var
-  hashTable: PHashTable;
-  item: PByte;
-  itemCount, itemSize: Integer;
-begin
-  hashTable := fHashTable;
-  item := hashTable.Items;
-  itemSize := hashTable.ItemSize;
-  itemCount := hashTable.ItemCount;
-  while itemCount > 0 do
-  begin
-    if PInteger(item)^ >= 0 then
-      if ICollection<T>(PPointer(@item[itemSize - SizeOf(Pointer)])^).Contains(value, comparer) then
-        Exit(True);
-    Inc(item, itemSize);
-    Dec(itemCount);
-  end;
-  Result := False;
-end;
-
-function TValueCollection<T>.GetCount: Integer;
-begin
-  Result := fCount^;
-end;
-
-function TValueCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
+procedure TCollectionWrapper.GetEnumerator(enumerator: PPointer;
+  vtable: PEnumeratorVtable; typeInfo, getCurrent: Pointer);
 begin
   _AddRef;
-  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+  RefreshIfEmpty;
+  with PEnumerator(TEnumeratorBlock.Create(enumerator, vtable,
+    typeInfo, getCurrent, @TEnumerator.MoveNext))^ do
   begin
-    Parent := Self.fSource;
-    fHashTable := Self.fHashTable;
-    fVersion := fHashTable.Version;
+    Parent := Self;
+    fCollection := Self.fCollection;
+    {$IFDEF MSWINDOWS}
+    IEnumerableInternal(fCollection).GetEnumerator(fEnumerator);
+    {$ELSE}
+    fEnumerator := fCollection.GetEnumerator;
+    {$ENDIF}
   end;
 end;
 
-function TValueCollection<T>.GetNonEnumeratedCount: Integer;
+function TCollectionWrapper.GetNonEnumeratedCount: Integer;
 begin
-  Result := fCount^;
+  RefreshIfEmpty;
+  Result := fCollection.GetNonEnumeratedCount;
 end;
 
-function TValueCollection<T>.ToArray: TArray<T>;
-var
-  hashTable: PHashTable;
-  item: PByte;
-  itemCount, itemSize, targetIndex, offset: Integer;
-  collection: Pointer;
+procedure TCollectionWrapper.HandleDestroy(Sender: TObject);
 begin
-  hashTable := fHashTable;
-  SetLength(Result, fCount^);
-  item := hashTable.Items;
-  itemCount := hashTable.ItemCount;
-  itemSize := hashTable.ItemSize;
-  targetIndex := 0;
-  while itemCount > 0 do
-  begin
-    if PInteger(item)^ >= 0 then
-    begin
-      collection := PPointer(item + itemSize - SizeOf(Pointer))^;
-      ICollection<T>(collection).CopyTo(Result, targetIndex);
-      Inc(targetIndex, ICollection<T>(collection).Count);
-    end;
-    Inc(item, itemSize);
-    Dec(itemCount);
-  end;
+  fOnDestroy := nil;
+  fUpdateValues := nil;
 end;
 
-function TValueCollection<T>._AddRef: Integer;
+procedure TCollectionWrapper.RefreshIfEmpty;
 begin
-  Result := fSource._AddRef;
-end;
-
-function TValueCollection<T>._Release: Integer;
-begin
-  Result := fSource._Release;
+  if fCollection.IsEmpty and Assigned(fUpdateValues) then
+    fUpdateValues(Self);
 end;
 
 {$ENDREGION}
 
 
-{$REGION 'TValueCollection<T>.TEnumerator'}
+{$REGION 'TCollectionWrapper.TEnumerator'}
 
-function TValueCollection<T>.TEnumerator.GetCurrent: T;
+function TCollectionWrapper.TEnumerator.MoveNext: Boolean;
 begin
-  Result := fEnumerator.Current;
+  ValidateEnumerator;
+  Result := fEnumerator.MoveNext;
 end;
 
-function TValueCollection<T>.TEnumerator.MoveNext: Boolean; //FI:W521
-var
-  hashTable: PHashTable;
-  item: PByte;
+procedure TCollectionWrapper.TEnumerator.ValidateEnumerator;
 begin
-  hashTable := fHashTable;
-  if fVersion = hashTable.Version then
-  begin
-    repeat
-      if Assigned(fEnumerator) then
-      begin
-        Result := fEnumerator.MoveNext;
-        if Result then Exit;
-      end;
-
-      repeat
-        if fIndex < hashTable.ItemCount then
-        begin
-          item := fHashTable.Items + NativeInt(fIndex) * fHashTable.ItemSize;
-          Inc(fIndex);
-          if PInteger(item)^ >= 0 then
-          begin
-            Inc(item, fHashTable.ItemSize - SizeOf(Pointer));
-            {$IFDEF MSWINDOWS}
-            IEnumerableInternal(PPointer(item)^).GetEnumerator(IEnumerator(fEnumerator));
-            {$ELSE}
-            fEnumerator := ICollection<T>(PPointer(item)^).GetEnumerator;
-            {$ENDIF}
-            Break;
-          end;
-        end
-        else
-        begin
-          fEnumerator := nil;
-          Exit(False);
-        end;
-      until False;
-    until False;
-  end
-  else
-    Result := RaiseHelper.EnumFailedVersion;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TTreeValueCollection<T>'}
-
-constructor TTreeValueCollection<T>.Create(const source: TRefCountedObject;
-  const tree: TBinaryTree; const version, count: PInteger; const offset: Integer);
-begin
-  fSource := source;
-  fTree := tree;
-  fVersion := version;
-  fCount := count;
-  fOffset := offset;
-end;
-
-function TTreeValueCollection<T>.Contains(const value: T;
-  const comparer: IEqualityComparer<T>): Boolean;
-var
-  node: PBinaryTreeNode;
-  next: Pointer;
-  offset: Integer;
-begin
-  offset := fOffset;
-  next := fTree.Root.LeftMost;
-  if not Assigned(next) then Exit(Boolean(next));
-  repeat
-    node := next;
-    {$R-}
-    Result := ICollection<T>(PPointer(@PNode(node).Key[offset])^).Contains(value, comparer);
-    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
-    if Result then Exit;
-    next := node.Next;
-  until not Assigned(next);
-  Result := Boolean(next);
-end;
-
-function TTreeValueCollection<T>.GetCount: Integer;
-begin
-  Result := fCount^;
-end;
-
-function TTreeValueCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
-begin
-  _AddRef;
-  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
-  begin
-    Parent := Self.fSource;
-    fTree := Self.fTree;
-    fSourceVersion := Self.fVersion;
-    fVersion := Self.fVersion^;
-    fOffset := Self.fOffset;
-  end;
-end;
-
-function TTreeValueCollection<T>.GetNonEnumeratedCount: Integer;
-begin
-  Result := fCount^;
-end;
-
-function TTreeValueCollection<T>.ToArray: TArray<T>;
-var
-  node, next: PBinaryTreeNode;
-  offset, i: Integer;
-  collection: Pointer;
-begin
-  SetLength(Result, fCount^);
-  offset := fOffset;
-  next := fTree.Root.LeftMost;
-  if Assigned(next) then
-  begin
-    i := 0;
-    repeat
-      node := next;
-      {$R-}
-      Inc(i, ICollection<T>(PPointer(@PNode(node).Key[offset])^).CopyTo(Result, i));
-      {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
-      next := node.Next;
-    until not Assigned(next);
-  end;
-end;
-
-function TTreeValueCollection<T>._AddRef: Integer;
-begin
-  Result := fSource._AddRef;
-end;
-
-function TTreeValueCollection<T>._Release: Integer;
-begin
-  Result := fSource._Release;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TTreeValueCollection<T>.TEnumerator'}
-
-function TTreeValueCollection<T>.TEnumerator.GetCurrent: T;
-begin
-  Result := fEnumerator.Current;
-end;
-
-function TTreeValueCollection<T>.TEnumerator.MoveNext: Boolean;
-var
-  tree: TBinaryTree;
-  node: PBinaryTreeNode;
-begin
-  tree := fTree;
-  if fVersion = fSourceVersion^ then
-  begin
-    repeat
-      if Assigned(fEnumerator) then
-      begin
-        Result := fEnumerator.MoveNext;
-        if Result then Exit;
-      end;
-
-      if (tree.Count > 0) and (fNode <> Pointer(1)) then
-      begin
-        if Assigned(fNode) then
-          node := fNode.Next
-        else
-          node := tree.Root.LeftMost;
-        if Assigned(node) then
-        begin
-          fNode := node;
-          {$R-}
-          {$IFDEF MSWINDOWS}
-          IEnumerableInternal(PPointer(@PNode(node).Key[fOffset])^).GetEnumerator(IEnumerator(fEnumerator));
-          {$ELSE}
-          fEnumerator := IEnumerable<T>(PPointer(@PNode(node).Key[fOffset])^).GetEnumerator;
-          {$ENDIF}
-          {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
-          Continue;
-        end;
-      end;
-
-      fNode := Pointer(1);
-      fEnumerator := nil;
-      Exit(False);
-    until False;
-  end
-  else
-    Result := RaiseHelper.EnumFailedVersion;
+  Parent.RefreshIfEmpty;
+  if Parent.fCollection <> fCollection then
+    RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -788,57 +467,36 @@ end;
 procedure TCollectionWrapper<T>.BeforeDestruction;
 begin
   if Assigned(fOnDestroy) then
-    fOnDestroy.Remove(HandleDestroy);
+    fOnDestroy.Remove(TCollectionWrapper(Self).HandleDestroy);
   inherited;
 end;
 
 function TCollectionWrapper<T>.Contains(
   const value: T; const comparer: IEqualityComparer<T>): Boolean;
 begin
-  RefreshIfEmpty;
+  TCollectionWrapper(Self).RefreshIfEmpty;
   Result := fCollection.Contains(value, comparer);
-end;
-
-procedure TCollectionWrapper<T>.RefreshIfEmpty;
-begin
-  if fCollection.IsEmpty and Assigned(fUpdateValues) then
-    fUpdateValues(Self);
 end;
 
 function TCollectionWrapper<T>.GetCount: Integer;
 begin
-  RefreshIfEmpty;
-  Result := fCollection.Count;
+  Result := TCollectionWrapper(Self).GetCount;
 end;
 
 function TCollectionWrapper<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
-  RefreshIfEmpty;
-  _AddRef;
-  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
-  begin
-    fSource := Self;
-    fCollection := Self.fCollection;
-    fEnumerator := fCollection.GetEnumerator;
-  end;
+  TCollectionWrapper(Self).GetEnumerator(@Result, @TEnumerator.Enumerator_Vtable,
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent);
 end;
 
 function TCollectionWrapper<T>.GetNonEnumeratedCount: Integer;
 begin
-  RefreshIfEmpty;
-  Result := fCollection.Count;
-end;
-
-procedure TCollectionWrapper<T>.HandleDestroy(Sender: TObject);
-begin
-  fOnDestroy := nil;
-  fUpdateValues := nil;
+  Result := TCollectionWrapper(Self).GetNonEnumeratedCount;
 end;
 
 function TCollectionWrapper<T>.ToArray: TArray<T>;
 begin
-  RefreshIfEmpty;
+  TCollectionWrapper(Self).RefreshIfEmpty;
   Result := fCollection.ToArray;
 end;
 
@@ -849,21 +507,13 @@ end;
 
 function TCollectionWrapper<T>.TEnumerator.GetCurrent: T;
 begin
-  ValidateEnumerator;
+  TCollectionWrapper.PEnumerator(@Self).ValidateEnumerator;
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(fEnumerator).GetCurrent(Result)
+  else
+  {$ENDIF}
   Result := fEnumerator.Current;
-end;
-
-function TCollectionWrapper<T>.TEnumerator.MoveNext: Boolean;
-begin
-  ValidateEnumerator;
-  Result := fEnumerator.MoveNext;
-end;
-
-procedure TCollectionWrapper<T>.TEnumerator.ValidateEnumerator;
-begin
-  fSource.RefreshIfEmpty;
-  if fSource.fCollection <> fCollection then
-    RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -897,11 +547,12 @@ end;
 
 procedure TMultiMapBase<TKey, TValue>.AfterConstruction;
 var
-  keyType: PTypeInfo;
+  keyType, valueType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
   keyType := GetKeyType;
+  valueType := GetValueType;
   fHashTable.ItemsInfo := TypeInfo(TItems);
   fHashTable.Initialize(@TComparerThunks<TKey>.Equals, @TComparerThunks<TKey>.GetHashCode, keyType);
   {$IFDEF DELPHIXE7_UP}
@@ -911,8 +562,9 @@ begin
   {$ENDIF}
     fHashTable.Find := @THashTable<TKey>.FindWithComparer;
 
-  fKeys := TKeyCollection.Create(Self, @fHashTable, IEqualityComparer<TKey>(fHashTable.Comparer), keyType, 0);
-  fValues := TValueCollection.Create(Self, @fHashTable, @fCount);
+  fKeys := TKeyCollection.Create(Self, @fHashTable, nil, keyType, 0);
+  fValues := TValueCollection.Create(Self, @fHashTable, nil, valueType,
+    SizeOf(TKey), @fCount, TCollectionThunks<TValue>.Contains);
   fOnDestroy := TNotifyEventImpl.Create;
   fOnDestroy.UseFreeNotification := False;
 end;
@@ -935,29 +587,11 @@ begin
   collection := TCollectionWrapper.Create;
   collection.fKey := key;
   collection.fOnDestroy := fOnDestroy;
-  fOnDestroy.Add(collection.HandleDestroy);
+  fOnDestroy.Add(Spring.Collections.MultiMaps.TCollectionWrapper(collection).HandleDestroy);
   collection.fUpdateValues := UpdateValues;
   CreateCollection(collection.fCollection);
 
   Result := collection;
-end;
-
-procedure TMultiMapBase<TKey, TValue>.KeyChanged(const item: TKey;
-  action: TCollectionChangedAction);
-begin
-  if fOnKeyChanged.CanInvoke then
-    fOnKeyChanged.Invoke(Self, item, action);
-  if (action = caRemoved) and (doOwnsKeys in fHashTable.Ownerships) then
-    PObject(@item).Free;
-end;
-
-procedure TMultiMapBase<TKey, TValue>.ValueChanged(const item: TValue;
-  action: TCollectionChangedAction);
-begin
-  if fOnValueChanged.CanInvoke then
-    fOnValueChanged.Invoke(Self, item, action);
-  if (action = caRemoved) and (doOwnsValues in fHashTable.Ownerships) then
-    PObject(@item).Free;
 end;
 
 function TMultiMapBase<TKey, TValue>.Add(const key: TKey;
@@ -972,7 +606,7 @@ var
   i: Integer;
 begin
   for i := 0 to High(values) do
-    Add(key, values[i]);
+    TryAdd(key, values[i]);
 end;
 
 procedure TMultiMapBase<TKey, TValue>.AddRange(const key: TKey;
@@ -986,35 +620,24 @@ begin
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(TValue) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
-    Add(key, item);
+    TryAdd(key, item);
   end;
 end;
 
 procedure TMultiMapBase<TKey, TValue>.Clear;
 var
-  oldItemCount, i: Integer;
-  oldItems: TArray<TItem>;
-  oldValue: TValue;
+  i: NativeInt;
 begin
-  oldItemCount := fHashTable.ItemCount;
-  oldItems := TItems(fHashTable.Items);
+  for i := 0 to fHashTable.ItemCount - 1 do
+    if TItems(fHashTable.Items)[i].HashCode >= 0 then
+      DoRemoveValues(@TItems(fHashTable.Items)[i], caRemoved);
   fHashTable.Clear;
-
-  for i := 0 to oldItemCount - 1 do
-    if oldItems[i].HashCode >= 0 then
-    begin
-      HandleOnChanged(oldItems[i].Values);
-      for oldValue in oldItems[i].Values do
-      begin
-        if Assigned(Notify) then
-          DoNotify(oldItems[i].Key, oldValue, caRemoved);
-        ValueChanged(oldValue, caRemoved);
-      end;
-      oldItems[i].Values.Clear;
-      oldItems[i].Values := nil;
-      KeyChanged(oldItems[i].Key, caRemoved);
-    end;
   fCount := 0;
 end;
 
@@ -1054,61 +677,51 @@ var
   value: TValue;
 begin
   item := fHashTable.DeleteEntry(entry);
-  HandleOnChanged(item.Values);
-  for value in item.Values do
-  begin
-    Dec(fCount);
-    if Assigned(Notify) then
-      DoNotify(item.Key, value, action);
-    ValueChanged(value, action);
-  end;
-  if action = caRemoved then
-    item.Values.Clear
-  else
+  Dec(fCount, item.Values.Count);
+  DoRemoveValues(item, action);
+  if action = caExtracted then
     item.Values.MoveTo(extractTarget);
-  KeyChanged(item.Key, action);
   item.HashCode := RemovedFlag;
   item.Key := Default(TKey);
   item.Values := nil;
 end;
 
-procedure TMultiMapBase<TKey, TValue>.DoValueChanged(sender: TObject;
-  const item: TValue; action: TCollectionChangedAction);
-begin
-  case action of //FI:W535
-    caAdded: Inc(fCount);
-    caRemoved, caExtracted: Dec(fCount);
-  end;
-  if fOnValueChanged.CanInvoke then
-    fOnValueChanged.Invoke(Self, item, action);
-{$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TValue) = tkClass then
-{$ENDIF}
-  if (action = caRemoved) and (doOwnsValues in fHashTable.Ownerships) then
-    PObject(@item).Free;
-end;
-
-function TMultiMapBase<TKey, TValue>.Extract(const key: TKey;
-  const value: TValue): TKeyValuePair;
+procedure TMultiMapBase<TKey, TValue>.DoRemoveValues(item: PItem;
+  action: TCollectionChangedAction);
 var
-  item: PItem;
-  count: Integer;
+  enumerator: IEnumerator<TValue>;
+  value: TValue;
 begin
-  Result.Key := key;
-  item := IHashTable<TKey>(@fHashTable).Find(key);
-  if Assigned(item) then
+  enumerator := item.values.GetEnumerator;
+  while enumerator.MoveNext do
   begin
-    count := item.Values.Count;
-    Result.Value := item.Values.Extract(value);
-    if item.Values.Count < count then
-    begin
-      if Assigned(Notify) then
-        DoNotify(key, value, caExtracted);
-      KeyChanged(item.Key, caExtracted);
-    end;
-  end
-  else
-    Result.Value := Default(TValue);
+    {$IFDEF RSP31615}
+    if IsManagedType(TValue) then
+      IEnumeratorInternal(enumerator).GetCurrent(value)
+    else
+    {$ENDIF}
+    value := enumerator.Current;
+    if Assigned(Notify) then
+      DoNotify(item.key, value, action);
+    if fOnValueChanged.CanInvoke then
+      fOnValueChanged.Invoke(Self, value, action);
+    {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(TValue) = tkClass then
+    {$ENDIF}
+    if (action = caRemoved) and (doOwnsValues in fHashTable.Ownerships) then
+      PObject(@value).Free;
+  end;
+  if fOnKeyChanged.CanInvoke then
+    fOnKeyChanged.Invoke(Self, item.key, action);
+  if action = caRemoved then
+  begin
+    {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(TKey) = tkClass then
+    {$ENDIF}
+    if doOwnsKeys in fHashTable.Ownerships then
+      PObject(@item.key).Free;
+    item.values.Clear;
+  end;
 end;
 
 function TMultiMapBase<TKey, TValue>.Extract(const key: TKey): ICollection<TValue>;
@@ -1121,6 +734,40 @@ begin
     DoRemove(entry, caExtracted, Result);
 end;
 
+function TMultiMapBase<TKey, TValue>.Extract(const key: TKey; const value: TValue): TKeyValuePair;
+var
+  item: PItem;
+  count, newCount: Integer;
+begin
+  Result.Key := key;
+  item := IHashTable<TKey>(@fHashTable).Find(key);
+  if Assigned(item) then
+  begin
+    count := item.Values.Count;
+    {$IFDEF RSP31615}
+    if IsManagedType(TValue) then
+      TCollectionThunks<TValue>.ICollectionInternal(item.Values).Extract(
+        {$IFDEF CPUX64}Result.Value, {$ENDIF}value{$IFDEF CPUX86}, Result.Value{$ENDIF})
+    else
+    {$ENDIF}
+    Result.Value := item.Values.Extract(value);
+    newCount := item.Values.Count;
+    if newCount < count then
+    begin
+      Dec(fCount, count);
+      if Assigned(Notify) then
+        DoNotify(key, value, caExtracted);
+      if fOnValueChanged.CanInvoke then
+        fOnValueChanged.Invoke(Self, Result.Value, caExtracted);
+      if newCount = 0 then
+        if fOnKeyChanged.CanInvoke then
+          fOnKeyChanged.Invoke(Self, item.Key, caExtracted);
+    end;
+  end
+  else
+    Result.Value := Default(TValue);
+end;
+
 function TMultiMapBase<TKey, TValue>.GetCount: Integer;
 begin
   Result := fCount;
@@ -1130,9 +777,12 @@ function TMultiMapBase<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; 
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent,
+    @THashMapInnerCollection.TEnumerator.MoveNext_MultiMap))^ do
   begin
-    fSource := Self;
+    Parent := Self;
+    fHashTable := @Self.fHashTable;
+    fOffset := KeyOffset + SizeOf(TKey);
     fVersion := Self.fHashTable.Version;
   end;
 end;
@@ -1176,8 +826,16 @@ begin
   item := @TItems(fHashTable.Items)[entry.ItemIndex];
   Result := item.Values.Remove(value);
   if not Result then Exit;
+  Dec(fCount);
   if Assigned(Notify) then
     DoNotify(item.Key, value, caRemoved);
+  if fOnValueChanged.CanInvoke then
+    fOnValueChanged.Invoke(Self, value, caRemoved);
+  {$IFDEF DELPHIXE7_UP}
+  if GetTypeKind(TValue) = tkClass then
+  {$ENDIF}
+  if doOwnsValues in fHashTable.Ownerships then
+    PObject(@item).Free;
   if item.Values.Any then
     {$Q-}
     Inc(PInteger(@fHashTable.Version)^)
@@ -1209,19 +867,22 @@ begin
   begin
     item.Key := key;
     CreateCollection(item.Values);
-    HandleOnChanged(item.Values, @TMultiMapBase<TKey, TValue>.DoValueChanged, Self);
-    KeyChanged(key, caAdded);
+    if fOnKeyChanged.CanInvoke then
+      fOnKeyChanged.Invoke(Self, item.Key, caAdded);
   end;
 
   Result := item.Values.Add(value);
   if Result then
   begin
+    Inc(fCount);
     {$Q-}
     Inc(PInteger(@fHashTable.Version)^);
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    if fOnValueChanged.CanInvoke then
+      fOnValueChanged.Invoke(Self, value, caAdded);
     if Assigned(Notify) then
     begin
-      DoNotify(key, value, caAdded);
+      DoNotify(item.Key, value, caAdded);
       Result := True;
     end;
   end;
@@ -1257,46 +918,12 @@ end;
 function TMultiMapBase<TKey, TValue>.TEnumerator.GetCurrent: TKeyValuePair;
 begin
   Result.Key := fItem.Key;
-  Result.Value := fEnumerator.Current;
-end;
-
-function TMultiMapBase<TKey, TValue>.TEnumerator.MoveNext: Boolean; //FI:W521
-var
-  hashTable: PHashTable;
-  item: PItem;
-begin
-  hashTable := @fSource.fHashTable;
-  if fVersion = hashTable.Version then
-  begin
-    repeat
-      if Assigned(fEnumerator) then
-      begin
-        Result := fEnumerator.MoveNext;
-        if Result then Exit;
-      end;
-
-      repeat
-        if fIndex < hashTable.ItemCount then
-        begin
-          item := @TItems(hashTable.Items)[fIndex];
-          Inc(fIndex);
-          if item.HashCode >= 0 then
-          begin
-            fItem := item;
-            fEnumerator := item.Values.GetEnumerator;
-            Break;
-          end;
-        end
-        else
-        begin
-          fEnumerator := nil;
-          Exit(False);
-        end;
-      until False;
-    until False;
-  end
+  {$IFDEF RSP31615}
+  if IsManagedType(TValue) then
+    IEnumeratorInternal(fEnumerator).GetCurrent(Result.Value)
   else
-    Result := RaiseHelper.EnumFailedVersion;
+  {$ENDIF}
+  Result.Value := fEnumerator.Current;
 end;
 
 {$ENDREGION}
@@ -1328,12 +955,17 @@ begin
 end;
 
 procedure TSortedMultiMapBase<TKey, TValue>.AfterConstruction;
+var
+  keyType, valueType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
+  keyType := GetKeyType;
+  valueType := GetValueType;
   fTree := TRedBlackTreeBase<TKey,IInterface>.Create(fKeyComparer);
-  fKeys := TKeyCollection.Create(Self, fKeyComparer, fTree, @fVersion);
-  fValues := TValueCollection.Create(Self, fTree, @fVersion, @fCount, SizeOf(TKey));
+  fKeys := TKeyCollection.Create(Self, fTree, @fVersion, nil, keyType, 0);
+  fValues := TValueCollection.Create(Self, fTree, @fVersion, nil, valueType,
+    SizeOf(TKey), @fCount, TCollectionThunks<TValue>.Contains);
   fOnDestroy := TNotifyEventImpl.Create;
   fOnDestroy.UseFreeNotification := False;
 end;
@@ -1357,7 +989,7 @@ begin
   collection := TCollectionWrapper.Create;
   collection.fKey := key;
   collection.fOnDestroy := fOnDestroy;
-  fOnDestroy.Add(collection.HandleDestroy);
+  fOnDestroy.Add(Spring.Collections.MultiMaps.TCollectionWrapper(collection).HandleDestroy);
   collection.fUpdateValues := UpdateValues;
   CreateCollection(collection.fCollection);
 
@@ -1394,7 +1026,7 @@ var
   i: Integer;
 begin
   for i := 0 to High(values) do
-    Add(key, values[i]);
+    TryAdd(key, values[i]);
 end;
 
 procedure TSortedMultiMapBase<TKey, TValue>.AddRange(const key: TKey;
@@ -1408,44 +1040,27 @@ begin
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
   begin
+    {$IFDEF RSP31615}
+    if IsManagedType(TValue) then
+      IEnumeratorInternal(enumerator).GetCurrent(item)
+    else
+    {$ENDIF}
     item := enumerator.Current;
-    Add(key, item);
+    TryAdd(key, item);
   end;
 end;
 
 procedure TSortedMultiMapBase<TKey, TValue>.Clear;
 var
-  oldItemCount, i: Integer;
-  oldItems: TArray<TPair<TKey,IInterface>>;
-  oldValue: TValue;
   node: PBinaryTreeNode;
 begin
-  oldItemCount := fTree.Count;
-
-  SetLength(oldItems, oldItemCount);
   node := fTree.Root.LeftMost;
-  for i := 0 to oldItemCount - 1 do
+  while Assigned(node) do
   begin
-    oldItems[i].Key := PNode(node).Key;
-    oldItems[i].Value := PNode(node).Values;
+    DoRemove(PNode(node), caRemoved, nil, False);
     node := node.Next;
   end;
-
   fTree.Clear;
-
-  for i := 0 to oldItemCount - 1 do
-  begin
-    HandleOnChanged(oldItems[i].Value);
-    for oldValue in ICollection<TValue>(oldItems[i].Value) do
-    begin
-      if Assigned(Notify) then
-        DoNotify(oldItems[i].Key, oldValue, caRemoved);
-      ValueChanged(oldValue, caRemoved);
-    end;
-    ICollection<TValue>(oldItems[i].Value).Clear;
-    oldItems[i].Value := nil;
-    KeyChanged(oldItems[i].Key, caRemoved);
-  end;
   fCount := 0;
 end;
 
@@ -1481,40 +1096,54 @@ begin
 end;
 
 procedure TSortedMultiMapBase<TKey, TValue>.DoRemove(const node: PNode;
-  action: TCollectionChangedAction; const extractTarget: ICollection<TValue>);
-var
-  value: TValue;
+  action: TCollectionChangedAction; const extractTarget: ICollection<TValue>;
+  deleteNode: Boolean);
 begin
-  HandleOnChanged(node.Values);
-  for value in node.Values do
-  begin
-    Dec(fCount);
-    if Assigned(Notify) then
-      DoNotify(node.Key, value, action);
-    ValueChanged(value, action);
-  end;
-  if action = caRemoved then
-    node.Values.Clear
-  else
+  Dec(fCount, node.Values.Count);
+  DoRemoveValues(node, action);
+  if action = caExtracted then
     node.Values.MoveTo(extractTarget);
-  KeyChanged(node.Key, action);
-  fTree.DeleteNode(Pointer(node));
+  if deleteNode then
+    fTree.DeleteNode(Pointer(node));
 end;
 
-procedure TSortedMultiMapBase<TKey, TValue>.DoValueChanged(sender: TObject;
-  const item: TValue; action: TCollectionChangedAction);
+procedure TSortedMultiMapBase<TKey, TValue>.DoRemoveValues(node: PNode;
+  action: TCollectionChangedAction);
+var
+  enumerator: IEnumerator<TValue>;
+  value: TValue;
 begin
-  case action of //FI:W535
-    caAdded: Inc(fCount);
-    caRemoved, caExtracted: Dec(fCount);
+  enumerator := node.values.GetEnumerator;
+  while enumerator.MoveNext do
+  begin
+    {$IFDEF RSP31615}
+    if IsManagedType(TValue) then
+      IEnumeratorInternal(enumerator).GetCurrent(value)
+    else
+    {$ENDIF}
+    value := enumerator.Current;
+    if Assigned(Notify) then
+      DoNotify(node.key, value, action);
+    if fOnValueChanged.CanInvoke then
+      fOnValueChanged.Invoke(Self, value, action);
+    {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(TValue) = tkClass then
+    {$ENDIF}
+    if (action = caRemoved) and (doOwnsValues in fOwnerships) then
+      PObject(@value).Free;
   end;
-  if fOnValueChanged.CanInvoke then
-    fOnValueChanged.Invoke(Self, item, action);
-{$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TValue) = tkClass then
-{$ENDIF}
-  if (action = caRemoved) and (doOwnsValues in fOwnerships) then
-    PObject(@item).Free;
+  if fOnKeyChanged.CanInvoke then
+    fOnKeyChanged.Invoke(Self, node.key, action);
+  if action = caRemoved then
+  begin
+    {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(TKey) = tkClass then
+    {$ENDIF}
+    if doOwnsKeys in fOwnerships then
+      PObject(@node.key).Free;
+    node.values.Clear;
+    node.values := nil;
+  end;
 end;
 
 function TSortedMultiMapBase<TKey, TValue>.Extract(
@@ -1532,19 +1161,33 @@ function TSortedMultiMapBase<TKey, TValue>.Extract(const key: TKey;
   const value: TValue): TKeyValuePair;
 var
   node: PNode;
-  count: Integer;
+  count, newCount: Integer;
 begin
   Result.Key := key;
   node := Pointer(fTree.FindNode(key));
   if Assigned(node) then
   begin
     count := node.Values.Count;
+    {$IFDEF RSP31615}
+    if IsManagedType(TValue) then
+      TCollectionThunks<TValue>.ICollectionInternal(node.Values).Extract(
+        {$IFDEF CPUX64}Result.Value, {$ENDIF}value{$IFDEF CPUX86}, Result.Value{$ENDIF})
+    else
+    {$ENDIF}
     Result.Value := node.Values.Extract(value);
-    if node.Values.Count < count then
+    newCount := node.Values.Count;
+    if newCount < count then
     begin
+      Dec(fCount, count);
       if Assigned(Notify) then
-        DoNotify(key, value, caExtracted);
-      KeyChanged(node.Key, caExtracted);
+        DoNotify(node.Key, value, caExtracted);
+      if fOnValueChanged.CanInvoke then
+        fOnValueChanged.Invoke(Self, Result.Value, caExtracted);
+      if newCount = 0 then
+      begin
+        KeyChanged(node.Key, caExtracted);
+        fTree.DeleteNode(Pointer(node));
+      end;
     end;
   end
   else
@@ -1560,9 +1203,13 @@ function TSortedMultiMapBase<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValueP
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent,
+    @TTreeMapInnerCollection.TEnumerator.MoveNext_MultiMap))^ do
   begin
-    fSource := Self;
+    Parent := Self;
+    fTree := Self.fTree;
+    fOffset := SizeOf(TKey);
+    fSourceVersion := @Self.fVersion;
     fVersion := Self.fVersion;
   end;
 end;
@@ -1616,6 +1263,8 @@ begin
   Result := node.Values.Remove(value);
   if Result then
   begin
+    Dec(fCount);
+    ValueChanged(value, caRemoved);
     if Assigned(Notify) then
       DoNotify(key, value, caRemoved);
     if not node.Values.Any then
@@ -1634,16 +1283,17 @@ begin
   if not Assigned(node.Values) then
   begin
     CreateCollection(node.Values);
-    HandleOnChanged(node.Values, @TSortedMultiMapBase<TKey, TValue>.DoValueChanged, Self);
     with fOnKeyChanged do if CanInvoke then
       Invoke(Self, node.Key, caAdded);
   end;
   Result := node.Values.Add(value);
   if Result then
   begin
+    Inc(fCount);
     {$Q-}
     Inc(fVersion);
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    ValueChanged(value, caAdded);
     if Assigned(Notify) then
     begin
       DoNotify(node.Key, value, caAdded);
@@ -1681,50 +1331,13 @@ end;
 
 function TSortedMultiMapBase<TKey, TValue>.TEnumerator.GetCurrent: TKeyValuePair;
 begin
-  Result.Key := PNode(fNode).Key;
-  Result.Value := fEnumerator.Current;
-end;
-
-function TSortedMultiMapBase<TKey, TValue>.TEnumerator.MoveNext: Boolean;
-var
-  tree: TBinaryTree;
-  node: PBinaryTreeNode;
-begin
-  tree := fSource.fTree;
-  if fVersion = fSource.fVersion then
-  begin
-    repeat
-      if Assigned(fEnumerator) then
-      begin
-        Result := fEnumerator.MoveNext;
-        if Result then Exit;
-      end;
-
-      if (tree.Count > 0) and (fNode <> Pointer(1)) then
-      begin
-        if Assigned(fNode) then
-          node := fNode.Next
-        else
-          node := tree.Root.LeftMost;
-        if Assigned(node) then
-        begin
-          fNode := node;
-          {$IFDEF MSWINDOWS}
-          IEnumerableInternal(PNode(node).Values).GetEnumerator(IEnumerator(fEnumerator));
-          {$ELSE}
-          fEnumerator := PNode(node).Values.GetEnumerator;
-          {$ENDIF}
-          Continue;
-        end;
-      end;
-
-      fNode := Pointer(1);
-      fEnumerator := nil;
-      Exit(False);
-    until False;
-  end
+  Result.Key := fNode.Key;
+  {$IFDEF RSP31615}
+  if IsManagedType(TValue) then
+    IEnumeratorInternal(fEnumerator).GetCurrent(Result.Value)
   else
-    Result := RaiseHelper.EnumFailedVersion;
+  {$ENDIF}
+  Result.Value := fEnumerator.Current;
 end;
 
 {$ENDREGION}

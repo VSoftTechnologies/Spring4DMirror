@@ -69,7 +69,9 @@ type
     Parent: TRefCountedObject;
     function _Release: Integer; stdcall;
     class function Create(enumerator: PPointer; vtable: PEnumeratorVtable;
-      typeInfo, getCurrent, moveNext: Pointer): Pointer; static;
+      typeInfo, getCurrent, moveNext: Pointer): Pointer; overload; static;
+    class function Create(enumerator: PPointer; vtable: PEnumeratorVtable;
+      typeInfo: Pointer): Pointer; overload; static;
   end;
 
   PComparerVtable = ^TComparerVtable;
@@ -95,6 +97,7 @@ type
   end;
 
   TComparerThunks<T> = record
+    class function Compare(instance: Pointer; const left, right): Integer; static;
     class function Equals(instance: Pointer; const left, right): Boolean; static;
     class function GetHashCode(instance: Pointer; const value): Integer; static;
   end;
@@ -102,6 +105,7 @@ type
   TActionCall = procedure(const enumerator, action: IInterface);
   TAssign = procedure(var target; const source);
   TCompare = function(self: Pointer; const left, right): Integer;
+  TContains = function(const collection: IInterface; const value; const comparer: IInterface): Boolean;
   TEqualsCurrentWithOtherEnumerator = function(const enumerator1, enumerator2, comparer: IInterface): Boolean;
   TEqualsValue = function(const enumerator, comparer: IInterface; const value): Boolean;
   TEqualsArray = function(const enumerator: IInterface; comparer, values: Pointer; index: NativeInt): Boolean;
@@ -115,6 +119,8 @@ type
 
   TEnumerableBase = class abstract(TRefCountedObject)
   private
+    // Win64 compilers of XE2 and XE3 generate some bad code when using nil directly
+    const emptyComparer{$IF defined(WIN64) and not defined(DELPHIXE4_UP)}: Pointer{$IFEND} = nil;
     function MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
   protected
     this: Pointer;
@@ -550,7 +556,7 @@ type
 
   TCollectionThunks<T> = record
   {$IFDEF RSP31615}
-  private type FuncInternal = reference to procedure(
+  public type FuncInternal = reference to procedure(
     {$IFDEF CPUX64}var result;{$ENDIF}
     const arg1, arg2: T
     {$IFDEF CPUX86}; var result{$ENDIF});
@@ -566,6 +572,7 @@ type
     class procedure AggregateCurrentWithValue(const enumerator, func: IInterface; var result); static;
     class procedure Assign(var target; const source); static;
     class procedure CallActionOnCurrent(const enumerator, action: IInterface); static;
+    class function Contains(const collection: IInterface; const value; const comparer: IInterface): Boolean; static;
     class function EqualsCurrentWithOtherEnumerator(const enumerator1, enumerator2, comparer: IInterface): Boolean; static;
     class function EqualsCurrentWithArrayElement(const enumerator: IInterface; comparer, values: Pointer; index: NativeInt): Boolean; static;
     class function EqualsCurrentWithValue(const enumerator, comparer: IInterface; const value): Boolean; static;
@@ -721,31 +728,45 @@ type
       const predicate: Predicate<T>): Integer; overload;
   end;
 
-  PInnerCollection = ^TInnerCollection;
-  TInnerCollection = record
-  private type
+  THashMapInnerCollection = class sealed(TEnumerableBase)
+  public type
   {$REGION 'Nested Types'}
+    PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // same layout as THashMapInnerCollection<T>.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
       Parent: TRefCountedObject;
-      fSource: PInnerCollection;
+      fHashTable: PHashTable;
+      fOffset: Integer;
       fIndex: Integer;
       fVersion: Integer;
       fItem: Pointer;
+      fEnumerator: IEnumerator;
+      procedure Assign(source: THashMapInnerCollection);
       function MoveNext: Boolean;
+      function MoveNext_MultiMap: Boolean;
     end;
   {$ENDREGION}
-  private
-    fHashTable: PHashTable;
+  protected
+    // TEnumerableBase<T>
     fComparer: IInterface;
+    fSource: TRefCountedObject;
+    fElementType: PTypeInfo;
+    fHashTable: PHashTable;
+    fValueComparer: IInterface;
     fOffset: Integer;
-    function Contains(const value; equals: TEqualsMethod): Boolean;
+    fCount: PInteger;
+    fContains: TContains;
+    function GetCount: Integer;
+    function Contains(const value; comparer: Pointer; equals: TEqualsMethod): Boolean;
     procedure ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
+    function TryGetElementAt(var value; index: Integer;
+      assign: TAssign; default: TGetDefault; getCurrent: TGetCurrent): Boolean;
   end;
 
-  TInnerCollection<T> = class sealed(TEnumerableBase<T>,
+  THashMapInnerCollection<T> = class sealed(TEnumerableBase<T>,
     IEnumerable<T>, IReadOnlyCollection<T>)
   private type
   {$REGION 'Nested Types'}
@@ -753,24 +774,31 @@ type
 
     PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // same layout as THashMapInnerCollection.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
       Parent: TRefCountedObject;
-      fSource: TInnerCollection<T>;
+      fHashTable: PHashTable;
+      fOffset: Integer;
       fIndex: Integer;
       fVersion: Integer;
       fItem: ^T;
+      fEnumerator: IEnumerator<T>;
       function GetCurrent: T;
+      function GetCurrent_Values: T;
       class var Enumerator_Vtable: TEnumeratorVtable;
+      class var Enumerator_Vtable_Values: TEnumeratorVtable;
     end;
   {$ENDREGION}
-  private
+  protected
     fSource: TRefCountedObject;
     fElementType: PTypeInfo;
     fHashTable: PHashTable;
-    fComparer: IEqualityComparer<T>;
+    fValueComparer: IEqualityComparer<T>;
     fOffset: Integer;
+    fCount: PInteger;
+    fContains: TContains;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
     function GetNonEnumeratedCount: Integer;
@@ -779,8 +807,8 @@ type
     function GetElementType: PTypeInfo; override;
   public
     class function Create(const source: TRefCountedObject; hashTable: PHashTable;
-      const comparer: IEqualityComparer<T>; elementType: PTypeInfo;
-      offset: Integer): TInnerCollection<T>; overload; static;
+      const valueComparer: IEqualityComparer<T>; elementType: PTypeInfo;
+      offset: Integer = 0; count: PInteger = nil; contains: TContains = nil): THashMapInnerCollection<T>; static;
 
   {$REGION 'Implements IInterface'}
     function _AddRef: Integer; stdcall;
@@ -788,14 +816,59 @@ type
   {$ENDREGION}
 
   {$REGION 'Implements IEnumerable<T>'}
-    function Contains(const value: T): Boolean; overload;
+    function Contains(const value: T; const comparer: IEqualityComparer<T>): Boolean; overload;
     function GetEnumerator: IEnumerator<T>;
     function ToArray: TArray<T>;
     function TryGetElementAt(var value: T; index: Integer): Boolean;
   {$ENDREGION}
   end;
 
-  TSortedKeyCollection<T> = class(TEnumerableBase<T>,
+  TCompareMethod = function(self: Pointer; const left, right): Integer;
+  TTreeMapInnerCollection = class sealed(TEnumerableBase)
+  public type
+  {$REGION 'Nested Types'}
+    PNode = ^TNode;
+    TNode = record
+      Parent: PNode;
+      Childs: array[0..1] of PNode;
+      Key: record end;
+    end;
+
+    TEnumerator = record
+      // same layout as TTreeMapInnerCollection<T>.TEnumerator
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      Parent: TRefCountedObject;
+      fTree: TBinaryTree;
+      fOffset: Integer;
+      fSourceVersion: PInteger;
+      fNode: PBinaryTreeNode;
+      fVersion: Integer;
+      fItem: Pointer;
+      fEnumerator: IEnumerator;
+      function MoveNext: Boolean;
+      function MoveNext_MultiMap: Boolean;
+    end;
+  {$ENDREGION}
+  protected
+    // TEnumerableBase<T>
+    fComparer: IInterface;
+    fSource: TRefCountedObject;
+    fElementType: PTypeInfo;
+    fTree: TBinaryTree;
+    fVersion: PInteger;
+    fValueComparer: IInterface;
+    fOffset: Integer;
+    fCount: PInteger;
+    fContains: TContains;
+    function GetCount: Integer;
+    function Contains(const value; comparer: Pointer;
+      compare: TCompareMethod; equals: TEqualsMethod): Boolean;
+    procedure ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
+  end;
+
+  TTreeMapInnerCollection<T> = class(TEnumerableBase<T>,
     IEnumerable<T>, IReadOnlyCollection<T>)
   private type
   {$REGION 'Nested Types'}
@@ -808,29 +881,44 @@ type
 
     PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // same layout as TTreeMapInnerCollection.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
       Parent: TRefCountedObject;
-      fSource: TSortedKeyCollection<T>;
+      fTree: TBinaryTree;
+      fOffset: Integer;
+      fSourceVersion: PInteger;
       fNode: PBinaryTreeNode;
       fVersion: Integer;
+      fItem: ^T;
+      fEnumerator: IEnumerator<T>;
       function GetCurrent: T;
-      function MoveNext: Boolean;
+      function GetCurrent_Values: T;
       class var Enumerator_Vtable: TEnumeratorVtable;
+      class var Enumerator_Vtable_Values: TEnumeratorVtable;
     end;
   {$ENDREGION}
   private
     fSource: TRefCountedObject;
+    fElementType: PTypeInfo;
     fTree: TBinaryTree;
     fVersion: PInteger;
+    fValueComparer: IEqualityComparer<T>;
+    fOffset: Integer;
+    fCount: PInteger;
+    fContains: TContains;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
     function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
+  protected
+    function GetElementType: PTypeInfo; override;
   public
-    constructor Create(const source: TRefCountedObject; const comparer: IComparer<T>;
-      const tree: TBinaryTree; const version: PInteger);
+    class function Create(const source: TRefCountedObject; const tree: TBinaryTree;
+      const version: PInteger; const valueComparer: IEqualityComparer<T>;
+      elementType: PTypeInfo; offset: Integer;
+      count: PInteger = nil; contains: TContains = nil): TTreeMapInnerCollection<T>; static;
 
   {$REGION 'Implements IInterface'}
     function _AddRef: Integer; stdcall;
@@ -839,10 +927,8 @@ type
 
   {$REGION 'Implements IEnumerable<T>'}
     function GetEnumerator: IEnumerator<T>;
-    function Contains(const value: T): Boolean; overload;
+    function Contains(const value: T; const comparer: IEqualityComparer<T>): Boolean; overload;
     function ToArray: TArray<T>;
-    function TryGetFirst(var value: T): Boolean; overload;
-    function TryGetLast(var value: T): Boolean; overload;
   {$ENDREGION}
   end;
 
@@ -1128,6 +1214,33 @@ begin
   end;
 end;
 
+class function TEnumeratorBlock.Create(enumerator: PPointer;
+  vtable: PEnumeratorVtable; typeInfo: Pointer): Pointer;
+
+  function GetEnumeratorBlockSize(typeInfo: Pointer): Integer; inline;
+  var
+    p: PByte;
+  begin
+    p := typeInfo;
+    Result := PTypeData(@p[p[1]+2]).RecSize;
+  end;
+
+begin
+  IInterface(enumerator^) := nil;
+  Result := AllocMem(GetEnumeratorBlockSize(typeInfo));
+  PEnumeratorBlock(Result).Vtable := vtable;
+  PEnumeratorBlock(Result).RefCount := 1;
+  PEnumeratorBlock(Result).TypeInfo := typeInfo;
+  enumerator^ := Result;
+
+  if not Assigned(vtable[0]) then
+  begin
+    vtable[0] := @NopQueryInterface;
+    vtable[1] := @RecAddRef;
+    vtable[2] := @TEnumeratorBlock._Release;
+  end;
+end;
+
 function TEnumeratorBlock._Release: Integer;
 begin
   Result := AtomicDecrement(RefCount);
@@ -1195,6 +1308,11 @@ end;
 
 
 {$REGION 'TComparerThunks<T>'}
+
+class function TComparerThunks<T>.Compare(instance: Pointer; const left, right): Integer;
+begin
+  Result := IComparer<T>(instance).Compare(T(left), T(right));
+end;
 
 class function TComparerThunks<T>.Equals(instance: Pointer; const left, right): Boolean;
 begin
@@ -2456,7 +2574,7 @@ end;
 
 function TEnumerableBase<T>.Contains(const value: T): Boolean;
 begin
-  Result := Contains(value, nil, TCollectionThunks<T>.EqualsCurrentWithValue);
+  Result := IEnumerable<T>(this).Contains(value, IEqualityComparer<T>(emptyComparer));
 end;
 
 function TEnumerableBase<T>.Contains(const value: T;
@@ -3262,28 +3380,28 @@ end;
 {$ENDREGION}
 
 
-{$REGION 'TInnerCollection'}
+{$REGION 'THashMapInnerCollection'}
 
-function TInnerCollection.Contains(const value; equals: TEqualsMethod): Boolean;
+function THashMapInnerCollection.Contains(const value; comparer: Pointer; equals: TEqualsMethod): Boolean;
 var
   hashTable: PHashTable;
   item: PByte;
   itemCount, itemSize, offset: NativeInt;
-  comparer: Pointer;
 begin
   if fOffset = KeyOffset then // means this is for the key
   begin
     item := fHashTable.FindItem(value);
     Result := Assigned(item);
   end
-  else
+  else if not Assigned(fContains) then
   begin
     offset := fOffset;
     hashTable := fHashTable;
     item := hashTable.Items;
     itemCount := hashTable.ItemCount;
     itemSize := hashTable.ItemSize;
-    comparer := Pointer(fComparer);
+    if comparer = nil then
+      comparer := Pointer(fValueComparer);
     while itemCount > 0 do
     begin
       if PInteger(item)^ >= 0 then
@@ -3293,49 +3411,129 @@ begin
       Dec(itemCount);
     end;
     Result := False;
+  end
+  else
+  begin
+    hashTable := fHashTable;
+    item := hashTable.Items;
+    itemSize := hashTable.ItemSize;
+    itemCount := hashTable.ItemCount;
+    while itemCount > 0 do
+    begin
+      if PInteger(item)^ >= 0 then
+        if fContains(PInterface(@item[itemSize - SizeOf(Pointer)])^, value, IInterface(comparer)) then
+          Exit(True);
+      Inc(item, itemSize);
+      Dec(itemCount);
+    end;
+    Result := False;
   end;
 end;
 
-procedure TInnerCollection.ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
+function THashMapInnerCollection.GetCount: Integer;
+begin
+  if Assigned(fCount) then
+    Result := fCount^
+  else
+    Result := fHashTable.Count;
+end;
+
+procedure THashMapInnerCollection.ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
 var
   hashTable: PHashTable;
   item: PByte;
   itemCount, itemSize, targetIndex, offset, count, elSize: NativeInt;
+  collection: Pointer;
 begin
-  offset := fOffset;
-  hashTable := fHashTable;
-  count := hashTable.Count;
-  elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
-  DynArraySetLength(result, typeInfo, 1, @count);
-  item := hashTable.Items;
-  itemCount := hashTable.ItemCount;
-  itemSize := hashTable.ItemSize;
-  targetIndex := 0;
-  while itemCount > 0 do
+  if fCount = nil then
   begin
-    if PInteger(item)^ >= 0 then
+    offset := fOffset;
+    hashTable := fHashTable;
+    count := hashTable.Count;
+    elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+    DynArraySetLength(result, typeInfo, 1, @count);
+    item := hashTable.Items;
+    itemCount := hashTable.ItemCount;
+    itemSize := hashTable.ItemSize;
+    targetIndex := 0;
+    while itemCount > 0 do
     begin
-      assign(PByte(result)[targetIndex * elSize], item[offset]);
-      Inc(targetIndex);
+      if PInteger(item)^ >= 0 then
+      begin
+        assign(PByte(result)[targetIndex * elSize], item[offset]);
+        Inc(targetIndex);
+      end;
+      Inc(item, itemSize);
+      Dec(itemCount);
     end;
-    Inc(item, itemSize);
-    Dec(itemCount);
+  end
+  else
+  begin
+    hashTable := fHashTable;
+    count := fCount^;
+    DynArraySetLength(result, typeInfo, 1, @count);
+    item := hashTable.Items;
+    itemCount := hashTable.ItemCount;
+    itemSize := hashTable.ItemSize;
+    targetIndex := 0;
+    while itemCount > 0 do
+    begin
+      if PInteger(item)^ >= 0 then
+      begin
+        collection := PPointer(item + itemSize - SizeOf(Pointer))^;
+        // little hack - we can hardcast here since we are just passing along a dynamic array
+        Inc(targetIndex, ICollection<Pointer>(collection).CopyTo(TArray<Pointer>(Result), targetIndex));
+      end;
+      Inc(item, itemSize);
+      Dec(itemCount);
+    end;
   end;
+end;
+
+function THashMapInnerCollection.TryGetElementAt(var value; index: Integer;
+  assign: TAssign; default: TGetDefault; getCurrent: TGetCurrent): Boolean;
+begin
+  if fCount = nil then
+  begin
+    if Cardinal(index) < Cardinal(fHashTable.Count) then
+    begin
+      fHashTable.EnsureCompact;
+      assign(value, fHashTable.Items[fHashTable.ItemSize * index + fOffset]);
+      Result := True;
+    end
+    else
+    begin
+      default(value);
+      Result := False;
+    end;
+  end
+  else
+    Result := TEnumerableBase(Self).TryGetElementAt(value, index, getCurrent, default);
 end;
 
 {$ENDREGION}
 
 
-{$REGION 'TInnerCollection.TEnumerator'}
+{$REGION 'THashMapInnerCollection.TEnumerator'}
 
-function TInnerCollection.TEnumerator.MoveNext: Boolean;
+procedure THashMapInnerCollection.TEnumerator.Assign(
+  source: THashMapInnerCollection);
+begin
+  source.fSource._AddRef;
+  Parent := source.fSource;
+  fHashTable := source.fHashTable;
+  fOffset := source.fOffset;
+  fVersion := source.fHashTable.Version;
+end;
+
+function THashMapInnerCollection.TEnumerator.MoveNext: Boolean;
 var
   hashTable: PHashTable;
   item: PByte;
   offset: NativeInt;
 begin
-  offset := fSource.fOffset;
-  hashTable := fSource.fHashTable;
+  offset := fOffset;
+  hashTable := fHashTable;
   if fVersion = hashTable.Version then
   begin
     repeat
@@ -3356,79 +3554,125 @@ begin
     Result := RaiseHelper.EnumFailedVersion;
 end;
 
+function THashMapInnerCollection.TEnumerator.MoveNext_MultiMap: Boolean;
+var
+  hashTable: PHashTable;
+  item: PByte;
+  offset: NativeInt;
+  values: Pointer;
+begin
+  offset := fOffset;
+  hashTable := fHashTable;
+  if fVersion = hashTable.Version then
+  begin
+    repeat
+      if Assigned(fEnumerator) then
+      begin
+        Result := fEnumerator.MoveNext;
+        if Result then Exit;
+      end;
+
+      repeat
+        if fIndex < hashTable.ItemCount then
+        begin
+          item := @hashTable.Items[fIndex * hashTable.ItemSize];
+          Inc(fIndex);
+          if PInteger(item)^ >= 0 then
+          begin
+            fItem := item;
+            values := PPointer(@item[offset])^;
+            {$IFDEF MSWINDOWS}
+            IEnumerableInternal(values).GetEnumerator(fEnumerator);
+            {$ELSE}
+            fEnumerator := IEnumerable(values).GetEnumerator;
+            {$ENDIF}
+            Break;
+          end;
+        end
+        else
+        begin
+          fEnumerator := nil;
+          Exit(False);
+        end;
+      until False;
+    until False;
+  end
+  else
+    Result := RaiseHelper.EnumFailedVersion;
+end;
+
 {$ENDREGION}
 
 
-{$REGION 'TInnerCollection<T>'}
+{$REGION 'THashMapInnerCollection<T>'}
 
-class function TInnerCollection<T>.Create(const source: TRefCountedObject;
-  hashTable: PHashTable; const comparer: IEqualityComparer<T>;
-  elementType: PTypeInfo; offset: Integer): TInnerCollection<T>;
+class function THashMapInnerCollection<T>.Create(const source: TRefCountedObject;
+  hashTable: PHashTable; const valueComparer: IEqualityComparer<T>;
+  elementType: PTypeInfo; offset: Integer; count: PInteger; contains: TContains): THashMapInnerCollection<T>;
 begin
-  Result := TInnerCollection<T>(TInnerCollection<T>.NewInstance);
+  Result := THashMapInnerCollection<T>(THashMapInnerCollection<T>.NewInstance);
   Result.fSource := source;
   Result.fElementType := elementType;
   Result.fHashTable := hashTable;
-  Result.fComparer := comparer;
+  Result.fValueComparer := valueComparer;
   Result.fOffset := KeyOffset + offset;
+  Result.fCount := count;
+  Result.fContains := contains;
   Result.AfterConstruction;
 end;
 
-function TInnerCollection<T>.Contains(const value: T): Boolean;
+function THashMapInnerCollection<T>.Contains(const value: T;
+  const comparer: IEqualityComparer<T>): Boolean;
 begin
-  Result := PInnerCollection(@fHashTable).Contains(value, TComparerThunks<T>.Equals);
+  Result := THashMapInnerCollection(Self).Contains(value, Pointer(comparer), TComparerThunks<T>.Equals);
 end;
 
-function TInnerCollection<T>.GetCount: Integer;
+function THashMapInnerCollection<T>.GetCount: Integer;
 begin
-  Result := fHashTable.Count;
+  Result := THashMapInnerCollection(Self).GetCount;
 end;
 
-function TInnerCollection<T>.GetElementType: PTypeInfo;
+function THashMapInnerCollection<T>.GetElementType: PTypeInfo;
 begin
   Result := fElementType;
 end;
 
-function TInnerCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
+function THashMapInnerCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
-  _AddRef;
-  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TInnerCollection.TEnumerator.MoveNext))^ do
-  begin
-    Parent := Self.fSource;
-    fSource := @Self.fHashTable;
-    fVersion := Self.fHashTable.Version;
-  end;
-end;
-
-function TInnerCollection<T>.GetNonEnumeratedCount: Integer;
-begin
-  Result := fHashTable.Count;
-end;
-
-function TInnerCollection<T>.ToArray: TArray<T>;
-begin
-  PInnerCollection(@fHashTable).ToArray(Pointer(Result), TypeInfo(TArray<T>), TCollectionThunks<T>.Assign);
-end;
-
-function TInnerCollection<T>.TryGetElementAt(var value: T; index: Integer): Boolean;
-begin
-  if Cardinal(index) < Cardinal(fHashTable.Count) then
-  begin
-    fHashTable.EnsureCompact;
-    value := PT(fHashTable.Items + fHashTable.ItemSize * index + fOffset)^;
-    Result := True;
-  end
+  if Assigned(fContains) then
+    THashMapInnerCollection.PEnumerator(TEnumeratorBlock.Create(@Result,
+      @TEnumerator.Enumerator_Vtable_Values, TypeInfo(TEnumerator),
+      @TEnumerator.GetCurrent_Values,
+      @THashMapInnerCollection.TEnumerator.MoveNext_MultiMap)).Assign(THashMapInnerCollection(Self))
   else
-    Result := False;
+    THashMapInnerCollection.PEnumerator(TEnumeratorBlock.Create(@Result,
+      @TEnumerator.Enumerator_Vtable, TypeInfo(TEnumerator),
+      @TEnumerator.GetCurrent,
+      @THashMapInnerCollection.TEnumerator.MoveNext)).Assign(THashMapInnerCollection(Self));
 end;
 
-function TInnerCollection<T>._AddRef: Integer;
+function THashMapInnerCollection<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := THashMapInnerCollection(Self).GetCount;
+end;
+
+function THashMapInnerCollection<T>.ToArray: TArray<T>;
+begin
+  THashMapInnerCollection(Self).ToArray(Pointer(Result), TypeInfo(TArray<T>), TCollectionThunks<T>.Assign);
+end;
+
+function THashMapInnerCollection<T>.TryGetElementAt(var value: T; index: Integer): Boolean;
+begin
+  Result := THashMapInnerCollection(Self).TryGetElementAt(value, index,
+    TCollectionThunks<T>.Assign, TCollectionThunks<T>.GetDefault, TCollectionThunks<T>.GetCurrent);
+end;
+
+function THashMapInnerCollection<T>._AddRef: Integer;
 begin
   Result := fSource._AddRef;
 end;
 
-function TInnerCollection<T>._Release: Integer;
+function THashMapInnerCollection<T>._Release: Integer;
 begin
   Result := fSource._Release;
 end;
@@ -3436,171 +3680,149 @@ end;
 {$ENDREGION}
 
 
-{$REGION 'TInnerCollection<T>.TEnumerator'}
+{$REGION 'THashMapInnerCollection<T>.TEnumerator'}
 
-function TInnerCollection<T>.TEnumerator.GetCurrent: T;
+function THashMapInnerCollection<T>.TEnumerator.GetCurrent: T;
 begin
   Result := fItem^;
 end;
 
-//function TInnerCollection<T>.TEnumerator.MoveNext: Boolean;
-//var
-//  hashTable: PHashTable;
-//  item: PByte;
-//  offset: Integer;
-//begin
-//  offset := fSource.fOffset;
-//  hashTable := fSource.fHashTable;
-//  if fVersion = hashTable.Version then
-//  begin
-//    repeat
-//      if fIndex >= hashTable.ItemCount then
-//        Break;
-//
-//      item := @hashTable.Items[fIndex * hashTable.ItemSize];
-//      Inc(fIndex);
-//      if PInteger(item)^ >= 0 then
-//      begin
-//        fItem := Pointer(item + offset);
-//        Exit(True);
-//      end;
-//    until False;
-//    Result := False;
-//  end
-//  else
-//    Result := RaiseHelper.EnumFailedVersion;
-//end;
+function THashMapInnerCollection<T>.TEnumerator.GetCurrent_Values: T;
+begin
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(fEnumerator).GetCurrent(Result)
+  else
+  {$ENDIF}
+  Result := fEnumerator.Current;
+end;
 
 {$ENDREGION}
 
 
-{$REGION 'TSortedKeyCollection<T>'}
+{$REGION 'TTreeMapInnerCollection'}
 
-constructor TSortedKeyCollection<T>.Create(const source: TRefCountedObject; //FI:W525
-  const comparer: IComparer<T>; const tree: TBinaryTree; const version: PInteger);
-begin
-  fSource := source;
-  fComparer := comparer;
-  fTree := tree;
-  fVersion := version;
-end;
-
-function TSortedKeyCollection<T>.Contains(const value: T): Boolean;
+function TTreeMapInnerCollection.Contains(const value; comparer: Pointer;
+  compare: TCompareMethod; equals: TEqualsMethod): Boolean;
 var
-  root: Pointer;
-  node: PBinaryTreeNode;
-  compareResult, i: Integer;
+  root, temp, next: Pointer;
+  node: PNode;
+  compareResult: Integer;
+  i, offset: NativeInt;
 begin
-  root := fTree.Root;
-  if not Assigned(root) then Exit(Boolean(root));
-  node := root;
-  repeat
-    compareResult := fComparer.Compare(PNode(node).Key, value);
-    if compareResult = 0 then Break;
-    i := compareResult shr 31; // left -> 0, right -> 1
-    node := PNode(node).Childs[i];
-  until not Assigned(node);
-  Result := Assigned(node);
-end;
-
-function TSortedKeyCollection<T>.GetCount: Integer;
-begin
-  Result := fTree.Count;
-end;
-
-function TSortedKeyCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
-begin
-  _AddRef;
-  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+  if (fOffset = 0) and (comparer = nil) then
   begin
-    Parent := Self.fSource;
-    fSource := Self;
-    fVersion := Self.fVersion^;
-  end;
-end;
-
-function TSortedKeyCollection<T>.GetNonEnumeratedCount: Integer;
-begin
-  Result := fTree.Count;
-end;
-
-function TSortedKeyCollection<T>.ToArray: TArray<T>;
-var
-  tree: TBinaryTree;
-  node, next: PBinaryTreeNode;
-  i: NativeInt;
-begin
-  tree := fTree;
-  SetLength(Result, tree.Count);
-  next := tree.Root.LeftMost;
-  if Assigned(next) then
+    comparer := Pointer(fTree.Comparer);
+    root := fTree.Root;
+    if not Assigned(root) then Exit(Boolean(root));
+    node := root;
+    repeat
+      compareResult := compare(comparer, PNode(node).Key, value);
+      if compareResult = 0 then Break;
+      i := compareResult shr 31; // left -> 0, right -> 1
+      node := PNode(node).Childs[i];
+    until not Assigned(node);
+    Result := Assigned(node);
+  end
+  else if fCount = nil then
   begin
-    i := 0;
+    if comparer = nil then
+      comparer := Pointer(fValueComparer);
+    temp := fTree.Root.LeftMost;
+    if not Assigned(temp) then Exit(Boolean(temp));
+    repeat
+      node := temp;
+      Result := equals(comparer, PByte(@node.Key)[fOffset], value);
+      if Result then
+        Exit;
+      temp := PBinaryTreeNode(node).Next;
+    until not Assigned(temp);
+    Result := Boolean(temp);
+  end
+  else
+  begin
+    offset := fOffset;
+    next := fTree.Root.LeftMost;
+    if not Assigned(next) then Exit(Boolean(next));
     repeat
       node := next;
-      Result[i] := PNode(node).Key;
-      Inc(i);
-      next := node.Next;
+      Result := fContains(PInterface(@PByte(@node.Key)[offset])^, value, IInterface(comparer));
+      if Result then Exit;
+      next := PBinaryTreeNode(node).Next
     until not Assigned(next);
+    Result := Boolean(next);
   end;
 end;
 
-function TSortedKeyCollection<T>.TryGetFirst(var value: T): Boolean;
+function TTreeMapInnerCollection.GetCount: Integer;
+begin
+  if Assigned(fCount) then
+    Result := fCount^
+  else
+    Result := fTree.Count;
+end;
+
+procedure TTreeMapInnerCollection.ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
 var
-  node: PBinaryTreeNode;
+  tree: TBinaryTree;
+  node: PNode;
+  count, elSize, i, offset: NativeInt;
+  next, collection: Pointer;
 begin
-  node := fTree.Root.LeftMost;
-  if Assigned(node) then
+  if fCount = nil then
   begin
-    value := PNode(node).Key;
-    Exit(True);
-  end;
-  value := Default(T);
-  Result := False;
-end;
-
-function TSortedKeyCollection<T>.TryGetLast(var value: T): Boolean;
-var
-  node: PBinaryTreeNode;
-begin
-  node := fTree.Root.RightMost;
-  if Assigned(node) then
+    offset := fOffset;
+    tree := fTree;
+    count := tree.Count;
+    elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+    DynArraySetLength(result, typeInfo, 1, @count);
+    next := tree.Root.LeftMost;
+    if Assigned(next) then
+    begin
+      i := 0;
+      repeat
+        node := next;
+        assign(PByte(result)[i * elSize], PByte(@node.Key)[offset]);
+        Inc(i);
+        next := PBinaryTreeNode(node).Next;
+      until not Assigned(next);
+    end;
+  end
+  else
   begin
-    value := PNode(node).Key;
-    Exit(True);
+    count := fCount^;
+    DynArraySetLength(result, typeInfo, 1, @count);
+    offset := fOffset;
+    next := fTree.Root.LeftMost;
+    if Assigned(next) then
+    begin
+      i := 0;
+      repeat
+        node := next;
+        collection := PPointer(@PByte(@node.Key)[offset])^;
+        {$R-}
+        Inc(i, ICollection<Pointer>(collection).CopyTo(TArray<Pointer>(result), i));
+        {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+        next := PBinaryTreeNode(node).Next;
+      until not Assigned(next);
+    end;
   end;
-  value := Default(T);
-  Result := False;
-end;
-
-function TSortedKeyCollection<T>._AddRef: Integer;
-begin
-  Result := fSource._AddRef;
-end;
-
-function TSortedKeyCollection<T>._Release: Integer;
-begin
-  Result := fSource._Release;
 end;
 
 {$ENDREGION}
 
 
-{$REGION 'TSortedKeyCollection<T>.TEnumerator'}
+{$REGION 'TTreeMapInnerCollection.TEnumerator'}
 
-function TSortedKeyCollection<T>.TEnumerator.GetCurrent: T;
-begin
-  Result := PNode(fNode).Key;
-end;
-
-function TSortedKeyCollection<T>.TEnumerator.MoveNext: Boolean;
+function TTreeMapInnerCollection.TEnumerator.MoveNext: Boolean;
 var
   tree: TBinaryTree;
   node: PBinaryTreeNode;
+  offset: NativeInt;
 begin
-  tree := fSource.fTree;
-  if fVersion = fSource.fVersion^ then
+  offset := fOffset;
+  tree := fTree;
+  if fVersion = fSourceVersion^ then
   begin
     if (tree.Count > 0) and (fNode <> Pointer(1)) then
     begin
@@ -3611,6 +3833,7 @@ begin
       if Assigned(node) then
       begin
         fNode := node;
+        fItem := @PByte(@PNode(node).Key)[offset];
         Exit(True);
       end;
     end;
@@ -3621,6 +3844,160 @@ begin
   else
     Result := RaiseHelper.EnumFailedVersion;
 end;
+
+function TTreeMapInnerCollection.TEnumerator.MoveNext_MultiMap: Boolean;
+var
+  tree: TBinaryTree;
+  node: PBinaryTreeNode;
+  offset: NativeInt;
+  values: Pointer;
+begin
+  offset := fOffset;
+  tree := fTree;
+  if fVersion = fSourceVersion^ then
+  begin
+    repeat
+      if Assigned(fEnumerator) then
+      begin
+        Result := fEnumerator.MoveNext;
+        if Result then Exit;
+      end;
+
+      if (tree.Count > 0) and (fNode <> Pointer(1)) then
+      begin
+        if Assigned(fNode) then
+          node := fNode.Next
+        else
+          node := tree.Root.LeftMost;
+        if Assigned(node) then
+        begin
+          fNode := node;
+          values := PPointer(@PByte(@PNode(node).Key)[offset])^;
+          {$IFDEF MSWINDOWS}
+          IEnumerableInternal(values).GetEnumerator(fEnumerator);
+          {$ELSE}
+          fEnumerator := IEnumerable(values).GetEnumerator;
+          {$ENDIF}
+          Continue;
+        end;
+      end;
+
+      fNode := Pointer(1);
+      fEnumerator := nil;
+      Exit(False);
+    until False;
+  end
+  else
+    Result := RaiseHelper.EnumFailedVersion;
+end;
+
+
+{$ENDREGION}
+
+
+{$REGION 'TTreeMapInnerCollection<T>'}
+
+class function TTreeMapInnerCollection<T>.Create(const source: TRefCountedObject;
+  const tree: TBinaryTree; const version: PInteger;
+  const valueComparer: IEqualityComparer<T>; elementType: PTypeInfo;
+  offset: Integer; count: PInteger; contains: TContains): TTreeMapInnerCollection<T>;
+begin
+  Result := TTreeMapInnerCollection<T>(TTreeMapInnerCollection<T>.NewInstance);
+  Result.fComparer := IComparer<T>(tree.Comparer);
+  Result.fSource := source;
+  Result.fElementType := elementType;
+  Result.fTree := tree;
+  Result.fVersion := version;
+  Result.fValueComparer := valueComparer;
+  Result.fOffset := offset;
+  Result.fCount := count;
+  Result.fContains := contains;
+  Result.AfterConstruction;
+end;
+
+function TTreeMapInnerCollection<T>.Contains(const value: T;
+  const comparer: IEqualityComparer<T>): Boolean;
+begin
+  Result := TTreeMapInnerCollection(Self).Contains(value, Pointer(comparer),
+    TComparerThunks<T>.Compare, TComparerThunks<T>.Equals);
+end;
+
+function TTreeMapInnerCollection<T>.GetCount: Integer;
+begin
+  Result := TTreeMapInnerCollection(Self).GetCount;
+end;
+
+function TTreeMapInnerCollection<T>.GetElementType: PTypeInfo;
+begin
+  Result := fElementType;
+end;
+
+function TTreeMapInnerCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
+var
+  enumerator: PEnumerator;
+begin
+  _AddRef;
+  if Assigned(fContains) then
+    enumerator := TEnumeratorBlock.Create(@Result,
+      @TEnumerator.Enumerator_Vtable_Values, TypeInfo(TEnumerator),
+      @TEnumerator.GetCurrent_Values,
+      @TTreeMapInnerCollection.TEnumerator.MoveNext_MultiMap)
+  else
+    enumerator := TEnumeratorBlock.Create(@Result,
+      @TEnumerator.Enumerator_Vtable, TypeInfo(TEnumerator),
+      @TEnumerator.GetCurrent,
+      @TTreeMapInnerCollection.TEnumerator.MoveNext);
+
+  with enumerator^ do
+  begin
+    Parent := Self.fSource;
+    fTree := Self.fTree;
+    fOffset := Self.fOffset;
+    fSourceVersion := Self.fVersion;
+    fVersion := Self.fVersion^;
+  end;
+end;
+
+function TTreeMapInnerCollection<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := TTreeMapInnerCollection(Self).GetCount;
+end;
+
+function TTreeMapInnerCollection<T>.ToArray: TArray<T>;
+begin
+  TTreeMapInnerCollection(Self).ToArray(Pointer(Result), TypeInfo(TArray<T>), TCollectionThunks<T>.Assign);
+end;
+
+function TTreeMapInnerCollection<T>._AddRef: Integer;
+begin
+  Result := fSource._AddRef;
+end;
+
+function TTreeMapInnerCollection<T>._Release: Integer;
+begin
+  Result := fSource._Release;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTreeMapInnerCollection<T>.TEnumerator'}
+
+function TTreeMapInnerCollection<T>.TEnumerator.GetCurrent: T;
+begin
+  Result := fItem^;
+end;
+
+function TTreeMapInnerCollection<T>.TEnumerator.GetCurrent_Values: T;
+begin
+  {$IFDEF RSP31615}
+  if IsManagedType(T) then
+    IEnumeratorInternal(fEnumerator).GetCurrent(Result)
+  else
+  {$ENDIF}
+  Result := fEnumerator.Current;
+end;
+
 
 {$ENDREGION}
 
@@ -4169,7 +4546,7 @@ begin
   end
   else
     DynArrayClear(Items, typeInfo);
-  p := PDynArrayTypeInfo(PByte(typeInfo) + PDynArrayTypeInfo(typeInfo).name);
+  p := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name));
   if p.elType <> nil then
     System.FinalizeArray(@Current, p.elType^, 1);
   Result := False;
@@ -4919,6 +5296,12 @@ begin
   else
   {$ENDIF}
   Action<T>(action)(IEnumerator<T>(enumerator).Current);
+end;
+
+class function TCollectionThunks<T>.Contains(const collection: IInterface;
+  const value; const comparer: IInterface): Boolean;
+begin
+  Result := IEnumerable<T>(collection).Contains(T(value), IEqualityComparer<T>(comparer));
 end;
 
 class function TCollectionThunks<T>.EqualsCurrentWithOtherEnumerator(

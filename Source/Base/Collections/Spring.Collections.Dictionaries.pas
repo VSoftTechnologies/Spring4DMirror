@@ -61,20 +61,23 @@ type
 
     PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // needs to be same layout as
+      // THashMapInnerCollection<T>.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
-      fSource: TDictionary<TKey, TValue>;
+      Parent: TDictionary<TKey, TValue>;
+      fHashTable: PHashTable;
+      fOffset: Integer;
       fIndex: Integer;
       fVersion: Integer;
-      fItem: PItem;
+      fItem: PKeyValuePair;
       function GetCurrent: TKeyValuePair;
-      function MoveNext: Boolean;
       class var Enumerator_Vtable: TEnumeratorVtable;
     end;
 
-    TKeyCollection = TInnerCollection<TKey>;
-    TValueCollection = TInnerCollection<TValue>;
+    TKeyCollection = THashMapInnerCollection<TKey>;
+    TValueCollection = THashMapInnerCollection<TValue>;
   {$ENDREGION}
   private
     fHashTable: THashTable;
@@ -420,43 +423,24 @@ type
 
     PEnumerator = ^TEnumerator;
     TEnumerator = record
+      // needs to be same layout as
+      // TTreeMapInnerCollection<T>.TEnumerator
       Vtable: Pointer;
       RefCount: Integer;
       TypeInfo: PTypeInfo;
-      fSource: TSortedDictionary<TKey, TValue>;
+      Parent: TRefCountedObject;
+      fTree: TBinaryTree;
+      fOffset: Integer;
+      fSourceVersion: PInteger;
       fNode: PBinaryTreeNode;
       fVersion: Integer;
+      fItem: PKeyValuePair;
       function GetCurrent: TKeyValuePair;
-      function GetCurrentValue: TValue;
-      function MoveNext: Boolean;
       class var Enumerator_Vtable: TEnumeratorVtable;
-      class var ValuesEnumerator_Vtable: TEnumeratorVtable;
     end;
 
-    TKeyCollection = TSortedKeyCollection<TKey>;
-
-    TValueCollection = class(TEnumerableBase<TValue>,
-      IEnumerable<TValue>, IReadOnlyCollection<TValue>)
-    private
-      fSource: TSortedDictionary<TKey, TValue>;
-    {$REGION 'Property Accessors'}
-      function GetCount: Integer;
-      function GetNonEnumeratedCount: Integer;
-    {$ENDREGION}
-    public
-      constructor Create(const source: TSortedDictionary<TKey, TValue>);
-
-    {$REGION 'Implements IInterface'}
-      function _AddRef: Integer; stdcall;
-      function _Release: Integer; stdcall;
-    {$ENDREGION}
-
-    {$REGION 'Implements IEnumerable<TValue>'}
-      function GetEnumerator: IEnumerator<TValue>;
-      function Contains(const value: TValue): Boolean; overload;
-      function ToArray: TArray<TValue>;
-    {$ENDREGION}
-    end;
+    TKeyCollection = TTreeMapInnerCollection<TKey>;
+    TValueCollection = TTreeMapInnerCollection<TValue>;
   {$ENDREGION}
   private
     fTree: TRedBlackTreeBase<TKey,TValue>;
@@ -621,7 +605,7 @@ begin
   {$ENDIF}
     fHashTable.Find := @THashTable<TKey>.FindWithComparer;
 
-  fKeys := TKeyCollection.Create(Self, @fHashTable, IEqualityComparer<TKey>(fHashTable.Comparer), keyType, 0);
+  fKeys := TKeyCollection.Create(Self, @fHashTable, nil, keyType, 0);
   fValues := TValueCollection.Create(Self, @fHashTable, fValueComparer, valueType, SizeOf(TKey));
 end;
 
@@ -676,9 +660,12 @@ function TDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePair>; //
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent,
+    @THashMapInnerCollection.TEnumerator.MoveNext))^ do
   begin
-    fSource := Self;
+    Parent := Self;
+    fHashTable := @Self.fHashTable;
+    fOffset := KeyOffset;
     fVersion := Self.fHashTable.Version;
   end;
 end;
@@ -1046,37 +1033,11 @@ end;
 
 function TDictionary<TKey, TValue>.TEnumerator.GetCurrent: TKeyValuePair;
 var
-  item: PItem;
+  item: PKeyValuePair;
 begin
   item := fItem;
   Result.Key := item.Key;
   Result.Value := item.Value;
-end;
-
-function TDictionary<TKey, TValue>.TEnumerator.MoveNext: Boolean;
-var
-  hashTable: PHashTable;
-  item: PItem;
-begin
-  hashTable := @fSource.fHashTable;
-  if fVersion = hashTable.Version then
-  begin
-    repeat
-      if fIndex >= hashTable.ItemCount then
-        Break;
-
-      item := @TItems(hashTable.Items)[fIndex];
-      Inc(fIndex);
-      if item.HashCode >= 0 then
-      begin
-        fItem := item;
-        Exit(True);
-      end;
-    until False;
-    Exit(False);
-  end
-  else
-    Result := RaiseHelper.EnumFailedVersion;
 end;
 
 {$ENDREGION}
@@ -2406,19 +2367,23 @@ begin
 end;
 
 procedure TSortedDictionary<TKey, TValue>.AfterConstruction;
+var
+  keyType, valueType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
+  keyType := GetKeyType;
+  valueType := GetValueType;
   if not Assigned(fKeyComparer) then
-    fKeyComparer := IComparer<TKey>(_LookupVtableInfo(giComparer, TypeInfo(TKey), SizeOf(TKey)));
+    fKeyComparer := IComparer<TKey>(_LookupVtableInfo(giComparer, keyType, SizeOf(TKey)));
   if not Assigned(fValueComparer) then
-    fValueComparer := IEqualityComparer<TValue>(_LookupVtableInfo(giEqualityComparer, TypeInfo(TValue), SizeOf(TValue)));
+    fValueComparer := IEqualityComparer<TValue>(_LookupVtableInfo(giEqualityComparer, valueType, SizeOf(TValue)));
   PPairComparer(fComparer).KeyComparer := fKeyComparer;
 
   fTree := TRedBlackTreeBase<TKey,TValue>.Create(fKeyComparer);
 
-  fKeys := TKeyCollection.Create(Self, fKeyComparer, fTree, @fVersion);
-  fValues := TValueCollection.Create(Self);
+  fKeys := TKeyCollection.Create(Self, fTree, @fVersion, nil, keyType, 0);
+  fValues := TValueCollection.Create(Self, fTree, @fVersion, fValueComparer, valueType, SizeOf(TKey));
 end;
 
 procedure TSortedDictionary<TKey, TValue>.BeforeDestruction;
@@ -2598,9 +2563,13 @@ function TSortedDictionary<TKey, TValue>.GetEnumerator: IEnumerator<TKeyValuePai
 begin
   _AddRef;
   with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+    TypeInfo(TEnumerator), @TEnumerator.GetCurrent,
+    @TTreeMapInnerCollection.TEnumerator.MoveNext))^ do
   begin
-    fSource := Self;
+    Parent := Self;
+    fTree := Self.fTree;
+    fOffset := 0;
+    fSourceVersion := @Self.fVersion;
     fVersion := Self.fVersion;
   end;
 end;
@@ -2830,110 +2799,12 @@ end;
 {$REGION 'TSortedDictionary<TKey, TValue>.TEnumerator'}
 
 function TSortedDictionary<TKey, TValue>.TEnumerator.GetCurrent: TKeyValuePair;
-begin
-  Result.Key := PNode(fNode).Key;
-  Result.Value := PNode(fNode).Value;
-end;
-
-function TSortedDictionary<TKey, TValue>.TEnumerator.GetCurrentValue: TValue;
-begin
-  Result := PNode(fNode).Value;
-end;
-
-function TSortedDictionary<TKey, TValue>.TEnumerator.MoveNext: Boolean;
 var
-  tree: TBinaryTree;
-  node: PBinaryTreeNode;
+  item: PKeyValuePair;
 begin
-  tree := fSource.fTree;
-  if fVersion = fSource.fVersion then
-  begin
-    if fNode <> Pointer(1) then
-    begin
-      if Assigned(fNode) then
-        node := fNode.Next
-      else
-        node := tree.Root.LeftMost;
-      if Assigned(node) then
-      begin
-        fNode := node;
-        Exit(True);
-      end;
-      fNode := Pointer(1);
-    end;
-    Exit(False);
-  end
-  else
-    Result := RaiseHelper.EnumFailedVersion;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TSortedDictionary<TKey, TValue>.TValueCollection'}
-
-constructor TSortedDictionary<TKey, TValue>.TValueCollection.Create(
-  const source: TSortedDictionary<TKey, TValue>);
-begin
-  fSource := source;
-end;
-
-function TSortedDictionary<TKey, TValue>.TValueCollection.Contains(
-  const value: TValue): Boolean;
-begin
-  Result := fSource.ContainsValue(value);
-end;
-
-function TSortedDictionary<TKey, TValue>.TValueCollection.GetCount: Integer;
-begin
-  Result := fSource.fTree.Count;
-end;
-
-function TSortedDictionary<TKey, TValue>.TValueCollection.GetEnumerator: IEnumerator<TValue>; //FI:W521
-begin
-  _AddRef;
-  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.ValuesEnumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrentValue, @TEnumerator.MoveNext))^ do
-  begin
-    fSource := Self.fSource;
-    fVersion := fSource.fVersion;
-  end;
-end;
-
-function TSortedDictionary<TKey, TValue>.TValueCollection.GetNonEnumeratedCount: Integer;
-begin
-  Result := fSource.fTree.Count;
-end;
-
-function TSortedDictionary<TKey, TValue>.TValueCollection.ToArray: TArray<TValue>;
-var
-  tree: TBinaryTree;
-  node, next: PBinaryTreeNode;
-  i: Integer;
-begin
-  tree := fSource.fTree;
-  SetLength(Result, tree.Count);
-  next := tree.Root.LeftMost;
-  if Assigned(next) then
-  begin
-    i := 0;
-    repeat
-      node := next;
-      Result[i] := PNode(node).Value;
-      Inc(i);
-      next := node.Next;
-    until not Assigned(next);
-  end;
-end;
-
-function TSortedDictionary<TKey, TValue>.TValueCollection._AddRef: Integer;
-begin
-  Result := fSource._AddRef;
-end;
-
-function TSortedDictionary<TKey, TValue>.TValueCollection._Release: Integer;
-begin
-  Result := fSource._Release;
+  item := fItem;
+  Result.Key := item.Key;
+  Result.Value := item.Value;
 end;
 
 {$ENDREGION}

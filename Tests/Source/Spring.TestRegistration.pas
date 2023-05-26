@@ -220,7 +220,10 @@ begin
     RegisterTests('Spring.Base.Collections.MultiMaps', [
       TTestListMultiMapChangedEvent.Suite,
       TTestHashMultiMapChangedEvent.Suite,
-      TTestTreeMultiMapChangedEvent.Suite
+      TTestTreeMultiMapChangedEvent.Suite,
+      TTestSortedListMultiMapChangedEvent.Suite,
+      TTestSortedHashMultiMapChangedEvent.Suite,
+      TTestSortedTreeMultiMapChangedEvent.Suite
     ]);
 
     RegisterTests('Spring.Base.Collections.MultiSets', [

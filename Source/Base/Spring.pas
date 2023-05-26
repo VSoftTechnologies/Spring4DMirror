@@ -10935,7 +10935,7 @@ begin
   left := 0;
   if count > 0 then
   repeat
-    right := left + ShortInt(Odd(count));
+    right := left + (1 and count);
     count := count shr 1;
     right := right + count;
     compareResult := compare(values[left + count], item);
@@ -11026,7 +11026,7 @@ begin
   left := 0;
   if count > 0 then
   repeat
-    right := left + ShortInt(Odd(count));
+    right := left + (1 and count);
     count := count shr 1;
     right := right + count;
     compareResult := compare(values[left + count], item);
@@ -11036,7 +11036,7 @@ begin
     Result := Result or (compareResult = 0);
     {$B-}
   until count = 0;
-  foundIndex := left;
+  foundIndex := left - Ord(Result);
 end;
 
 class function TArray.BinarySearchUpperBound<T>(const values: array of T;
@@ -12917,7 +12917,7 @@ begin
     index := 0;
     if count > 0 then
     repeat
-      right := index + ShortInt(Odd(count));
+      right := index + (1 and count);
       count := count shr 1;
       right := right + count;
       if compare(values[index + count], values[start]) > 0 then Continue;
