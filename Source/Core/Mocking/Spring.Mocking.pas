@@ -83,6 +83,8 @@ type
     ['{0BC12D48-41FF-46D0-93B3-773EE19D75ED}']
     function Executes: IWhen; overload;
     function Executes(const action: TMockAction): IWhen; overload;
+    function Executes(const action: TFunc<TValue>): IWhen; overload;
+    function Executes(const action: TProc): IWhen; overload;
 
     function Raises(const exceptionClass: ExceptClass;
       const msg: string = ''): IWhen; overload;
@@ -125,6 +127,8 @@ type
 
     function Executes: IWhen<T>; overload;
     function Executes(const action: TMockAction): IWhen<T>; overload;
+    function Executes(const action: TFunc<TValue>): IWhen<T>; overload;
+    function Executes(const action: TProc): IWhen<T>; overload;
 
     function Raises(const exceptionClass: ExceptClass;
       const msg: string = ''): IWhen<T>; overload;
@@ -186,6 +190,8 @@ type
 
     function Executes: IWhen<T>; overload;
     function Executes(const action: TMockAction): IWhen<T>; overload;
+    function Executes(const action: TFunc<TValue>): IWhen<T>; overload;
+    function Executes(const action: TProc): IWhen<T>; overload;
 
     function Raises<TException: Exception>(
       const msg: string = ''): IWhen<T>; overload;
@@ -325,6 +331,16 @@ begin
 end;
 
 function Setup<T>.Executes(const action: TMockAction): IWhen<T>;
+begin
+  Result := fSetup.Executes(action);
+end;
+
+function Setup<T>.Executes(const action: TFunc<TValue>): IWhen<T>;
+begin
+  Result := fSetup.Executes(action);
+end;
+
+function Setup<T>.Executes(const action: TProc): IWhen<T>;
 begin
   Result := fSetup.Executes(action);
 end;

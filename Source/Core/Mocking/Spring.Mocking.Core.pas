@@ -81,6 +81,8 @@ type
 
     function Executes: IWhen; overload;
     function Executes(const action: TMockAction): IWhen; overload;
+    function Executes(const action: TFunc<TValue>): IWhen; overload;
+    function Executes(const action: TProc): IWhen; overload;
 
     function Raises(const exceptionClass: ExceptClass;
       const msg: string = ''): IWhen; overload;
@@ -122,6 +124,8 @@ type
 
     function Executes: IWhen<T>; overload;
     function Executes(const action: TMockAction): IWhen<T>; overload;
+    function Executes(const action: TFunc<TValue>): IWhen<T>; overload;
+    function Executes(const action: TProc): IWhen<T>; overload;
 
     function Raises(const exceptionClass: ExceptClass;
       const msg: string = ''): IWhen<T>; overload;
@@ -270,6 +274,26 @@ begin
   Result := Self;
 end;
 
+function TMock.Executes(const action: TFunc<TValue>): IWhen;
+begin
+  fInterceptor.Executes(
+    function (const callInfo: TCallInfo): TValue
+    begin
+      Result := action();
+    end);
+  Result := Self;
+end;
+
+function TMock.Executes(const action: TProc): IWhen;
+begin
+  fInterceptor.Executes(
+    function (const callInfo: TCallInfo): TValue
+    begin
+      action();
+    end);
+  Result := Self;
+end;
+
 function TMock.Raises(const exceptionClass: ExceptClass;
   const msg: string): IWhen;
 var
@@ -396,6 +420,18 @@ begin
 end;
 
 function TMock<T>.Executes(const action: TMockAction): IWhen<T>;
+begin
+  inherited Executes(action);
+  Result := Self;
+end;
+
+function TMock<T>.Executes(const action: TFunc<TValue>): IWhen<T>;
+begin
+  inherited Executes(action);
+  Result := Self;
+end;
+
+function TMock<T>.Executes(const action: TProc): IWhen<T>;
 begin
   inherited Executes(action);
   Result := Self;
