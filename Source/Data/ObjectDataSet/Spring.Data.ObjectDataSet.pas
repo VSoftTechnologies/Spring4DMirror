@@ -831,6 +831,9 @@ begin
     readOnly := False;
     fieldType := ftWideString;
 
+    if FieldDefs.IndexOf(prop.Name) >= 0 then
+      Continue;
+
     DoGetFieldType(prop.PropertyType.Handle);
 
     fieldDef := FieldDefs.AddFieldDef;
