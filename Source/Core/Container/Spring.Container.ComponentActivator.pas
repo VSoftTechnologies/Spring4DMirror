@@ -83,6 +83,16 @@ uses
   Spring.Container.ResourceStrings,
   Spring.Reflection;
 
+type
+  TInterfacedObjectAccess = class(TInterfacedObject);
+
+const
+  SingletonLifetimes = [
+    TLifetimeType.Singleton,
+    TLifetimeType.PerResolve,
+    TLifetimeType.SingletonPerThread
+  ];
+
 
 {$REGION 'TComponentActivatorBase'}
 
@@ -98,28 +108,42 @@ end;
 
 procedure TComponentActivatorBase.ExecuteInjections(var instance: TValue;
   const context: ICreationContext);
+var
+  doRefCountRelease: Boolean;
 begin
-  if Model.LifetimeType in [TLifetimeType.Singleton, TLifetimeType.PerResolve,
-    TLifetimeType.SingletonPerThread] then
+  doRefCountRelease := False;
+  if Model.LifetimeType in SingletonLifetimes then
+  begin
     context.AddPerResolve(Model, instance);
-  try
-    ExecuteInjections(instance, Model.FieldInjections, context);
-    ExecuteInjections(instance, Model.PropertyInjections, context);
-    ExecuteInjections(instance, Model.MethodInjections, context);
-  except
-    on E: Exception do
+    if (instance.Kind = tkClass) and (TObject(TValueData(instance).FAsObject) is TInterfacedObject) then
     begin
-      if not instance.IsEmpty and instance.IsObject then
-      begin
-        instance.AsObject.Free;
-        instance := nil;
-      end;
-      if E is EContainerException then
-        raise
-      else
-        Exception.RaiseOuterException(EResolveException.CreateResFmt(
-          @SCannotResolveType, [Model.ComponentTypeName]));
+      AtomicIncrement(TInterfacedObjectAccess(TValueData(instance).FAsObject).FRefCount);
+      doRefCountRelease := True;
     end;
+  end;
+  try
+    try
+      ExecuteInjections(instance, Model.FieldInjections, context);
+      ExecuteInjections(instance, Model.PropertyInjections, context);
+      ExecuteInjections(instance, Model.MethodInjections, context);
+    except
+      on E: Exception do
+      begin
+        if not instance.IsEmpty and instance.IsObject then
+        begin
+          instance.AsObject.Free;
+          instance := nil;
+        end;
+        if E is EContainerException then
+          raise
+        else
+          Exception.RaiseOuterException(EResolveException.CreateResFmt(
+            @SCannotResolveType, [Model.ComponentTypeName]));
+      end;
+    end;
+  finally
+    if doRefCountRelease then
+      AtomicDecrement(TInterfacedObjectAccess(TValueData(instance).FAsObject).FRefCount);
   end;
 end;
 
@@ -131,6 +155,7 @@ var
 begin
   for injection in injections do
   begin
+    fKernel.Logger.Log('injecting ' + injection.Target.ToString);
     arguments := Kernel.Resolver.Resolve(
       context, injection.Dependencies, injection.Arguments);
     injection.Inject(instance, arguments);
@@ -171,6 +196,9 @@ begin
   begin
     if candidate.Target.HasCustomAttribute<InjectAttribute> then
     begin
+      fKernel.Logger.Log('selected by [Inject] attribute ' +
+        StringReplace(candidate.Target.ToString,
+        ' ', ' ' + candidate.Target.Parent.DefaultName + '.', []));
       winner := candidate;
       Break;
     end;
@@ -186,6 +214,8 @@ function TReflectionComponentActivator.TryHandle(const context: ICreationContext
 var
   injection: IInjection;
 begin
+  fKernel.Logger.Log('inspecting ' + StringReplace(candidate.Target.ToString,
+    ' ', ' ' + candidate.Target.Parent.DefaultName + '.', []));
   Result := context.TryHandle(candidate, injection)
     and Kernel.Resolver.CanResolve(
     context, injection.Dependencies, injection.Arguments);
@@ -203,6 +233,7 @@ function TDelegateComponentActivator.CreateInstance(
 begin
   if not Assigned(Model.ActivatorDelegate) then
     raise EActivatorException.CreateRes(@SActivatorDelegateExpected);
+  fKernel.Logger.Log('using delegate to retrieve instance');
   Result := Model.ActivatorDelegate();
   ExecuteInjections(Result, context);
 end;

@@ -78,13 +78,6 @@ uses
 type
   TInterfacedObjectAccess = class(TInterfacedObject);
 
-const
-  SingletonLifetimes = [
-    TLifetimeType.Singleton,
-    TLifetimeType.PerResolve,
-    TLifetimeType.SingletonPerThread
-  ];
-
 
 {$REGION 'TCreationContext'}
 
@@ -108,13 +101,12 @@ end;
 destructor TCreationContext.Destroy;
 var
   instance: TPair<TComponentModel, TValue>;
-  interfacedObject: TInterfacedObject;
 begin
   for instance in fPerResolveInstances do
-    if (instance.Key.LifetimeType in SingletonLifetimes)
-      and instance.Value.TryAsType(TypeInfo(TInterfacedObject), interfacedObject)
-      and Assigned(interfacedObject) then
-      TInterfacedObjectAccess(interfacedObject)._Release;
+    if (instance.Key.LifetimeType = TLifetimeType.PerResolve)
+      and (instance.Value.Kind = tkClass)
+      and (TObject(TValueData(instance.Value).FAsObject) is TInterfacedObject) then
+      TInterfacedObjectAccess(TValueData(instance.Value).FAsObject)._Release;
   inherited Destroy;
 end;
 
@@ -135,16 +127,14 @@ end;
 
 procedure TCreationContext.AddPerResolve(const model: TComponentModel;
   const instance: TValue);
-var
-  interfacedObject: TInterfacedObject;
 begin
   fLock.BeginWrite;
   try
     fPerResolveInstances.Add(model, instance);
-    if (model.LifetimeType in SingletonLifetimes)
-      and instance.TryAsType(TypeInfo(TInterfacedObject), interfacedObject)
-      and Assigned(interfacedObject) then
-      TInterfacedObjectAccess(interfacedObject)._AddRef;
+    if (model.LifetimeType = TLifetimeType.PerResolve)
+      and (instance.Kind = tkClass)
+      and (TObject(TValueData(instance).FAsObject) is TInterfacedObject) then
+      TInterfacedObjectAccess(TValueData(instance).FAsObject)._AddRef;
   finally
     fLock.EndWrite;
   end;
