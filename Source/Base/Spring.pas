@@ -5057,6 +5057,8 @@ begin
     1: Result := PByte(@value)^;
     2: Result := PWord(@value)^;
     4: Result := PInteger(@value)^;
+  else
+    __SuppressWarning(Result);
   end;
 end;
 
@@ -8718,6 +8720,7 @@ begin
   if HasValue then
     Exit(fValue);
   Guard.RaiseNullableHasNoValue;
+  __SuppressWarning(Result);
 end;
 
 function Nullable<T>.GetValueOrDefault: T;
@@ -8758,22 +8761,18 @@ end;
 class function Nullable<T>.EqualsInternal(const left, right: T): Boolean;
 begin
   case TType.Kind<T> of
-    tkInteger, tkEnumeration:
-    begin
+    tkInteger, tkChar, tkEnumeration, tkWChar:
       case SizeOf(T) of
         1: Result := PByte(@left)^ = PByte(@right)^;
         2: Result := PWord(@left)^ = PWord(@right)^;
         4: Result := PCardinal(@left)^ = PCardinal(@right)^;
+      else
+        __SuppressWarning(Result);
       end;
-    end;
-{$IFNDEF NEXTGEN}
-    tkChar: Result := PAnsiChar(@left)^ = PAnsiChar(@right)^;
     tkString: Result := PShortString(@left)^ = PShortString(@right)^;
     tkLString: Result := PAnsiString(@left)^ = PAnsiString(@right)^;
     tkWString: Result := PWideString(@left)^ = PWideString(@right)^;
-{$ENDIF}
     tkFloat:
-    begin
       if TypeInfo(T) = TypeInfo(Single) then
         Result := Math.SameValue(PSingle(@left)^, PSingle(@right)^)
       else if TypeInfo(T) = TypeInfo(Double) then
@@ -8790,8 +8789,6 @@ begin
           ftComp: Result := PComp(@left)^ = PComp(@right)^;
           ftCurr: Result := PCurrency(@left)^ = PCurrency(@right)^;
         end;
-    end;
-    tkWChar: Result := PWideChar(@left)^ = PWideChar(@right)^;
     tkInt64: Result := PInt64(@left)^ = PInt64(@right)^;
     tkUString: Result := PUnicodeString(@left)^ = PUnicodeString(@right)^;
   else
@@ -11169,8 +11166,10 @@ end;
 
 class procedure TArray.Copy<T>(const source: array of T;
   var target: array of T; sourceIndex, targetIndex, count: NativeInt);
+{$IFDEF SPRING_ENABLE_GUARD}
 var
   sourceLength, targetLength: NativeInt;
+{$ENDIF}
 begin
 {$IFDEF SPRING_ENABLE_GUARD}
   sourceLength := Length(source);
@@ -13802,11 +13801,13 @@ end;
 function Vector<T>.IndexOf(const item: T): NativeInt;
 begin
   case TType.Kind<T> of
-    tkInteger:
+    tkInteger, tkChar, tkEnumeration, tkWChar:
       case SizeOf(T) of
         1: Result := VectorHelper.InternalIndexOfInt8(fData, PShortInt(@item)^);
         2: Result := VectorHelper.InternalIndexOfInt16(fData, PSmallInt(@item)^);
         4: Result := VectorHelper.InternalIndexOfInt32(fData, PInteger(@item)^);
+      else
+        __SuppressWarning(Result);
       end;
     tkInt64: Result := VectorHelper.InternalIndexOfInt64(fData, PInt64(@item)^);
     tkUString: Result := VectorHelper.InternalIndexOfStr(fData, PUnicodeString(@item)^);

@@ -304,10 +304,10 @@ begin
     begin
       node2 := node2.fPrev;
       if node2 = node1 then
-        Exit;
+        Exit(nil);
     end;
-    Result := node2;
   end;
+  Result := node2;
 end;
 
 function TLinkedList<T>.GetCount: Integer;

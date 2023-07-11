@@ -606,6 +606,12 @@ begin
             4: i32 := Int32((@item)^);
             8: i64 := Int64((@item)^);
           end;
+          case SizeOf(T) of
+            1: Spring.__SuppressWarning(i8);
+            2: Spring.__SuppressWarning(i16);
+            4: Spring.__SuppressWarning(i32);
+            8: Spring.__SuppressWarning(i64);
+          end;
         end;
         for i := 1 to count do //FI:W528
         begin
@@ -916,6 +922,12 @@ begin
               2: i16 := Int16((@item)^);
               4: i32 := Int32((@item)^);
               8: i64 := Int64((@item)^);
+            end;
+            case SizeOf(T) of
+              1: Spring.__SuppressWarning(i8);
+              2: Spring.__SuppressWarning(i16);
+              4: Spring.__SuppressWarning(i32);
+              8: Spring.__SuppressWarning(i64);
             end;
           end;
           for i := 1 to count do //FI:W528
