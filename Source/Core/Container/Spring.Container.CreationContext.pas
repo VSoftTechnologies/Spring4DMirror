@@ -149,7 +149,7 @@ begin
   fLock.BeginRead;
   try
     for i := fTypedArguments.Count - 1 downto 0 do // check most recently added first
-      if fTypedArguments[i].TypeInfo = dependency.TypeInfo then
+      if SameTypeInfo(fTypedArguments[i].TypeInfo, dependency.TypeInfo) then
         Exit(True);
     Result := False;
   finally
@@ -272,8 +272,12 @@ begin
   fLock.BeginRead;
   try
     for i := fTypedArguments.Count - 1 downto 0 do
-      if fTypedArguments[i].TypeInfo = dependency.TypeInfo then
-        Exit(fTypedArguments[i].Value);
+      if SameTypeInfo(fTypedArguments[i].TypeInfo, dependency.TypeInfo) then
+      begin
+        Result := fTypedArguments[i].Value;
+        TValueData(Result).FTypeInfo := dependency.TypeInfo;
+        Exit;
+      end;
   finally
     fLock.EndRead;
   end;
