@@ -118,7 +118,6 @@ type
     procedure DoGetFieldValue(Field: TField; Index: Integer; var Value: Variant); virtual;
     procedure DoPostRecord(Index: Integer; Append: Boolean); virtual;
     procedure UpdateFilter; virtual; abstract;
-    procedure RebuildPropertiesCache; virtual; abstract;
 
     // Basic overrides
     function GetCanModify: Boolean; override;

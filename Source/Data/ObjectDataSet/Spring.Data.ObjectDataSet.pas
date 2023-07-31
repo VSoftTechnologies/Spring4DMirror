@@ -85,7 +85,6 @@ type
     procedure DoFilterRecord(var Accept: Boolean); override;
     procedure DoGetFieldValue(Field: TField; Index: Integer; var Value: Variant); override;
     procedure DoPostRecord(Index: Integer; Append: Boolean); override;
-    procedure RebuildPropertiesCache; override;
 
     function DataListCount: Integer;
     function GetRecordCount: Integer; override;
@@ -104,7 +103,7 @@ type
     function ParserGetVariableValue(Sender: TObject; const VarName: string; var Value: Variant): Boolean; virtual;
     function ParserGetFunctionValue(Sender: TObject; const FuncName: string;
       const Args: Variant; var ResVal: Variant): Boolean; virtual;
-    procedure InitRttiPropertiesFromItemType(AItemTypeInfo: PTypeInfo); virtual;
+    procedure InitRttiPropertiesFromItemType;
     procedure InternalSetSort(const value: string; index: Integer = 0); virtual;
     procedure LoadFieldDefsFromFields(Fields: TFields; FieldDefs: TFieldDefs); virtual;
     procedure LoadFieldDefsFromItemType; virtual;
@@ -441,9 +440,6 @@ begin
   else
     newItem := IndexList.Items[Index];
 
-  if not fProperties.Any then
-    InitRttiPropertiesFromItemType(newItem.ClassInfo);
-
   sortNeeded := False;
 
   for i := 0 to ModifiedFields.Count - 1 do
@@ -542,20 +538,20 @@ begin
     fFilterParser.Expression := Filter;
 end;
 
-procedure TObjectDataSet.InitRttiPropertiesFromItemType(AItemTypeInfo: PTypeInfo);
+procedure TObjectDataSet.InitRttiPropertiesFromItemType;
 var
   itemType: TRttiType;
   prop: TRttiProperty;
   field: TField;
 begin
-  if AItemTypeInfo = nil then
+  if fItemTypeInfo = nil then
     Exit;
 
   DisableControls;
   try
     fProperties.Clear;
 
-    itemType := TType.GetType(AItemTypeInfo);
+    itemType := TType.GetType(fItemTypeInfo);
     for prop in itemType.GetProperties do
     begin
       if not (prop.Visibility in [mvPublic, mvPublished]) then
@@ -606,9 +602,6 @@ function TObjectDataSet.InternalGetFieldValue(field: TField; const obj: TObject)
 var
   prop: TRttiProperty;
 begin
-  if not fProperties.Any then
-    InitRttiPropertiesFromItemType(obj.ClassInfo);
-
   if fProperties.TryGetFirst(prop, TPropertyFilters.IsNamed(field.FieldName)) then
     Result := prop.GetValue(obj).ToVariant
   else
@@ -692,7 +685,10 @@ var
   i: integer;
   field: TField;
   fieldDef: TFieldDef;
+  itemType: TRttiType;
+  prop: TRttiProperty;
 begin
+  itemType := TType.GetType(fItemTypeInfo);
   for i := 0 to Fields.Count - 1 do
   begin
     field := Fields[i];
@@ -710,6 +706,13 @@ begin
         fieldDef.Precision := TBCDField(field).Precision;
       if field is TObjectField then
         LoadFieldDefsFromFields(TObjectField(field).Fields, fieldDef.ChildDefs);
+    end;
+
+    if Assigned(itemType) and (field.FieldKind = fkData) then
+    begin
+      prop := itemType.GetProperty(field.FieldName);
+      if Assigned(prop) then
+        fProperties.Add(prop);
     end;
   end;
 end;
@@ -818,7 +821,7 @@ var
   end;
 
 begin
-  InitRttiPropertiesFromItemType(fItemTypeInfo);
+  InitRttiPropertiesFromItemType;
 
   if not fProperties.Any and Assigned(fColumnAttributeClass) then
     raise EObjectDataSetException.Create(SColumnPropertiesNotSpecified);
@@ -891,17 +894,6 @@ begin
       Result := True;
     end;
   end;
-end;
-
-procedure TObjectDataSet.RebuildPropertiesCache;
-var
-  itemType: TRttiType;
-  i: Integer;
-begin
-  fProperties.Clear;
-  itemType := TType.GetType(fItemTypeInfo);
-  for i := 0 to Fields.Count - 1 do
-    fProperties.Add(itemType.GetProperty(Fields[i].FieldName));
 end;
 
 procedure TObjectDataSet.RegisterChangeHandler;
