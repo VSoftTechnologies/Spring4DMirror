@@ -593,7 +593,7 @@ begin
   Result := fServices.FirstOrDefault(
     function(const item: TPair<string, PTypeInfo>): Boolean
     begin
-      Result := item.Value = serviceType;
+      Result := SameTypeInfo(item.Value, serviceType);
     end).Key;
 end;
 
