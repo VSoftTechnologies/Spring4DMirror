@@ -379,7 +379,7 @@ type
   TObservableObjectList = class(TFoldedList<TObject>, INotifyPropertyChanged)
   private
     fOnPropertyChanged: TPropertyChangedEventImpl;
-    function GetOnPropertyChanged: IInvokableEvent<TPropertyChangedEvent>;
+    function GetOnPropertyChanged: IPropertyChangedEvent;
   protected
     procedure DoItemPropertyChanged(sender: TObject;
       const eventArgs: IPropertyChangedEventArgs);
@@ -393,7 +393,7 @@ type
   TObservableInterfaceList = class(TFoldedList<IInterface>, INotifyPropertyChanged)
   private
     fOnPropertyChanged: TPropertyChangedEventImpl;
-    function GetOnPropertyChanged: IInvokableEvent<TPropertyChangedEvent>;
+    function GetOnPropertyChanged: IPropertyChangedEvent;
   protected
     procedure DoItemPropertyChanged(sender: TObject;
       const eventArgs: IPropertyChangedEventArgs);
@@ -2447,8 +2447,8 @@ begin
   begin
     intf := INotifyPropertyChanged(intf).OnPropertyChanged;
     case action of //FI:W535
-      caAdded: IEvent<TPropertyChangedEvent>(intf).Add(DoItemPropertyChanged);
-      caRemoved, caExtracted: IEvent<TPropertyChangedEvent>(intf).Remove(DoItemPropertyChanged);
+      caAdded: IPropertyChangedEvent(intf).Add(DoItemPropertyChanged);
+      caRemoved, caExtracted: IPropertyChangedEvent(intf).Remove(DoItemPropertyChanged);
     end;
   end;
 
@@ -2469,7 +2469,7 @@ begin
     Invoke(Self, TPropertyChangedEventArgs.Create(propertyName) as IPropertyChangedEventArgs);
 end;
 
-function TObservableObjectList.GetOnPropertyChanged: IInvokableEvent<TPropertyChangedEvent>;
+function TObservableObjectList.GetOnPropertyChanged: IPropertyChangedEvent;
 begin
   Result := fOnPropertyChanged;
 end;
@@ -2503,8 +2503,8 @@ begin
   begin
     intf := INotifyPropertyChanged(intf).OnPropertyChanged;
     case action of //FI:W535
-      caAdded: IEvent<TPropertyChangedEvent>(intf).Add(DoItemPropertyChanged);
-      caRemoved, caExtracted: IEvent<TPropertyChangedEvent>(intf).Remove(DoItemPropertyChanged);
+      caAdded: IPropertyChangedEvent(intf).Add(DoItemPropertyChanged);
+      caRemoved, caExtracted: IPropertyChangedEvent(intf).Remove(DoItemPropertyChanged);
     end;
   end;
 
@@ -2528,7 +2528,7 @@ begin
     Invoke(Self, TPropertyChangedEventArgs.Create(propertyName) as IPropertyChangedEventArgs);
 end;
 
-function TObservableInterfaceList.GetOnPropertyChanged: IInvokableEvent<TPropertyChangedEvent>;
+function TObservableInterfaceList.GetOnPropertyChanged: IPropertyChangedEvent;
 begin
   Result := fOnPropertyChanged;
 end;

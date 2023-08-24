@@ -38,6 +38,10 @@ uses
 
 type
   TCollectionChangedEventImpl<T> = class(TEventBase, IEvent, ICollectionChangedEvent<T>)
+{$IFDEF INVOKABLE_EVENT}
+  private
+    function GetInvoke: TCollectionChangedEvent<T>;
+{$ENDIF}
   public
     procedure AfterConstruction; override;
     procedure Free;
@@ -71,6 +75,13 @@ procedure TCollectionChangedEventImpl<T>.Add(
 begin
   inherited Add(TMethod(handler));
 end;
+
+{$IFDEF INVOKABLE_EVENT}
+function TCollectionChangedEventImpl<T>.GetInvoke: TCollectionChangedEvent<T>;
+begin
+  Result := TCollectionChangedEvent<T>(fInvoke);
+end;
+{$ENDIF}
 
 procedure TCollectionChangedEventImpl<T>.Invoke(Sender: TObject;
   const Item: T; Action: TCollectionChangedAction);

@@ -1093,12 +1093,22 @@ type
     ///   Removes an event handler if it was added to the event.
     /// </summary>
     procedure Remove(handler: T);
+
+{$IFDEF INVOKABLE_EVENT}
+    function GetInvoke: T;
+
+    /// <summary>
+    ///   Invokes all event handlers.
+    /// </summary>
+    property Invoke: T read GetInvoke;
+{$ENDIF}
   end;
 
   /// <summary>
   ///   Represents a multicast event that can be invoked.
   /// </summary>
   IInvokableEvent<T> = interface(IEvent<T>)
+{$IFNDEF INVOKABLE_EVENT}
   {$REGION 'Property Accessors'}
     function GetInvoke: T;
   {$ENDREGION}
@@ -1107,6 +1117,7 @@ type
     ///   Invokes all event handlers.
     /// </summary>
     property Invoke: T read GetInvoke;
+{$ENDIF}
   end;
 
   Event<T> = record
@@ -3358,6 +3369,8 @@ const
   ObjCastGUID: TGUID = '{CEDF24DE-80A4-447D-8C75-EB871DC121FD}';
 
   FieldVisibility = [{$IFDEF FIELD_RTTI}vcPrivate..vcProtected{$ENDIF}]; //FI:O803
+
+  InvokableEvent = {$IFDEF INVOKABLE_EVENT}True{$ELSE}False{$ENDIF};
 
 {$IFNDEF DELPHIXE3_UP}
 {$IF SizeOf(Pointer) = 4}

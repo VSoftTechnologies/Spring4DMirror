@@ -85,6 +85,9 @@
   {$UNDEF USE_VMTAUTOTABLE}
 {$ENDIF}
 
+// This define is for compatibility with other libraries that are using Invoke on IEvent
+{.$DEFINE INVOKABLE_EVENT}
+
 // This will enable the implicit operator for unboxing a nullable value
 // Be aware that this may possibly raise an exception if the nullable does not
 // contain a value, i.e. is null
