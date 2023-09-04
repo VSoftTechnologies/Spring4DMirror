@@ -442,23 +442,29 @@ begin
 
   sortNeeded := False;
 
-  for i := 0 to ModifiedFields.Count - 1 do
-  begin
-    field := ModifiedFields[i];
-
-    if not sortNeeded and Sorted then
-      sortNeeded := FieldInSortIndex(field);
-
-    // Fields not found in dictionary are calculated or lookup fields, do not post them
-    if fProperties.TryGetFirst(prop, TPropertyFilters.IsNamed(field.FieldName)) then
+  try
+    for i := 0 to ModifiedFields.Count - 1 do
     begin
-      fieldValue := field.Value;
-      if VarIsNull(fieldValue) then
-        prop.SetValue(newItem, TValue.Empty)
-      else
-        if TValue.From<Variant>(fieldValue).TryConvert(prop.PropertyType.Handle, value) then
-          prop.SetValue(newItem, value);
+      field := ModifiedFields[i];
+
+      if not sortNeeded and Sorted then
+        sortNeeded := FieldInSortIndex(field);
+
+      // Fields not found in dictionary are calculated or lookup fields, do not post them
+      if fProperties.TryGetFirst(prop, TPropertyFilters.IsNamed(field.FieldName)) then
+      begin
+        fieldValue := field.Value;
+        if VarIsNull(fieldValue) then
+          prop.SetValue(newItem, TValue.Empty)
+        else
+          if TValue.From<Variant>(fieldValue).TryConvert(prop.PropertyType.Handle, value) then
+            prop.SetValue(newItem, value);
+      end;
     end;
+  except
+    if State = dsInsert then
+      newItem.Free;
+    raise;
   end;
 
   if State = dsInsert then
