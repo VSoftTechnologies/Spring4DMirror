@@ -1462,11 +1462,13 @@ var
 begin
   SetLength(Result, fCount);
   if fCount > 0 then
-    node := PBinaryTreeNode(fRoot).LeftMost;
-  for i := 0 to fCount - 1 do
   begin
-    Result[i] := PNode(node).Key;
-    node := node.Next;
+    node := PBinaryTreeNode(fRoot).LeftMost;
+    for i := 0 to fCount - 1 do
+    begin
+      Result[i] := PNode(node).Key;
+      node := node.Next;
+    end;
   end;
 end;
 
@@ -1698,12 +1700,14 @@ var
 begin
   SetLength(Result, fCount);
   if fCount > 0 then
-    node := fRoot.LeftMost;
-  for i := 0 to fCount - 1 do
   begin
-    Result[i].Key := PNode(node).fPair.Key;
-    Result[i].Value := PNode(node).fPair.Value;
-    node := node.Next;
+    node := fRoot.LeftMost;
+    for i := 0 to fCount - 1 do
+    begin
+      Result[i].Key := PNode(node).fPair.Key;
+      Result[i].Value := PNode(node).fPair.Value;
+      node := node.Next;
+    end;
   end;
 end;
 

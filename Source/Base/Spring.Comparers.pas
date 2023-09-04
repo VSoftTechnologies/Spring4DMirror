@@ -697,12 +697,8 @@ asm
 end;
 {$ELSE}
 function GetHashCode_Int64(const inst: Pointer; const value: Int64): Integer;
-type
-  Int64Rec = record
-    Lo, Hi: Integer;
-  end;
 begin
-  Result := Int64Rec(value).Lo xor Int64Rec(value).Hi;
+  Result := (value shr 32) xor value;
 end;
 {$ENDIF}
 
@@ -1301,9 +1297,8 @@ var
   hashCode: NativeInt;
 begin
   hashCode := NativeInt(value);
-  if hashCode <> 0 then
-    hashCode := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^);
-  Result := Integer(hashCode);
+  if hashCode = 0 then Exit(Integer(hashCode));
+  Result := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^);
 end;
 
 function Compare_WString(const inst: Pointer; const left, right: WideString): Integer;
@@ -1335,9 +1330,8 @@ var
   hashCode: NativeInt;
 begin
   hashCode := NativeInt(value);
-  if hashCode <> 0 then
-    hashCode := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^{$IFNDEF MSWINDOWS} * SizeOf(WideChar){$ENDIF});
-  Result := Integer(hashCode);
+  if hashCode = 0 then Exit(Integer(hashCode));
+  Result := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^{$IFNDEF MSWINDOWS} * SizeOf(WideChar){$ENDIF});
 end;
 
 function Compare_UString(const inst: Pointer; left, right: PByte): Integer;
@@ -1407,9 +1401,8 @@ var
   hashCode: NativeInt;
 begin
   hashCode := NativeInt(value);
-  if hashCode <> 0 then
-    hashCode := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^ * SizeOf(Char));
-  Result := Integer(hashCode);
+  if hashCode = 0 then Exit(Integer(hashCode));
+  Result := DefaultHashFunction(PPointer(hashCode)^, PCardinal(@PByte(value)[-4])^ * SizeOf(Char));
 end;
 
 function Compare_Variant_Complex(checkEquality: Boolean; const left, right: PVariant): Integer;

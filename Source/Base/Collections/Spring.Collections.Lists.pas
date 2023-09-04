@@ -543,11 +543,7 @@ begin
   if Cardinal(index) < Cardinal(listCount) then
     Exit(fItems[index]);
   RaiseHelper.ArgumentOutOfRange_Index;
-  {$IFDEF DELPHIXE7_UP}{$IFDEF CPUX86}{$IFDEF OPTIMIZATION_ON}
-  // cause the compiler to omit push instruction for types that return in eax
-  if GetTypeKind(T) in [tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkClassRef, tkPointer, tkProcedure] then
-    Result := Default(T);
-  {$ENDIF}{$ENDIF}{$ENDIF}
+  __SuppressWarning(Result);
 end;
 
 function TAbstractArrayList<T>.GetRange(index, count: Integer): IList<T>;
@@ -715,30 +711,32 @@ end;
 function TAbstractArrayList<T>.Single: T; //FI:W521
 begin
   case Count of
+    1: Exit(fItems[0]);
     0: RaiseHelper.NoElements;
-    1: Result := fItems[0];
-  else
-    RaiseHelper.MoreThanOneElement;
   end;
+  RaiseHelper.MoreThanOneElement;
+  __SuppressWarning(Result);
 end;
 
 function TAbstractArrayList<T>.SingleOrDefault: T; //FI:W521
 begin
   case Count of
-    0: Result := Default(T);
     1: Result := fItems[0];
+    0: Result := Default(T);
   else
     RaiseHelper.MoreThanOneElement;
+    __SuppressWarning(Result);
   end;
 end;
 
 function TAbstractArrayList<T>.SingleOrDefault(const defaultValue: T): T; //FI:W521
 begin
   case Count of
-    0: Result := defaultValue;
     1: Result := fItems[0];
+    0: Result := defaultValue;
   else
     RaiseHelper.MoreThanOneElement;
+    __SuppressWarning(Result);
   end;
 end;
 

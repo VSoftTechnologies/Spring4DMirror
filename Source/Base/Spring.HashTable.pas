@@ -133,6 +133,10 @@ type
     fEquals: TEqualsMethod;
     fGetHashCode: TGetHashCodeMethod;
     fItemsInfo: PTypeInfo;      // TypeInfo(TArray<TItem>)
+
+    {$IFDEF DELPHIXE7_UP}
+    class procedure __SuppressWarning(var value); static; inline;
+    {$ENDIF}
   public
     function FindWithComparer(const key: T; options: Byte): Pointer;
     {$IFDEF DELPHIXE7_UP}
@@ -209,6 +213,10 @@ begin
     {$POINTERMATH ON}
     Result := PNativeInt(Result)[-1];
     {$POINTERMATH OFF}
+end;
+
+procedure __SuppressWarning(var value); inline;
+begin
 end;
 
 
@@ -416,11 +424,9 @@ findAgain:
     RaiseHelper.KeyNotFound;
     Exit(nil);
   until False;
-// the compiler issues two warnings about possibly not initialied variables
-// however that is because of the goto when fItems is nil which is checked again
-{$WARN USE_BEFORE_DEF OFF}
+  __SuppressWarning(bucketIndex);
+  __SuppressWarning(mask);
 end;
-{$WARN USE_BEFORE_DEF ON}
 
 function THashTable.FindEntry(const key; var entry: THashTableEntry): Boolean;
 {$IFNDEF GOTO_OFF}
@@ -574,6 +580,12 @@ end;
 
 {$REGION 'THashTable<T>'}
 
+{$IFDEF DELPHIXE7_UP}
+class procedure THashTable<T>.__SuppressWarning(var value);
+begin
+end;
+{$ENDIF}
+
 function THashTable<T>.FindWithComparer(const key: T; options: Byte): Pointer;
 label
   loopStart, notFound, deletedFound, findAgain;
@@ -690,6 +702,10 @@ deletedFound:
     RaiseHelper.KeyNotFound;
     Exit(nil);
   until False;
+  {$IFDEF DELPHIXE7_UP}
+  __SuppressWarning(bucketIndex);
+  __SuppressWarning(mask);
+  {$ENDIF}
 end;
 
 {$IFDEF DELPHIXE7_UP}
@@ -865,6 +881,9 @@ deletedFound:
     RaiseHelper.KeyNotFound;
     Exit(nil);
   until False;
+  __SuppressWarning(bucketIndex);
+  __SuppressWarning(mask);
+  __SuppressWarning(hashCode);
 end;
 {$ENDIF}
 

@@ -3359,6 +3359,8 @@ function StrToUInt(const s: string): Cardinal;
 function StrToUInt64(const s: string): UInt64;
 {$ENDIF}
 
+procedure __SuppressWarning(var value); inline;
+
   {$ENDREGION}
 
 
@@ -4868,6 +4870,10 @@ begin
   if e <> 0 then raise EConvertError.CreateResFmt(@SInvalidInteger, [s]);
 end;
 {$ENDIF}
+
+procedure __SuppressWarning(var value); inline;
+begin
+end;
 
 {$ENDREGION}
 

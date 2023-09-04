@@ -299,9 +299,9 @@ end;
 function TAbstractStack<T>.Peek: T; //FI:W521
 begin
   if Count > 0 then
-    Result := fItems[Count - 1]
-  else
-    RaiseHelper.NoElements;
+    Exit(fItems[Count - 1]);
+  RaiseHelper.NoElements;
+  __SuppressWarning(Result);
 end;
 
 function TAbstractStack<T>.PeekOrDefault: T;

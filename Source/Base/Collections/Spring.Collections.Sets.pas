@@ -519,6 +519,7 @@ begin
     Exit(TItems(fHashTable.Items)[index].Item);
   end;
   RaiseHelper.ArgumentOutOfRange_Index;
+  __SuppressWarning(Result);
 end;
 
 function THashSet<T>.GetNonEnumeratedCount: Integer;

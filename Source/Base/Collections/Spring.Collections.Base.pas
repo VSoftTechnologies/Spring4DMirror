@@ -235,6 +235,10 @@ type
     function TryGetLast(var value: T; const predicate: Predicate<T>): Boolean; overload;
     function TryGetSingle(var value: T): Boolean; overload;
     function TryGetSingle(var value: T; const predicate: Predicate<T>): Boolean; overload;
+
+    {$IFDEF DELPHIXE7_UP}
+    class procedure __SuppressWarning(var value); static; inline;
+    {$ENDIF}
   public
     procedure AfterConstruction; override;
 
@@ -2517,6 +2521,17 @@ end;
 
 {$REGION 'TEnumerableBase<T>'}
 
+{$IFDEF DELPHIXE7_UP}
+class procedure TEnumerableBase<T>.__SuppressWarning(var value);
+begin
+  {$IFDEF CPUX86}{$IFDEF OPTIMIZATION_ON}
+  // cause the compiler to omit push instruction for types that return in eax
+  if GetTypeKind(T) in [tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkClassRef, tkPointer, tkProcedure] then
+    T(value) := Default(T);
+  {$ENDIF}{$ENDIF}
+end;
+{$ENDIF}
+
 procedure TEnumerableBase<T>.AfterConstruction;
 begin
   inherited AfterConstruction;
@@ -2559,10 +2574,13 @@ begin
   else if TypeInfo(T) = TypeInfo(Currency) then
     Result := Average(nil, TCollectionThunks<Currency>.GetCurrentWithSelector)
   else
+  begin
     // if T is not of any of the above types this way of calling Average is not supported
     // consider using Average with a selector function to turn the values
     // to any of the supported types for calculating the average
     RaiseHelper.NotSupported;
+    __SuppressWarning(Result);
+  end;
 end;
 
 function TEnumerableBase<T>.Average(const selector: Func<T, Integer>): Double;
@@ -4239,9 +4257,9 @@ end;
 function TCircularArrayBuffer<T>.First: T; //FI:W521
 begin
   if Count > 0 then
-    Result := fItems[fHead]
-  else
-    RaiseHelper.NoElements;
+    Exit(fItems[fHead]);
+  RaiseHelper.NoElements;
+  __SuppressWarning(Result);
 end;
 
 function TCircularArrayBuffer<T>.FirstOrDefault: T;
@@ -4255,20 +4273,21 @@ end;
 function TCircularArrayBuffer<T>.Single: T; //FI:W521
 begin
   case Count of
+    1: Exit(fItems[fHead]);
     0: RaiseHelper.NoElements;
-    1: Result := fItems[fHead];
-  else
-    RaiseHelper.MoreThanOneElement;
   end;
+  RaiseHelper.MoreThanOneElement;
+  __SuppressWarning(Result);
 end;
 
 function TCircularArrayBuffer<T>.SingleOrDefault(const defaultValue: T): T; //FI:W521
 begin
   case Count of
-    0: Result := defaultValue;
     1: Result := fItems[fHead];
+    0: Result := defaultValue;
   else
     RaiseHelper.MoreThanOneElement;
+    __SuppressWarning(Result);
   end;
 end;
 

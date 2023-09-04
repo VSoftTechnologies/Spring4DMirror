@@ -998,6 +998,7 @@ end;
 function TEmptyEnumerable<T>.GetCurrent: T; //FI:W521
 begin
   RaiseHelper.NoElements;
+  __SuppressWarning(Result);
 end;
 
 function TEmptyEnumerable<T>.GetEnumerator: IEnumerator<T>;
@@ -1008,6 +1009,7 @@ end;
 function TEmptyEnumerable<T>.GetItem(index: Integer): T; //FI:W521
 begin
   RaiseHelper.ArgumentOutOfRange_Index;
+  __SuppressWarning(Result);
 end;
 
 function TEmptyEnumerable<T>.GetNonEnumeratedCount: Integer;

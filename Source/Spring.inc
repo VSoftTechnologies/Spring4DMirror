@@ -31,6 +31,7 @@
 {$I jedi.inc}
 
 {$T-,X+,H+,B-}
+{$INLINE ON}
 
 //{$IFDEF DELPHIX_TOKYO_UP}
 //  {$WARN IMPLICIT_INTEGER_CAST_LOSS ON}

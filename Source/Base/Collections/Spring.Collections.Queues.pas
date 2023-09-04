@@ -177,7 +177,10 @@ begin
     DeleteFromHead(caRemoved);
   end
   else
+  begin
     RaiseHelper.NoElements;
+    __SuppressWarning(Result);
+  end;
 end;
 
 function TAbstractQueue<T>.Extract: T; //FI:W521
@@ -188,15 +191,18 @@ begin
     DeleteFromHead(caExtracted);
   end
   else
+  begin
     RaiseHelper.NoElements;
+    __SuppressWarning(Result);
+  end;
 end;
 
 function TAbstractQueue<T>.Peek: T; //FI:W521
 begin
   if Count > 0 then
-    Result := Items[Head]
-  else
-    RaiseHelper.NoElements;
+    Exit(Items[Head]);
+  RaiseHelper.NoElements;
+  __SuppressWarning(Result);
 end;
 
 function TAbstractQueue<T>.PeekOrDefault: T;
@@ -329,7 +335,10 @@ begin
     DeleteFromHead(caRemoved);
   end
   else
+  begin
     RaiseHelper.NoElements;
+    __SuppressWarning(Result);
+  end;
 end;
 
 function TAbstractDeque<T>.RemoveLast: T; //FI:W521
@@ -343,7 +352,10 @@ begin
     DeleteFromTail(caRemoved);
   end
   else
+  begin
     RaiseHelper.NoElements;
+    __SuppressWarning(Result);
+  end;
 end;
 
 function TAbstractDeque<T>.ExtractFirst: T; //FI:W521
@@ -354,7 +366,10 @@ begin
     DeleteFromHead(caExtracted);
   end
   else
+  begin
     RaiseHelper.NoElements;
+    __SuppressWarning(Result);
+  end;
 end;
 
 function TAbstractDeque<T>.ExtractLast: T; //FI:W521
@@ -365,7 +380,10 @@ begin
     DeleteFromTail(caExtracted);
   end
   else
+  begin
     RaiseHelper.NoElements;
+    __SuppressWarning(Result);
+  end;
 end;
 
 function TAbstractDeque<T>.TryRemoveFirst(var item: T): Boolean;
