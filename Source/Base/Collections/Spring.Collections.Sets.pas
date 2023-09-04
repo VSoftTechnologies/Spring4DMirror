@@ -218,7 +218,6 @@ procedure TSetBase<T>.IntersectWith(const other: IEnumerable<T>);
 var
   count, capacity: NativeInt;
   enumerator: IEnumerator<T>;
-  item: T;
   items: TArray<T>;
 begin
   if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
@@ -530,7 +529,6 @@ end;
 function THashSet<T>.IndexOf(const key: T): Integer;
 var
   entry: THashTableEntry;
-  item: PItem;
 begin
   entry.HashCode := IEqualityComparer<T>(fHashTable.Comparer).GetHashCode(key);
   fHashTable.EnsureCompact;

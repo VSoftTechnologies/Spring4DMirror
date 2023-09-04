@@ -2272,8 +2272,6 @@ end;
 
 function TLookup<TKey, TElement>.GetItem(
   const key: TKey): IReadOnlyCollection<TElement>;
-var
-  index: Integer;
 begin
   Result := GetGrouping(key, False);
   if not Assigned(Result) then

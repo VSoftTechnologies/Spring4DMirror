@@ -1328,7 +1328,6 @@ begin
     newNode := CreateNode(key, node);
     PRedBlackTreeNode(node).fChilds[i] := newNode;
     FixupAfterInsert(newNode);
-    Result := newNode;
     Exit(newNode);
   end
   else

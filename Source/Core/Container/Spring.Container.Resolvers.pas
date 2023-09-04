@@ -428,7 +428,6 @@ var
   dependencyModel: TDependencyModel;
   value: TValue;
   factory: Func<T>;
-  intf: IInterface;
 begin
   dependencyModel := dependency;
   value := argument;
@@ -438,7 +437,7 @@ begin
       Kernel.Resolver.Resolve(context, dependencyModel, value).AsType(TypeInfo(T), Result);
     end;
 
-  case lazyKind of
+  case lazyKind of //FI:W535
     lkFunc: Result := TValue.From<Func<T>>(factory);
     lkRecord: Result := TValue.From<Lazy<T>>(Lazy<T>.Create(factory));
     lkInterface: Result := TValue.From<ILazy<T>>(Lazy<T>.Create(factory));

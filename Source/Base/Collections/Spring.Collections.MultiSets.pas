@@ -223,7 +223,7 @@ begin
     items[i].Key := i;
     items[i].Value := entries[i];
   end;
-  TArray.Sort<TPair<Integer,TEntry>>(items,
+  TArray.Sort<TPair<Integer,TMultiSetEntry<T>>>(items,
     function(const left, right: TPair<Integer,TEntry>): Integer
     begin
       if left.Value.Count > right.Value.Count then
@@ -470,7 +470,6 @@ end;
 procedure THashMultiSet<T>.SetItemCount(const item: T; count: Integer);
 var
   entry: PItem;
-  overrideExisting: Boolean;
   i: Integer;
 begin
   if count < 0 then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);

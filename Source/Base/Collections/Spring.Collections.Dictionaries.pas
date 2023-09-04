@@ -1006,7 +1006,6 @@ end;
 function TDictionary<TKey, TValue>.IndexOf(const key: TKey): Integer;
 var
   entry: THashTableEntry;
-  item: PItem;
 begin
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
   fHashTable.EnsureCompact;
@@ -2516,7 +2515,6 @@ function TSortedDictionary<TKey, TValue>.ContainsValue(const value: TValue): Boo
 var
   temp: Pointer;
   node: PBinaryTreeNode;
-  valueComparer: Pointer;
 begin
   temp := fTree.Root.LeftMost;
   if not Assigned(temp) then Exit(Boolean(temp));

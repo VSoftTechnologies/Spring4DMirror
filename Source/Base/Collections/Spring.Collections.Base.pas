@@ -1480,7 +1480,7 @@ function TEnumerableBase.Average(const selector: IInterface;
   getCurrent: TGetCurrentWithSelector<Integer>): Double;
 var
   enumerator: IEnumerator;
-  sum, count: Int64;
+  sum, count: Int64; //FI:W517
 begin
   enumerator := IEnumerable(this).GetEnumerator;
   if not enumerator.MoveNext then
@@ -1501,7 +1501,7 @@ function TEnumerableBase.Average(const selector: IInterface;
   getCurrent: TGetCurrentWithSelector<Int64>): Double;
 var
   enumerator: IEnumerator;
-  sum, count: Int64;
+  sum, count: Int64; //FI:W517
 begin
   enumerator := IEnumerable(this).GetEnumerator;
   if not enumerator.MoveNext then
@@ -1522,7 +1522,7 @@ function TEnumerableBase.Average(const selector: IInterface;
   getCurrent: TGetCurrentWithSelector<Single>): Double;
 var
   enumerator: IEnumerator;
-  sum: Double;
+  sum: Double; //FI:W517
   count: Int64;
 begin
   enumerator := IEnumerable(this).GetEnumerator;
@@ -1542,7 +1542,7 @@ function TEnumerableBase.Average(const selector: IInterface;
   getCurrent: TGetCurrentWithSelector<Double>): Double;
 var
   enumerator: IEnumerator;
-  sum: Double;
+  sum: Double; //FI:W517
   count: Int64;
 begin
   enumerator := IEnumerable(this).GetEnumerator;
@@ -1562,7 +1562,7 @@ function TEnumerableBase.Average(const selector: IInterface;
   getCurrent: TGetCurrentWithSelector<Currency>): Double;
 var
   enumerator: IEnumerator;
-  sum: Double;
+  sum: Double; //FI:W517
   count: Int64;
 begin
   enumerator := IEnumerable(this).GetEnumerator;
@@ -2617,22 +2617,22 @@ begin
   Result := inherited CopyTo(Pointer(values), index, SizeOf(T), TCollectionThunks<T>.GetCurrent);
 end;
 
-function TEnumerableBase<T>.DefaultIfEmpty: IEnumerable<T>;
+function TEnumerableBase<T>.DefaultIfEmpty: IEnumerable<T>; //FI:W521
 begin
   inherited DefaultIfEmpty(nil, Result, TypeInfo(TArray<T>), TEnumerableExtension<T>);
 end;
 
-function TEnumerableBase<T>.DefaultIfEmpty(const defaultValue: T): IEnumerable<T>;
+function TEnumerableBase<T>.DefaultIfEmpty(const defaultValue: T): IEnumerable<T>; //FI:W521
 begin
   inherited DefaultIfEmpty(@defaultValue, Result, TypeInfo(TArray<T>), TEnumerableExtension<T>);
 end;
 
-function TEnumerableBase<T>.Distinct: IEnumerable<T>;
+function TEnumerableBase<T>.Distinct: IEnumerable<T>; //FI:W521
 begin
   inherited Distinct(nil, Result, TEnumerableExtension<T>);
 end;
 
-function TEnumerableBase<T>.Distinct(const comparer: IEqualityComparer<T>): IEnumerable<T>;
+function TEnumerableBase<T>.Distinct(const comparer: IEqualityComparer<T>): IEnumerable<T>; //FI:W521
 begin
   inherited Distinct(Pointer(comparer), Result, TEnumerableExtension<T>);
 end;
@@ -2673,12 +2673,12 @@ begin
   Result := inherited EqualsTo(values, Pointer(comparer), TCollectionThunks<T>.EqualsCurrentWithOtherEnumerator);
 end;
 
-function TEnumerableBase<T>.Exclude(const second: IEnumerable<T>): IEnumerable<T>;
+function TEnumerableBase<T>.Exclude(const second: IEnumerable<T>): IEnumerable<T>; //FI:W521
 begin
   inherited Exclude(second, nil, Result, TEnumerableExtension<T>);
 end;
 
-function TEnumerableBase<T>.Exclude(const second: IEnumerable<T>;
+function TEnumerableBase<T>.Exclude(const second: IEnumerable<T>; //FI:W521
   const comparer: IEqualityComparer<T>): IEnumerable<T>;
 begin
   inherited Exclude(second, Pointer(comparer), Result, TEnumerableExtension<T>);
@@ -2734,12 +2734,12 @@ begin
   Result := TypeInfo(T);
 end;
 
-function TEnumerableBase<T>.Intersect(const second: IEnumerable<T>): IEnumerable<T>;
+function TEnumerableBase<T>.Intersect(const second: IEnumerable<T>): IEnumerable<T>; //FI:W521
 begin
   inherited Intersect(second, nil, Result, TEnumerableExtension<T>);
 end;
 
-function TEnumerableBase<T>.Intersect(const second: IEnumerable<T>;
+function TEnumerableBase<T>.Intersect(const second: IEnumerable<T>; //FI:W521
   const comparer: IEqualityComparer<T>): IEnumerable<T>;
 begin
   inherited Intersect(second, Pointer(comparer), Result, TEnumerableExtension<T>);
@@ -3063,12 +3063,12 @@ begin
   Result := TryGetSingle(value, PInterface(@predicate)^, TCollectionThunks<T>.GetCurrentWithPredicate, TCollectionThunks<T>.GetDefault) = 1;
 end;
 
-function TEnumerableBase<T>.Union(const second: IEnumerable<T>): IEnumerable<T>;
+function TEnumerableBase<T>.Union(const second: IEnumerable<T>): IEnumerable<T>; //FI:W521
 begin
   inherited Union(second, nil, Result, TEnumerableExtension<T>);
 end;
 
-function TEnumerableBase<T>.Union(const second: IEnumerable<T>;
+function TEnumerableBase<T>.Union(const second: IEnumerable<T>; //FI:W521
   const comparer: IEqualityComparer<T>): IEnumerable<T>;
 begin
   inherited Union(second, Pointer(comparer), Result, TEnumerableExtension<T>);
@@ -3611,7 +3611,7 @@ begin
     Result := RaiseHelper.EnumFailedVersion;
 end;
 
-function THashMapInnerCollection.TEnumerator.MoveNext_MultiMap: Boolean;
+function THashMapInnerCollection.TEnumerator.MoveNext_MultiMap: Boolean; //FI:W521
 var
   hashTable: PHashTable;
   item: PByte;
@@ -5252,8 +5252,6 @@ begin
 end;
 
 function TIteratorBlock<T>.MoveNextWhereIndex: Boolean;
-var
-  i: Integer;
 begin
   repeat
     Result := Enumerator.MoveNext;
@@ -5278,7 +5276,7 @@ begin
   Items := Source.ToArray;
   {$ENDIF}
   Count := DynArrayLength(Items);
-  case Kind of
+  case Kind of //FI:W535
     TExtensionKind.Ordered, TExtensionKind.Shuffled:
       TCollectionThunks<T>.ProcessArray(Kind, Items, IComparer<T>(Predicate));
     TExtensionKind.Reversed:
@@ -5505,10 +5503,6 @@ begin
 end;
 
 class function TCollectionThunks<T>.GetCurrentWithSelector(const enumerator, selector: IInterface): T;
-{$IFDEF RSP31615}
-var
-  item: T;
-{$ENDIF}
 begin
   {$IFDEF RSP31615}
   if IsManagedType(T) then
@@ -5526,7 +5520,7 @@ end;
 class procedure TCollectionThunks<T>.ProcessArray(kind: TExtensionKind;
   var values: TArray<T>; const comparer: IComparer<T>);
 begin
-  case kind of
+  case kind of //FI:W535
     TExtensionKind.Ordered:
       TArray.Sort<T>(values, comparer);
     TExtensionKind.Reversed:

@@ -755,7 +755,6 @@ procedure TMultiMap<TKey, TValue>.DoRemove(const entry: THashTableEntry;
   action: TCollectionChangedAction; const extractTarget: ICollection<TValue>);
 var
   item: PItem;
-  value: TValue;
 begin
   item := fHashTable.DeleteEntry(entry);
   Dec(fCount, item.Values.Count);
