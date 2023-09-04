@@ -103,7 +103,7 @@ const
   {$EXTERNALSYM MAX_SCOPE_ID_LEN}
 
 type
-  time_t = Longint;
+  time_t = NativeInt;
   {$EXTERNALSYM time_t}
 
   PIP_MASK_STRING = ^IP_MASK_STRING;
