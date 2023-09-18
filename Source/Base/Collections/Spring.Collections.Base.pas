@@ -2070,7 +2070,7 @@ begin
     ICollection<Pointer>(collection).AddRange(TArray<Pointer>(values));
     Result := DynArrayLength(values);
   finally
-    DynArrayClear(Pointer(values), typeInfo);
+    DynArrayClear(values, typeInfo);
   end;
 end;
 
@@ -4623,7 +4623,7 @@ begin
       Items := nil;
     end;
   end
-  else
+  else if Kind <> DefaultIfEmpty then
     DynArrayClear(Items, typeInfo);
   p := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name));
   if p.elType <> nil then
