@@ -583,6 +583,7 @@ type
     procedure TestValuesOrdered;
     procedure TestValuesToArray; virtual;
     procedure TestExtractValues;
+    procedure TestExtractKeyValue;
 
     procedure WrappedCollection;
     procedure WrappedCollectionEnumerator;
@@ -4163,6 +4164,16 @@ begin
   CheckEquals(3, enumerator.Current.Value);
   CheckFalse(enumerator.MoveNext);
   CheckFalse(enumerator.MoveNext);
+end;
+
+procedure TTestMultiMapBase.TestExtractKeyValue;
+begin
+  SUT.Add(1, 1);
+  SUT.Add(1, 2);
+  SUT.Add(1, 3);
+
+  CheckEquals(2, SUT.Extract(1, 2).Value);
+  CheckEquals(2, SUT.Count);
 end;
 
 procedure TTestMultiMapBase.TestExtractValues;

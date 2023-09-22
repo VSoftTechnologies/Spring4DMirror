@@ -854,7 +854,7 @@ begin
     newCount := item.Values.Count;
     if newCount < count then
     begin
-      Dec(fCount, count);
+      Dec(fCount);
       if Assigned(Notify) then
         DoNotify(key, value, caExtracted);
       if fOnValueChanged.CanInvoke then
@@ -1332,7 +1332,7 @@ begin
     newCount := node.Values.Count;
     if newCount < count then
     begin
-      Dec(fCount, count);
+      Dec(fCount);
       if Assigned(Notify) then
         DoNotify(node.Key, value, caExtracted);
       if fOnValueChanged.CanInvoke then
