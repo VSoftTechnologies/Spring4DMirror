@@ -37,7 +37,6 @@ uses
   Spring.Collections.Lists,
   Spring.Collections.Sets,
   Spring.Collections.Trees,
-  Spring.Events,
   Spring.Events.Base,
   Spring.HashTable;
 
@@ -83,7 +82,7 @@ type
     // TEnumerableBase<T>
     fComparer: IInterface;
     fCollection: IEnumerable;
-    fOnDestroy: TNotifyEventImpl;
+    fWrappers: TList;
     fUpdateValues: TNotifyEvent;
     procedure RefreshIfEmpty;
     procedure HandleDestroy(Sender: TObject);
@@ -94,7 +93,7 @@ type
     function GetNonEnumeratedCount: Integer;
   public
     class procedure Create(classType: TClass; const collection: IEnumerable;
-      onDestroy: TNotifyEventImpl; updateValues: TNotifyEvent;
+      wrappers: TList; updateValues: TNotifyEvent;
       collectionFactory: TCollectionFactory; const key;
       const valueComparer: IInterface; elementType: PTypeInfo; var result); static;
 
@@ -120,7 +119,7 @@ type
   {$ENDREGION}
   protected
     fCollection: IReadOnlyCollection<T>;
-    fOnDestroy: TNotifyEventImpl;
+    fWrappers: TList;
     fUpdateValues: TNotifyEvent;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
@@ -208,7 +207,7 @@ type
     fValues: THashMapInnerCollection;
     fGroups: THashMapInnerCollection;
     fCount: Integer;
-    fOnDestroy: TNotifyEventImpl;
+    fWrappers: TList;
     fValueComparer: IInterface;
     fCollectionFactory: TCollectionFactory;
     function CreateWrappedCollection(const key: TKey; item: PItem): IReadOnlyCollection<TValue>;
@@ -302,7 +301,7 @@ type
     fGroups: TTreeMapInnerCollection;
     fVersion: Integer;
     fCount: Integer;
-    fOnDestroy: TNotifyEventImpl;
+    fWrappers: TList;
     fKeyComparer: IComparer<TKey>;
     fValueComparer: IInterface;
     fCollectionFactory: TCollectionFactory;
@@ -413,13 +412,13 @@ uses
 
 procedure TCollectionWrapper.BeforeDestruction;
 begin
-  if Assigned(fOnDestroy) then
-    fOnDestroy.Remove(HandleDestroy);
+  if Assigned(fWrappers) then
+    fWrappers.Remove(Self);
   inherited;
 end;
 
 class procedure TCollectionWrapper.Create(classType: TClass;
-  const collection: IEnumerable; onDestroy: TNotifyEventImpl;
+  const collection: IEnumerable; wrappers: TList;
   updateValues: TNotifyEvent; collectionFactory: TCollectionFactory; const key;
   const valueComparer: IInterface; elementType: PTypeInfo; var result);
 var
@@ -427,8 +426,8 @@ var
 begin
   instance := Pointer(classType.NewInstance);
   instance.fCollection := collection;
-  instance.fOnDestroy := onDestroy;
-  instance.fOnDestroy.Add(instance.HandleDestroy);
+  instance.fWrappers := wrappers;
+  instance.fWrappers.Add(instance);
   instance.fUpdateValues := updateValues;
   if collection = nil then
     collectionFactory(key, valueComparer, elementType, instance.fCollection);
@@ -475,7 +474,7 @@ end;
 
 procedure TCollectionWrapper.HandleDestroy(Sender: TObject);
 begin
-  fOnDestroy := nil;
+  fWrappers := nil;
   fUpdateValues := nil;
 end;
 
@@ -633,14 +632,18 @@ begin
   end;
   fGroups := THashMapInnerCollection.Create_Interface(Self,
     @fHashTable, nil, TypeInfo(IGrouping<TKey, TValue>), SizeOf(TKey));
-  fOnDestroy := TNotifyEventImpl.Create;
-  fOnDestroy.UseFreeNotification := False;
+  fWrappers := TList.Create;
 end;
 
 procedure TMultiMap<TKey, TValue>.BeforeDestruction;
+var
+  list: Pointer;
+  i: Integer;
 begin
-  fOnDestroy.Invoke(Self);
-  fOnDestroy.Free;
+  list := fWrappers.List;
+  for i := 1 to fWrappers.Count do
+    TCollectionWrapper(TPointerList(list)[i-1]).HandleDestroy(Self);
+  fWrappers.Free;
   Clear;
   fKeys.Free;
   fValues.Free;
@@ -660,12 +663,12 @@ begin
 
   {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(TValue) of
-    tkClass: TCollectionWrapper.Create(TCollectionWrapper_Object, IEnumerable(values), fOnDestroy,
+    tkClass: TCollectionWrapper.Create(TCollectionWrapper_Object, IEnumerable(values), fWrappers,
       UpdateValues, fCollectionFactory, key, fValueComparer, GetValueType, Result);
-    tkInterface: TCollectionWrapper.Create(TCollectionWrapper_Interface, IEnumerable(values), fOnDestroy,
+    tkInterface: TCollectionWrapper.Create(TCollectionWrapper_Interface, IEnumerable(values), fWrappers,
       UpdateValues, fCollectionFactory, key, fValueComparer, GetValueType, Result);
   else{$ELSE}begin{$ENDIF}
-    TCollectionWrapper.Create(TCollectionWrapper<TValue>, IEnumerable(values), fOnDestroy,
+    TCollectionWrapper.Create(TCollectionWrapper<TValue>, IEnumerable(values), fWrappers,
       UpdateValues, fCollectionFactory, key, fValueComparer, GetValueType, Result);
   end;
 end;
@@ -1088,14 +1091,16 @@ begin
   end;
   fGroups := TTreeMapInnerCollection.Create_Interface(
     Self, fTree, @fVersion, nil, TypeInfo(IGrouping<TKey, TValue>), 0);
-  fOnDestroy := TNotifyEventImpl.Create;
-  fOnDestroy.UseFreeNotification := False;
+  fWrappers := TList.Create;
 end;
 
 procedure TSortedMultiMap<TKey, TValue>.BeforeDestruction;
+var
+  i: Integer;
 begin
-  fOnDestroy.Invoke(Self);
-  fOnDestroy.Free;
+  for i := 0 to fWrappers.Count-1 do
+    TCollectionWrapper(fWrappers.List[i]).HandleDestroy(Self);
+  fWrappers.Free;
   Clear;
   fTree.Free;
   fKeys.Free;
@@ -1116,12 +1121,12 @@ begin
 
   {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(TValue) of
-    tkClass: TCollectionWrapper.Create(TCollectionWrapper_Object, IEnumerable(values), fOnDestroy,
+    tkClass: TCollectionWrapper.Create(TCollectionWrapper_Object, IEnumerable(values), fWrappers,
       UpdateValues, fCollectionFactory, key, fValueComparer, GetValueType, Result);
-    tkInterface: TCollectionWrapper.Create(TCollectionWrapper_Interface, IEnumerable(values), fOnDestroy,
+    tkInterface: TCollectionWrapper.Create(TCollectionWrapper_Interface, IEnumerable(values), fWrappers,
       UpdateValues, fCollectionFactory, key, fValueComparer, GetValueType, Result);
   else{$ELSE}begin{$ENDIF}
-    TCollectionWrapper.Create(TCollectionWrapper<TValue>, IEnumerable(values), fOnDestroy,
+    TCollectionWrapper.Create(TCollectionWrapper<TValue>, IEnumerable(values), fWrappers,
       UpdateValues, fCollectionFactory, key, fValueComparer, GetValueType, Result);
   end;
 end;
