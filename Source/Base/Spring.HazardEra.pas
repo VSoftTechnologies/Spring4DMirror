@@ -293,13 +293,15 @@ end;
 
 procedure Retire(p: PEraEntity);
 var
-  currEra, delEra, era: TEra;
+  currEra: TEra;
+  entity: PEraEntity;
   info: PHazardEraThreadControlBlock;
+  i: Integer;
 begin
   if Assigned(lock) then
   begin
     currEra := AtomicLoad(eraClock);
-    
+
    	lock.Acquire;
     try
       if Assigned(p) then
@@ -311,9 +313,17 @@ begin
       if AtomicLoad(eraClock) = currEra then
         AtomicIncrement(eraClock);
 
-      while (retiredList.Count > 0)
-        and Delete_Ptr(retiredList.List[0]) do
-        retiredList.Delete(0);
+      i := 0;
+      while i < retiredList.Count do
+        if Delete_Ptr(retiredList.List[i]) then
+          retiredList.Delete(i)
+        else
+        begin
+          entity := retiredList.List[i];
+          repeat
+            Inc(i);
+          until (i >= retiredList.Count) or (PEraEntity(retiredList.List[i]).delEra > entity.delEra);
+        end;
     finally
       lock.Release;
     end;
