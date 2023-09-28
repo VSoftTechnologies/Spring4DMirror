@@ -926,24 +926,26 @@ begin
   if not Result then Exit;
   item := @TItems(fHashTable.Items)[entry.ItemIndex];
   Result := item.Values.Remove(value);
-  if not Result then Exit;
-  Dec(fCount);
-  if Assigned(Notify) then
-    DoNotify(item.Key, value, caRemoved);
-  if fOnValueChanged.CanInvoke then
-    fOnValueChanged.Invoke(Self, value, caRemoved);
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TValue) = tkClass then
-  {$ENDIF}
-  if doOwnsValues in fHashTable.Ownerships then
-    PObject(@item).Free;
-  if item.Values.Any then
-    {$Q-}
-    Inc(PInteger(@fHashTable.Version)^)
-    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-  else
-    DoRemove(entry, caRemoved, nil);
-  Result := True;
+  if Result then
+  begin
+    Dec(fCount);
+    if Assigned(Notify) then
+      DoNotify(item.Key, value, caRemoved);
+    with fOnValueChanged do if CanInvoke then
+      Invoke(Self, value, caRemoved);
+    {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(TValue) = tkClass then
+    {$ENDIF}
+    if doOwnsValues in fHashTable.Ownerships then
+      PObject(@value).Free;
+    if item.Values.Any then
+      {$Q-}
+      Inc(PInteger(@fHashTable.Version)^)
+      {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    else
+      DoRemove(entry, caRemoved, nil);
+    Result := True;
+  end;
 end;
 
 function TMultiMap<TKey, TValue>.Remove(const key: TKey): Boolean;
