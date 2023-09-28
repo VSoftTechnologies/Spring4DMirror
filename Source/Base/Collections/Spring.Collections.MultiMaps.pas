@@ -320,8 +320,6 @@ type
     procedure DoRemove(const node: PNode; action: TCollectionChangedAction;
       const extractTarget: ICollection<TValue>; deleteNode: Boolean = True);
     procedure DoRemoveValues(node: PNode; action: TCollectionChangedAction);
-    procedure KeyChanged(const item: TKey; action: TCollectionChangedAction); inline;
-    procedure ValueChanged(const item: TValue; action: TCollectionChangedAction); inline;
   public
     constructor Create(const keyComparer: IComparer<TKey>;
       const valueComparer: IInterface;
@@ -786,16 +784,16 @@ begin
     value := enumerator.Current;
     if Assigned(Notify) then
       DoNotify(item.key, value, action);
-    if fOnValueChanged.CanInvoke then
-      fOnValueChanged.Invoke(Self, value, action);
+    with fOnValueChanged do if CanInvoke then
+      Invoke(Self, value, action);
     {$IFDEF DELPHIXE7_UP}
     if GetTypeKind(TValue) = tkClass then
     {$ENDIF}
     if (action = caRemoved) and (doOwnsValues in fHashTable.Ownerships) then
       PObject(@value).Free;
   end;
-  if fOnKeyChanged.CanInvoke then
-    fOnKeyChanged.Invoke(Self, item.key, action);
+  with fOnKeyChanged do if CanInvoke then
+    Invoke(Self, item.key, action);
   if action = caRemoved then
   begin
     {$IFDEF DELPHIXE7_UP}
@@ -860,11 +858,11 @@ begin
       Dec(fCount);
       if Assigned(Notify) then
         DoNotify(key, value, caExtracted);
-      if fOnValueChanged.CanInvoke then
-        fOnValueChanged.Invoke(Self, Result.Value, caExtracted);
+      with fOnValueChanged do if CanInvoke then
+        Invoke(Self, Result.Value, caExtracted);
       if newCount = 0 then
-        if fOnKeyChanged.CanInvoke then
-          fOnKeyChanged.Invoke(Self, item.Key, caExtracted);
+        with fOnKeyChanged do if CanInvoke then
+          Invoke(Self, item.Key, caExtracted);
     end;
   end
   else
@@ -970,8 +968,8 @@ begin
   begin
     item.Key := key;
     fCollectionFactory(key, fValueComparer, GetValueType, item.Values);
-    if fOnKeyChanged.CanInvoke then
-      fOnKeyChanged.Invoke(Self, item.Key, caAdded);
+    with fOnKeyChanged do if CanInvoke then
+      Invoke(Self, item.Key, caAdded);
   end;
 
   Result := item.Values.Add(value);
@@ -981,8 +979,8 @@ begin
     {$Q-}
     Inc(PInteger(@fHashTable.Version)^);
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-    if fOnValueChanged.CanInvoke then
-      fOnValueChanged.Invoke(Self, value, caAdded);
+    with fOnValueChanged do if CanInvoke then
+      Invoke(Self, value, caAdded);
     if Assigned(Notify) then
     begin
       DoNotify(item.Key, value, caAdded);
@@ -1133,24 +1131,6 @@ begin
   end;
 end;
 
-procedure TSortedMultiMap<TKey, TValue>.KeyChanged(const item: TKey;
-  action: TCollectionChangedAction);
-begin
-  if fOnKeyChanged.CanInvoke then
-    fOnKeyChanged.Invoke(Self, item, action);
-  if (action = caRemoved) and (doOwnsKeys in fOwnerships) then
-    PObject(@item).Free;
-end;
-
-procedure TSortedMultiMap<TKey, TValue>.ValueChanged(const item: TValue;
-  action: TCollectionChangedAction);
-begin
-  if fOnValueChanged.CanInvoke then
-    fOnValueChanged.Invoke(Self, item, action);
-  if (action = caRemoved) and (doOwnsValues in fOwnerships) then
-    PObject(@item).Free;
-end;
-
 function TSortedMultiMap<TKey, TValue>.AsReadOnly: IReadOnlyMultiMap<TKey, TValue>;
 begin
   Result := Self;
@@ -1266,16 +1246,16 @@ begin
     value := enumerator.Current;
     if Assigned(Notify) then
       DoNotify(node.key, value, action);
-    if fOnValueChanged.CanInvoke then
-      fOnValueChanged.Invoke(Self, value, action);
+    with fOnValueChanged do if CanInvoke then
+      Invoke(Self, value, action);
     {$IFDEF DELPHIXE7_UP}
     if GetTypeKind(TValue) = tkClass then
     {$ENDIF}
     if (action = caRemoved) and (doOwnsValues in fOwnerships) then
       PObject(@value).Free;
   end;
-  if fOnKeyChanged.CanInvoke then
-    fOnKeyChanged.Invoke(Self, node.key, action);
+  with fOnKeyChanged do if CanInvoke then
+    Invoke(Self, node.key, action);
   if action = caRemoved then
   begin
     {$IFDEF DELPHIXE7_UP}
@@ -1342,11 +1322,12 @@ begin
       Dec(fCount);
       if Assigned(Notify) then
         DoNotify(node.Key, value, caExtracted);
-      if fOnValueChanged.CanInvoke then
-        fOnValueChanged.Invoke(Self, Result.Value, caExtracted);
+      with fOnValueChanged do if CanInvoke then
+        Invoke(Self, Result.Value, caExtracted);
       if newCount = 0 then
       begin
-        KeyChanged(node.Key, caExtracted);
+        with fOnKeyChanged do if CanInvoke then
+          Invoke(Self, node.Key, caExtracted);
         fTree.DeleteNode(Pointer(node));
       end;
     end;
@@ -1424,9 +1405,15 @@ begin
   if Result then
   begin
     Dec(fCount);
-    ValueChanged(value, caRemoved);
     if Assigned(Notify) then
-      DoNotify(key, value, caRemoved);
+      DoNotify(node.Key, value, caRemoved);
+    with fOnValueChanged do if CanInvoke then
+      Invoke(Self, value, caRemoved);
+    {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(TValue) = tkClass then
+    {$ENDIF}
+    if doOwnsValues in fOwnerships then
+      PObject(@value).Free;
     if not node.Values.Any then
       DoRemove(node, caRemoved, nil);
     Result := True;
@@ -1453,7 +1440,8 @@ begin
     {$Q-}
     Inc(fVersion);
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-    ValueChanged(value, caAdded);
+    with fOnValueChanged do if CanInvoke then
+      Invoke(Self, value, caAdded);
     if Assigned(Notify) then
     begin
       DoNotify(node.Key, value, caAdded);

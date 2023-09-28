@@ -1127,8 +1127,8 @@ end;
 procedure TBidiDictionary<TKey, TValue>.KeyChanged(const item: TKey;
   action: TCollectionChangedAction);
 begin
-  if fOnKeyChanged.CanInvoke then
-    fOnKeyChanged.Invoke(Self, item, action);
+  with fOnKeyChanged do if CanInvoke then
+    Invoke(Self, item, action);
   if (action = caRemoved) and (doOwnsKeys in fOwnerships) then
     PObject(@item).Free;
 end;
@@ -1136,8 +1136,8 @@ end;
 procedure TBidiDictionary<TKey, TValue>.ValueChanged(const item: TValue;
   action: TCollectionChangedAction);
 begin
-  if fOnValueChanged.CanInvoke then
-    fOnValueChanged.Invoke(Self, item, action);
+  with fOnValueChanged do if CanInvoke then
+    Invoke(Self, item, action);
   if (action = caRemoved) and (doOwnsValues in fOwnerships) then
     PObject(@item).Free;
 end;
