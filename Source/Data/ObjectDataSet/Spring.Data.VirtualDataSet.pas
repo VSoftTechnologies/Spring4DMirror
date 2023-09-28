@@ -359,9 +359,6 @@ begin
   try
     DataSet.GetFieldList(Fields, KeyFields);
     FieldCount := Fields.Count;
-    Result := CompareRecord;
-    if Result then
-      Exit;
     DataSet.DisableControls;
     try
       Bookmark := DataSet.Bookmark;
