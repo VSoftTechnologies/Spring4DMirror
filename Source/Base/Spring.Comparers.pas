@@ -1196,11 +1196,20 @@ begin
         PCardinal(@buffer[i])^ := c or LowerCaseMask;
         Inc(i, 2);
       until i >= len;
-      Result := DefaultHashFunction(buffer[0], len * SizeOf(Char));
-    end
-    else
-    notAscii:
-      Result := GetHashCodeIgnoreCaseSlow(value);
+
+      repeat
+        Exit(DefaultHashFunction(buffer[0], len * SizeOf(Char)));
+
+      notAscii:
+      {$IFDEF MSWINDOWS}
+        LCMapString(SysLocale.DefaultLCID, LCMAP_LOWERCASE or LCMAP_LINGUISTIC_CASING,
+          @PChar(value)[i], len - i, @buffer[i], len - i);
+      {$ELSE}
+        Break;
+      {$ENDIF}
+      until False;
+    end;
+    Result := GetHashCodeIgnoreCaseSlow(value);
   end
   else
     Result := DefaultHashFunction(Pointer(value)^, 0);
