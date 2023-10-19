@@ -13,10 +13,12 @@ begin
         action.group
         begin
           description = XE2
+          enabled = false
           id = {C6021A21-AA71-461F-A338-FD0E2BFB1CB5}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {6C29C6E8-2EE9-429A-B0BF-881BDD5295AC}
             target.argvalues
             begin
@@ -36,10 +38,12 @@ begin
         action.group
         begin
           description = XE3
+          enabled = false
           id = {CA83249B-E7CE-4D5F-A3F8-80CD7BCF34C1}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {BEA03631-A752-4CBA-88E5-95C643DE69C0}
             target.argvalues
             begin
@@ -59,10 +63,12 @@ begin
         action.group
         begin
           description = XE4
+          enabled = false
           id = {507184FB-0F3C-4C1E-80B7-8F3A89165B94}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {22A0FC8F-8F89-41D3-B7E8-56EA9441089A}
             target.argvalues
             begin
@@ -82,10 +88,12 @@ begin
         action.group
         begin
           description = XE5
+          enabled = false
           id = {81CB5AC7-2814-4F6D-8C25-3FC5248E3A1F}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {0CE9B613-182B-4C3E-A82A-E941BCDC2449}
             target.argvalues
             begin
@@ -105,10 +113,12 @@ begin
         action.group
         begin
           description = XE6
+          enabled = false
           id = {1AEB4CC6-F16C-44F6-A970-07080E799886}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {B8C1F030-71EA-4D1C-8C0F-B2C8ADC0D09F}
             target.argvalues
             begin
@@ -128,10 +138,12 @@ begin
         action.group
         begin
           description = XE7
+          enabled = false
           id = {08E37623-6FBA-4FE7-A452-2D8870E75DDA}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {0B687479-9208-43D1-965F-FD2CD2A4C20F}
             target.argvalues
             begin
@@ -151,10 +163,12 @@ begin
         action.group
         begin
           description = XE8
+          enabled = false
           id = {75B83D44-93D3-4E16-B2C6-A40CF28B3DE0}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {1D103AA6-7981-449F-AFB0-F27BD58A36B8}
             target.argvalues
             begin
@@ -174,10 +188,12 @@ begin
         action.group
         begin
           description = Delphi10Seattle
+          enabled = false
           id = {792D0638-BA45-42E0-A323-C123DDEF2E09}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {B3CE2191-6E82-4EE7-951F-6E6E0692DC39}
             target.argvalues
             begin
@@ -197,10 +213,12 @@ begin
         action.group
         begin
           description = Delphi10Berlin
+          enabled = false
           id = {EB3947F3-754B-499F-919B-489E6E1952CD}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {DEFC92F3-44FE-4879-AE38-47834B4D96AD}
             target.argvalues
             begin
@@ -220,10 +238,12 @@ begin
         action.group
         begin
           description = Delphi10Tokyo
+          enabled = false
           id = {09FF517A-0732-49CC-BD7D-BB386DD54F05}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {C80E39A2-2B50-41BF-847B-4689F18BAF89}
             target.argvalues
             begin
@@ -243,10 +263,12 @@ begin
         action.group
         begin
           description = Delphi10_3
+          enabled = false
           id = {8116ADE3-AFC3-4352-8655-9B3EC05C9DE5}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {1A967610-3026-4037-B78F-36C6703988A2}
             target.argvalues
             begin
@@ -266,10 +288,12 @@ begin
         action.group
         begin
           description = Delphi10_4
+          enabled = false
           id = {F4C2F12D-1481-4AB9-8C88-570D85399A9A}
           action.target.execute
           begin
             actionlistid = {BEF5BD51-E0F7-4D34-A462-E7A16E2AD982}
+            enabled = false
             id = {4AAF2D7C-15FA-45C6-9701-118DB455F246}
             target.argvalues
             begin
@@ -447,7 +471,7 @@ begin
         action.target.execute
         begin
           actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
-          description = "Run Target [ Build ] - Persistence Win32"
+          description = "Run Target [ Build ] - Data Win32"
           id = {86C493BE-E5B6-4712-AA5E-6EC6A58F7937}
           target.argvalues
           begin
@@ -459,6 +483,30 @@ begin
             target.argvalue
             begin
               value = %Root%\\Packages\\%PackageFolder%\\Spring.Data.dpk
+              variablename = ProjectFile
+            end
+            target.argvalue
+            begin
+              value = Win32
+              variablename = TargetPlatform
+            end
+          end
+        end
+        action.target.execute
+        begin
+          actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
+          description = "Run Target [ Build ] - Data Design Win32"
+          id = {47BC7554-2A85-415F-8120-A047FD0A745B}
+          target.argvalues
+          begin
+            target.argvalue
+            begin
+              value = %CompilerVersion%
+              variablename = CompilerVersion
+            end
+            target.argvalue
+            begin
+              value = %Root%\\Packages\\%PackageFolder%\\Spring.Data.Designtime.dpk
               variablename = ProjectFile
             end
             target.argvalue
@@ -496,6 +544,7 @@ begin
       action.group
       begin
         description = Win64
+        enabled = false
         id = {C05D5501-0858-4B4F-9576-DC88BF798B02}
         action.target.execute
         begin
@@ -572,7 +621,7 @@ begin
         action.target.execute
         begin
           actionlistid = {B3F9F9C6-9865-44EC-A061-713096E6F1A5}
-          description = "Run Target [ Build ] - Persistence Win64"
+          description = "Run Target [ Build ] - Data Win64"
           id = {457902B6-3039-4EA0-8194-798FCF9BC40F}
           target.argvalues
           begin
@@ -731,6 +780,10 @@ begin
           assertions = true
           assignableconst = false
           booleval = false
+          compilerwarnings = "-w-UNSAFE_TYPE\=0" +
+                             "-w-UNSAFE_CODE\=0" +
+                             "-w-UNSAFE_CAST\=0" +
+                             ""
           conditionals = RELEASE
           consoleapp = false
           debuginfo = false
