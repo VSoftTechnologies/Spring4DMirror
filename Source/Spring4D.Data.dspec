@@ -96,6 +96,11 @@
           "dest": "Source"
         },
         {
+          "src": "..\\**\\*.dcr",
+          "dest": "Resources",
+		  "flatten" : true
+        },
+        {
           "src": ".\\Data\\**\\*.pas",
           "dest": "Source\\Data"
         },
