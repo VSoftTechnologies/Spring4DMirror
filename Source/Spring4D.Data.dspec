@@ -1,7 +1,7 @@
 {
   "metadata": {
     "id": "Spring4D.Data",
-    "version": "2.0.0-rc.5a",
+    "version": "2.0.0-rc.5c",
     "description": "Spring4D Data",
     "authors": "Spring4D Team",
     "projectUrl": "https://bitbucket.org/sglienke/spring4d",
@@ -78,6 +78,11 @@
 	  {
 		"CompilerCodeName" : ""
 	  }
+    },
+    {
+      "compiler": "12.0",
+      "platforms": "Win32, Win64, OSX64, OSXARM64, iOS64, AndroidArm32, LinuxIntel64",
+      "template": "default"
     }
   ],
   "templates": [
@@ -86,7 +91,7 @@
       "dependencies": [
         {
           "id": "Spring4D.Base",
-          "version": "2.0.0-rc.5a"
+          "version": "2.0.0-rc.5c"
         }
       ],
       "comment": "due to the layout of the repo and relative paths in the packages we need to keep the same layout",
