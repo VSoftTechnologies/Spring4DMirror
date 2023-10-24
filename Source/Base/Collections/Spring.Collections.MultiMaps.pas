@@ -411,7 +411,14 @@ uses
 procedure TCollectionWrapper.BeforeDestruction;
 begin
   if Assigned(fWrappers) then
-    fWrappers.Remove(Self);
+  begin
+    TMonitor.Enter(fWrappers);
+    try
+      fWrappers.Remove(Self);
+    finally
+      TMonitor.Exit(fWrappers);
+    end;
+  end;
   inherited;
 end;
 
@@ -425,7 +432,12 @@ begin
   instance := Pointer(classType.NewInstance);
   instance.fCollection := collection;
   instance.fWrappers := wrappers;
-  instance.fWrappers.Add(instance);
+  TMonitor.Enter(instance.fWrappers);
+  try
+    instance.fWrappers.Add(instance);
+  finally
+    TMonitor.Exit(instance.fWrappers);
+  end;
   instance.fUpdateValues := updateValues;
   if collection = nil then
     collectionFactory(key, valueComparer, elementType, instance.fCollection);
