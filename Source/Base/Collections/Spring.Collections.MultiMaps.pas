@@ -412,11 +412,11 @@ procedure TCollectionWrapper.BeforeDestruction;
 begin
   if Assigned(fWrappers) then
   begin
-    MonitorEnter(fWrappers);
+    TMonitor.Enter(fWrappers);
     try
       fWrappers.Remove(Self);
     finally
-      MonitorExit(fWrappers);
+      TMonitor.Exit(fWrappers);
     end;
   end;
   inherited;
@@ -432,11 +432,11 @@ begin
   instance := Pointer(classType.NewInstance);
   instance.fCollection := collection;
   instance.fWrappers := wrappers;
-  MonitorEnter(instance.fWrappers);
+  TMonitor.Enter(instance.fWrappers);
   try
     instance.fWrappers.Add(instance);
   finally
-    MonitorExit(instance.fWrappers);
+    TMonitor.Exit(instance.fWrappers);
   end;
   instance.fUpdateValues := updateValues;
   if collection = nil then
