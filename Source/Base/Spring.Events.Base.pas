@@ -96,6 +96,29 @@ uses
 {$ENDIF}
   TypInfo;
 
+{$IFOPT O+}
+function IsValidObject(p: Pointer): Boolean;
+
+  function IsClassRef(p: Pointer): Boolean;
+  begin
+    try
+      Result := PPointer(NativeInt(p) + vmtSelfPtr)^ = p;
+    except
+      Result := False;
+    end;
+  end;
+
+begin
+  Result := False;
+  if Assigned(p) then
+  try
+    if not IsClassRef(p) then
+      if PNativeInt(p)^ > $FFFF then
+        Result := PPointer(p)^ = PPointer(PNativeInt(p)^ + vmtSelfPtr)^;
+  except
+  end; //FI:W501
+end;
+{$ELSE}
 function IsValidObject(p: PPointer): Boolean;
 {$IFDEF MSWINDOWS}
 var
@@ -147,6 +170,7 @@ begin
   except
   end; //FI:W501
 end;
+{$ENDIF}
 
 
 {$REGION 'TEventBase'}
