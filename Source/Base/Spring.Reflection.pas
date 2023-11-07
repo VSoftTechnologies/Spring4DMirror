@@ -1861,7 +1861,6 @@ end;
 
 function TContainsParameterTypeFilter<T>.IsSatisfiedBy(const member: T): Boolean;
 var
-  parameters: TArray<TRttiParameter>;
   parameter: TRttiParameter;
 begin
   Result := False;

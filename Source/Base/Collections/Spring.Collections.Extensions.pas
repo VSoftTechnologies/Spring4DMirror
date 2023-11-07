@@ -938,8 +938,6 @@ end;
 {$REGION 'TArrayIterator<T>'}
 
 constructor TArrayIterator<T>.Create(const values: array of T);
-var
-  i: Integer;
 begin
   inherited Create;
   fValues := TArray.Copy<T>(values);
@@ -2226,8 +2224,6 @@ end;
 
 function TLookup<TKey, TElement>.GetItem(
   const key: TKey): IEnumerable<TElement>;
-var
-  index: Integer;
 begin
   Result := GetGrouping(key, False);
   if not Assigned(Result) then

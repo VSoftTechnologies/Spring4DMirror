@@ -127,6 +127,14 @@
   {$DEFINE FMX}
 {$ENDIF}
 
+{$IFDEF VER360}
+  // This is just a workaround to silence the compiler
+  // about the warnings it now also raises from generic code
+  // in 2.0 this is properly fixed
+  {$WARN NO_RETVAL OFF}
+  {$WARN USE_BEFORE_DEF OFF}
+{$ENDIF}
+
 // This option is needed to enable code browsing (aka Ctrl+Click)
 // It does not affect the binary size or generated code
 {$DEFINITIONINFO ON}

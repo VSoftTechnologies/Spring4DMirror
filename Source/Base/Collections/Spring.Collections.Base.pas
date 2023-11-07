@@ -645,7 +645,6 @@ end;
 function TEnumerableBase<T>.Aggregate(const func: TFunc<T, T, T>): T;
 var
   enumerator: IEnumerator<T>;
-  item: T;
 begin
 {$IFDEF SPRING_ENABLE_GUARD}
   Guard.CheckNotNull(Assigned(func), 'func');

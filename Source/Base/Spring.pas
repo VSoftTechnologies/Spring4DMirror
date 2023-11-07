@@ -8900,8 +8900,10 @@ end;
 
 class procedure TArray.Copy<T>(const source: array of T;
   var target: array of T; sourceIndex, targetIndex, count: NativeInt);
+{$IFDEF SPRING_ENABLE_GUARD}
 var
   sourceLength, targetLength: NativeInt;
+{$ENDIF}
 begin
 {$IFDEF SPRING_ENABLE_GUARD}
   sourceLength := Length(source);
@@ -9131,7 +9133,7 @@ class procedure TArray.DownHeap<T>(var values: array of T;
   const comparer: IComparer<T>; left, count, i: Integer);
 var
   temp: T;
-  child, n, x: Integer;
+  child, n: Integer;
 begin
   temp := values[left + i - 1];
   n := count div 2;

@@ -340,9 +340,6 @@ begin
 end;
 
 class function TMatcherFactory.WrapIndex<T>(index: Integer): T;
-var
-  f: TRttiField;
-  v: TValue;
 begin
   Result := Default(T);
   SetIndex(TypeInfo(T), index, Result);
