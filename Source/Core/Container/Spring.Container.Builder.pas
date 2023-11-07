@@ -85,6 +85,8 @@ type
   TConstructorInspector = class(TMemberInspector)
   protected
     procedure DoProcessModel(const kernel: TKernel; const model: TComponentModel); override;
+    procedure HandleParameterInjections(model: TComponentModel;
+      const targets: TArray<TRttiParameter>; var arguments: TArray<TValue>);
   end;
 
   TPropertyInspector = class(TMemberInspector)
@@ -321,8 +323,35 @@ begin
     SetLength(arguments, Length(parameters));
     for i := Low(parameters) to High(parameters) do
       HandleInjectAttribute(parameters[i], injection.Dependencies[i], arguments[i]);
+    HandleParameterInjections(model, parameters, arguments);
     injection.InitializeArguments(arguments);
   end;
+end;
+
+procedure TConstructorInspector.HandleParameterInjections(model: TComponentModel;
+  const targets: TArray<TRttiParameter>; var arguments: TArray<TValue>);
+var
+  i: Integer;
+  parameter: TValue;
+  typedValue: TTypedValue;
+  namedValue: TNamedValue;
+begin
+  for i := Low(targets) to High(targets) do
+    for parameter in model.ParameterInjections do
+    begin
+      if parameter.TryAsType(TypeInfo(TTypedValue), typedValue)
+        and SameTypeInfo(typedValue.TypeInfo, targets[i].ParamType.Handle) then
+      begin
+        arguments[i] := typedValue.Value;
+        Break;
+      end;
+      if parameter.TryAsType(TypeInfo(TNamedValue), namedValue)
+        and SameText(namedValue.Name, targets[i].Name) then
+      begin
+        arguments[i] := namedValue.Value;
+        Break;
+      end;
+    end;
 end;
 
 {$ENDREGION}

@@ -363,6 +363,7 @@ type
     fPropertyInjections: IInjectionList;
     fFieldInjections: IInjectionList;
     fInterceptors: IList<TInterceptorReference>;
+    fParameterInjections: IList<TValue>;
     function GetComponentTypeInfo: PTypeInfo;
     function GetComponentTypeName: string;
     procedure SetRefCounting(const value: TRefCounting);
@@ -392,6 +393,7 @@ type
     property MethodInjections: IInjectionList read fMethodInjections;
     property PropertyInjections: IInjectionList read fPropertyInjections;
     property FieldInjections: IInjectionList read fFieldInjections;
+    property ParameterInjections: IList<TValue> read fParameterInjections;
 
     property Interceptors: IList<TInterceptorReference> read fInterceptors;
   end;
@@ -575,6 +577,7 @@ begin
   fPropertyInjections := TCollections.CreateInterfaceList<IInjection>;
   fFieldInjections := TCollections.CreateInterfaceList<IInjection>;
   fInterceptors := TCollections.CreateList<TInterceptorReference>;
+  fParameterInjections := TCollections.CreateList<TValue>;
 end;
 
 function TComponentModel.GetComponentTypeInfo: PTypeInfo;

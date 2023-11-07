@@ -115,6 +115,11 @@ type
     function InjectMethod(const methodName: string; const parameterTypes: array of PTypeInfo): TRegistration; overload;
     function InjectField(const fieldName: string): TRegistration; overload;
 
+    function InjectParameter(const parameterName: string; const value: TValue): TRegistration; overload;
+    function InjectParameter(parameterType: PTypeInfo; const value: TValue): TRegistration; overload;
+    function InjectParameter<TParameterType>(const value: TParameterType): TRegistration; overload; inline;
+    function InjectParameter<TParameterType>(const serviceName: string): TRegistration; overload; inline;
+
     {$ENDREGION}
 
     {$REGION 'Named/Valued Injections'}
@@ -573,6 +578,32 @@ function TRegistration.InjectConstructor(
 begin
   Kernel.Injector.InjectConstructor(Model, parameterTypes);
   Result := Self;
+end;
+
+function TRegistration.InjectParameter(const parameterName: string;
+  const value: TValue): TRegistration;
+begin
+  Model.ParameterInjections.Add(TNamedValue.Create(value, parameterName));
+  Result := Self;
+end;
+
+function TRegistration.InjectParameter(parameterType: PTypeInfo;
+  const value: TValue): TRegistration;
+begin
+  Model.ParameterInjections.Add(TTypedValue.Create(value, parameterType));
+  Result := Self;
+end;
+
+function TRegistration.InjectParameter<TParameterType>(
+  const value: TParameterType): TRegistration;
+begin
+  Result := InjectParameter(TypeInfo(TParameterType), TValue.From(value, TypeInfo(TParameterType)));
+end;
+
+function TRegistration.InjectParameter<TParameterType>(
+  const serviceName: string): TRegistration;
+begin
+  Result := InjectParameter(TypeInfo(TParameterType), serviceName);
 end;
 
 function TRegistration.InjectProperty(
