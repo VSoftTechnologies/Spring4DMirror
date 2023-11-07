@@ -652,7 +652,7 @@ var
 begin
   list := fWrappers.List;
   for i := 1 to fWrappers.Count do
-    TCollectionWrapper(TPointerList(list)[i-1]).HandleDestroy(Self);
+    TCollectionWrapper({$IFDEF DELPHIXE}PPointerList{$ELSE}TPointerList{$ENDIF}(list)[i-1]).HandleDestroy(Self);
   fWrappers.Free;
   Clear;
   fKeys.Free;
