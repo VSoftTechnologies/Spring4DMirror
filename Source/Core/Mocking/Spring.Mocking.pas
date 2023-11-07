@@ -358,7 +358,7 @@ end;
 
 function Setup<T>.Returns<TResult>(const value: TResult): IWhen<T>;
 begin
-  Result := fSetup.Returns(TValue.From(@value, TypeInfo(TResult)));
+  Result := fSetup.Returns(TValue.From(value, TypeInfo(TResult)));
 end;
 
 function Setup<T>.Returns<TResult>(const values: array of TResult): IWhen<T>;

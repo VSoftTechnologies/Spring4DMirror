@@ -59,8 +59,8 @@ type
 
     class function MakeActivatorDelegate<T>(const delegate: TActivatorDelegate<T>): TActivatorDelegate; overload; static;
   {$IFDEF DELPHIXE7_UP}
-    class function MakeActivatorDelegateObj(const delegate: IInterface; typeInfo: Pointer): TActivatorDelegate; static;
-    class function MakeActivatorDelegateIntf(const delegate: IInterface; typeInfo: Pointer): TActivatorDelegate; static;
+    class function MakeActivatorDelegateObj(const delegate: IInterface; typeInfo: PTypeInfo): TActivatorDelegate; static;
+    class function MakeActivatorDelegateIntf(const delegate: IInterface; typeInfo: PTypeInfo): TActivatorDelegate; static;
   {$ENDIF}
     class function MakeActivatorDelegate(const instance: TValue): TActivatorDelegate; overload; static;
     class function MakeActivatorDelegate(const instance; instanceType: PTypeInfo): TActivatorDelegate; overload; static;
@@ -305,13 +305,13 @@ begin
       instance: T;
     begin
       instance := delegate();
-      Result := TValue.From(@instance, TypeInfo(T));
+      Result := TValue.From(instance, TypeInfo(T));
     end;
 end;
 
 {$IFDEF DELPHIXE7_UP}
 class function TContainer.MakeActivatorDelegateIntf(
-  const delegate: IInterface; typeInfo: Pointer): TActivatorDelegate;
+  const delegate: IInterface; typeInfo: PTypeInfo): TActivatorDelegate;
 begin
   Result :=
     function: TValue
@@ -319,12 +319,12 @@ begin
       instance: IInterface;
     begin
       instance := TActivatorDelegate<IInterface>(delegate)();
-      Result := TValue.From(@instance, typeInfo);
+      Result := TValue.From(instance, typeInfo);
     end;
 end;
 
 class function TContainer.MakeActivatorDelegateObj(
-  const delegate: IInterface; typeInfo: Pointer): TActivatorDelegate;
+  const delegate: IInterface; typeInfo: PTypeInfo): TActivatorDelegate;
 begin
   Result :=
     function: TValue
@@ -332,7 +332,7 @@ begin
       instance: TObject;
     begin
       instance := TActivatorDelegate<TObject>(delegate)();
-      Result := TValue.From(@instance, typeInfo);
+      Result := TValue.From(instance, typeInfo);
     end;
 end;
 {$ENDIF}

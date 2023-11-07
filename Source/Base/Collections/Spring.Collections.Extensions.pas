@@ -3197,7 +3197,7 @@ begin
   if Result then
   begin
     item := fEnumerator.Current;
-    value := TValue.From(@item, TypeInfo(T));
+    value := TValue.From(item, TypeInfo(T));
     value.AsType(TypeInfo(TResult), current);
   end;
 end;
@@ -3237,7 +3237,7 @@ begin
   while fEnumerator.MoveNext do
   begin
     item := fEnumerator.Current;
-    value := TValue.From(@item, TypeInfo(T));
+    value := TValue.From(item, TypeInfo(T));
     if value.TryAsType(TypeInfo(TResult), current) then
       Exit(True);
   end;

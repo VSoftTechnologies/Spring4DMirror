@@ -255,7 +255,7 @@ end;
 
 function TMock.Default(const target): ISetup;
 begin
-  fInterceptor.SetDefaultExpectations(TValue.From(@target, fTypeInfo));
+  fInterceptor.SetDefaultExpectations(TValue.From(target, fTypeInfo));
   Result := Self;
 end;
 

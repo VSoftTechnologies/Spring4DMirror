@@ -477,7 +477,7 @@ begin
   Result := TMatcherFactory.CreateMatcher<T>(
     function(const arg: TValue): Boolean
     begin
-      Result := arg.Convert(TypeInfo(T)).Equals(TValue.From(@value, TypeInfo(T)));
+      Result := arg.Convert(TypeInfo(T)).Equals(TValue.From(value, TypeInfo(T)));
     end);
 end;
 
