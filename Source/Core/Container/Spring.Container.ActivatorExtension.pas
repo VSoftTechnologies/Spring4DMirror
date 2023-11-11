@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -43,7 +43,7 @@ type
 
   TActivatorInspector = class(TInspectorBase)
   protected
-    procedure DoProcessModel(const kernel: IKernel;
+    procedure DoProcessModel(const kernel: TKernel;
       const model: TComponentModel); override;
   end;
 
@@ -76,7 +76,7 @@ end;
 
 {$REGION 'TActivatorInspector'}
 
-procedure TActivatorInspector.DoProcessModel(const kernel: IKernel;
+procedure TActivatorInspector.DoProcessModel(const kernel: TKernel;
   const model: TComponentModel);
 begin
   if not Assigned(model.ActivatorDelegate) then

@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -483,11 +483,11 @@ begin
   for i := 0 to 15 do
     W[i] := ByteSwap64(PUInt64(@md.buf)[i]);
   for i := 16 to 79 do
-    W[i] := Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W [i - 15]) + W[i - 16];
+    W[i] := Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16];
   for i := 0 to 79 do
   begin
-    t0 := S[7] + Sigma1 (S[4]) + Ch (S[4], S[5], S[6]) + cnstK512[i] + W[i];
-    t1 := Sigma0 (S[0]) + Maj(S[0], S[1], S[2]);
+    t0 := S[7] + Sigma1(S[4]) + Ch(S[4], S[5], S[6]) + cnstK512[i] + W[i];
+    t1 := Sigma0(S[0]) + Maj(S[0], S[1], S[2]);
     S[7] := S[6];
     S[6] := S[5];
     S[5] := S[4];

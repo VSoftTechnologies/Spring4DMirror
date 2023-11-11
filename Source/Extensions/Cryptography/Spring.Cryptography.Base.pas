@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -433,9 +433,8 @@ begin
     end;
     TPaddingMode.ISO10126:
     begin
-      Randomize;
       for i := 0 to count - 2 do
-        buffer[startIndex + i] := Math.RandomRange(0, 256);
+        buffer[startIndex + i] := Byte(Random(256));
       buffer[startIndex + count - 1] := Byte(count);
     end;
   end;
@@ -665,7 +664,7 @@ var
   i: Integer;
 begin
   for i := Low(data) to High(data) do
-    data[i] := RandomRange(0, $FF + 1);
+    data[i] := Byte(Random(256));
 end;
 
 procedure TRandomNumberGenerator.GetNonZeroBytes(var data: TBytes);
@@ -673,7 +672,7 @@ var
   i: Integer;
 begin
   for i := Low(data) to High(data) do
-    data[i] := RandomRange(1, $FF + 1);
+    data[i] := Byte(Random(255) + 1);
 end;
 
 {$ENDREGION}

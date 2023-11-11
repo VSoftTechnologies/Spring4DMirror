@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -43,7 +43,7 @@ type
 
   TSerializerBase = class abstract(TLogEventConverterBase, ITypeSerializer)
   strict protected
-    class function ValueToStr(const value: TValue): string; inline; static;
+    class function ValueToStr(const value: TValue): string; static; inline;
     function CanHandleEvent(const event: TLogEvent): Boolean; override;
     function Execute(const controller: ILoggerController;
       const event: TLogEvent): string; override;

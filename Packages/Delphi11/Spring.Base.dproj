@@ -4,10 +4,10 @@
         <MainSource>Spring.Base.dpk</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
-        <TargetedPlatforms>3</TargetedPlatforms>
+        <TargetedPlatforms>131</TargetedPlatforms>
         <AppType>Package</AppType>
         <FrameworkType>None</FrameworkType>
-        <ProjectVersion>19.3</ProjectVersion>
+        <ProjectVersion>19.5</ProjectVersion>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
@@ -28,19 +28,19 @@
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Linux64' and '$(Cfg_1)'=='true') or '$(Cfg_1_Linux64)'!=''">
+        <Cfg_1_Linux64>true</Cfg_1_Linux64>
+        <CfgParent>Cfg_1</CfgParent>
+        <Cfg_1>true</Cfg_1>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_2)'!=''">
         <Cfg_2>true</Cfg_2>
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
-    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
-        <Cfg_2_Win32>true</Cfg_2_Win32>
-        <CfgParent>Cfg_2</CfgParent>
-        <Cfg_2>true</Cfg_2>
-        <Base>true</Base>
-    </PropertyGroup>
-    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win64)'!=''">
-        <Cfg_2_Win64>true</Cfg_2_Win64>
+    <PropertyGroup Condition="('$(Platform)'=='Linux64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Linux64)'!=''">
+        <Cfg_2_Linux64>true</Cfg_2_Linux64>
         <CfgParent>Cfg_2</CfgParent>
         <Cfg_2>true</Cfg_2>
         <Base>true</Base>
@@ -77,20 +77,18 @@
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_1_Linux64)'!=''">
+        <Debugger_Launcher>/usr/bin/gnome-terminal -- &quot;%debuggee%&quot;</Debugger_Launcher>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
         <DCC_Optimize>false</DCC_Optimize>
         <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
+        <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+        <DCC_RangeChecking>true</DCC_RangeChecking>
     </PropertyGroup>
-    <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-        <DCC_Optimize>true</DCC_Optimize>
-        <DCC_GenerateStackFrames>false</DCC_GenerateStackFrames>
-        <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
-    </PropertyGroup>
-    <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
-        <DCC_Optimize>true</DCC_Optimize>
-        <DCC_GenerateStackFrames>false</DCC_GenerateStackFrames>
-        <DCC_AssertionsAtRuntime>false</DCC_AssertionsAtRuntime>
+    <PropertyGroup Condition="'$(Cfg_2_Linux64)'!=''">
+        <Debugger_Launcher>/usr/bin/gnome-terminal -- &quot;%debuggee%&quot;</Debugger_Launcher>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -99,7 +97,6 @@
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="..\..\Source\Base\Spring.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.pas"/>
-        <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Adapters.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Base.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Dictionaries.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Events.pas"/>
@@ -107,13 +104,18 @@
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Lists.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.LinkedLists.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.MultiMaps.pas"/>
+        <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.MultiSets.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Queues.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Sets.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Stacks.pas"/>
         <DCCReference Include="..\..\Source\Base\Collections\Spring.Collections.Trees.pas"/>
+        <DCCReference Include="..\..\Source\Base\Spring.Comparers.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.DesignPatterns.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.Events.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.Events.Base.pas"/>
+        <DCCReference Include="..\..\Source\Base\Spring.Hash.pas"/>
+        <DCCReference Include="..\..\Source\Base\Spring.HashTable.pas"/>
+        <DCCReference Include="..\..\Source\Base\Spring.HazardEra.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.Helpers.pas"/>
         <DCCReference Include="..\..\Source\Base\Logging\Spring.Logging.pas"/>
         <DCCReference Include="..\..\Source\Base\Logging\Spring.Logging.Appenders.pas"/>
@@ -125,6 +127,8 @@
         <DCCReference Include="..\..\Source\Base\Logging\Spring.Logging.ResourceStrings.pas"/>
         <DCCReference Include="..\..\Source\Base\Logging\Spring.Logging.Serializers.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.MethodIntercept.pas"/>
+        <DCCReference Include="..\..\Source\Base\Patches\Spring.Patches.RSP13163.pas"/>
+        <DCCReference Include="..\..\Source\Base\Patterns\Spring.Patterns.Specification.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.Reflection.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.ResourceStrings.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.SystemUtils.pas"/>
@@ -196,6 +200,7 @@
                 <Excluded_Packages/>
             </Delphi.Personality>
             <Platforms>
+                <Platform value="Linux64">True</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">True</Platform>
             </Platforms>

@@ -24,12 +24,12 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
-			<DCC_Define>SPRING_ENABLE_GUARD;TESTINSIGHT;$(DCC_Define)</DCC_Define>
+			<DCC_Define>TESTINSIGHT;$(DCC_Define)</DCC_Define>
 			<DCC_ImageBase>00400000</DCC_ImageBase>
 			<DCC_DcuOutput>Lib\DelphiXE\$(Platform)\$(Config)</DCC_DcuOutput>
 			<DCC_ExeOutput>Bin\DelphiXE\$(Platform)\$(Config)</DCC_ExeOutput>
 			<DCC_UnitAlias>WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;WinTypes=Windows;WinProcs=Windows;$(DCC_UnitAlias)</DCC_UnitAlias>
-			<DCC_UnitSearchPath>..\Source;..\Source\Base;..\Source\Base\Collections;..\Source\Base\Logging;..\Source\Base\Patches;..\Source\Core\Container;..\Source\Core\Interception;..\Source\Core\Logging;..\Source\Core\Mocking;..\Source\Core\Services;..\Source\Extensions\Cryptography;..\Source\Extensions\Utils;.\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+			<DCC_UnitSearchPath>..\Source;..\Source\Base;..\Source\Base\Collections;..\Source\Base\Logging;..\Source\Base\Patches;..\Source\Base\Patterns;..\Source\Core\Container;..\Source\Core\Interception;..\Source\Core\Logging;..\Source\Core\Mocking;..\Source\Core\Services;..\Source\Extensions\Cryptography;..\Source\Extensions\Utils;.\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
 			<DCC_N>false</DCC_N>
 			<DCC_S>false</DCC_S>
 			<DCC_K>false</DCC_K>
@@ -60,6 +60,7 @@
 			<DCCReference Include="Source\Spring.TestUtils.pas"/>
 			<DCCReference Include="Source\Base\Spring.Tests.Base.pas"/>
 			<DCCReference Include="Source\Base\Spring.Tests.Collections.pas"/>
+			<DCCReference Include="Source\Base\Spring.Tests.Collections.Dictionaries.pas"/>
 			<DCCReference Include="Source\Base\Spring.Tests.Collections.Extensions.pas"/>
 			<DCCReference Include="Source\Base\Spring.Tests.DesignPatterns.pas"/>
 			<DCCReference Include="Source\Base\Spring.Tests.Helpers.pas"/>

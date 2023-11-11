@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -385,7 +385,7 @@ end;
 
 function CRC16Final(var crc: Word): TBuffer;
 begin
-  Result := TBuffer.Create([Hi(crc), Lo(crc)]);
+  Result := TBuffer.Create([WordRec(crc).Hi, WordRec(crc).Lo]);
 end;
 
 
@@ -438,7 +438,7 @@ end;
 
 procedure TCRC32.HashUpdate(const buffer: Pointer; count: Integer);
 begin
-  CRC32BUpdate(fCRCValue, buffer, count);
+  CRC32BUpdate(fCRCValue, buffer, Cardinal(count));
 end;
 
 function TCRC32.HashFinal: TBuffer;

@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -80,14 +80,14 @@ type
     ///   Target Rtti.PTypeInfo structure
     /// </param>
     /// <param name="targetValue">
-    ///   Target Rtti.TValue out parameter
+    ///   Target Rtti.TValue var parameter
     /// </param>
     /// <returns>
     ///   Returns System.Boolean, True if converting with success
     /// </returns>
     function TryConvertTo(const value: TValue;
       const targetTypeInfo: PTypeInfo;
-      out targetValue: TValue): Boolean; overload;
+      var targetValue: TValue): Boolean; overload;
 
     /// <param name="value">
     ///   Rtti.TValue to convert
@@ -96,7 +96,7 @@ type
     ///   Target Rtti.PTypeInfo structure
     /// </param>
     /// <param name="targetValue">
-    ///   Target Rtti.TValue out parameter
+    ///   Target Rtti.TValue var parameter
     /// </param>
     /// <param name="parameter">
     ///   Additional Rtti.TValue formatting parameter, use when possible
@@ -106,7 +106,7 @@ type
     /// </returns>
     function TryConvertTo(const value: TValue;
       const targetTypeInfo: PTypeInfo;
-      out targetValue: TValue;
+      var targetValue: TValue;
       const parameter: TValue): Boolean; overload;
   end;
 
@@ -128,10 +128,10 @@ type
       const parameter: TValue): TValue; overload;
     function TryConvertTo(const value: TValue;
       const targetTypeInfo: PTypeInfo;
-      out targetValue: TValue): Boolean; overload;
+      var targetValue: TValue): Boolean; overload;
     function TryConvertTo(const value: TValue;
       const targetTypeInfo: PTypeInfo;
-      out targetValue: TValue;
+      var targetValue: TValue;
       const parameter: TValue): Boolean; overload;
   protected
     function DoConvertTo(const value: TValue;
@@ -788,6 +788,8 @@ type
     class var fTypeInfoToTypeKindsRegistry: TDictionary<TTypeMapping<PTypeInfo,TTypeKind>, IValueConverter>;
     class var fTypeKindsToTypeInfoRegistry: TDictionary<TTypeMapping<TTypeKind,PTypeInfo>, IValueConverter>;
     class var fTypeKindsToTypeKindsRegistry: TDictionary<TTypeMapping<TTypeKind,TTypeKind>, IValueConverter>;
+  strict protected
+    class procedure UnregisterConverter<T>(registry: TDictionary<T, IValueConverter>; converterClass: TConverterClass); overload; static;
   public
     class constructor Create;
     class destructor Destroy;
@@ -817,6 +819,8 @@ type
     class procedure RegisterConverter(
       sourceTypeInfo: PTypeInfo; targetTypeKinds: TTypeKinds;
       const converter: IValueConverter); overload; static;
+
+    class procedure UnregisterConverter(converterClass: TConverterClass); overload; static;
 
     class function GetConverter(
       sourceTypeInfo, targetTypeInfo: PTypeInfo): IValueConverter; static;
@@ -883,10 +887,6 @@ end;
 type
   TDefaultConverter = class
   private
-    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
-    function _AddRef: Integer; stdcall;
-    function _Release: Integer; stdcall;
-
     function ConvertTo(const value: TValue;
       const targetTypeInfo: PTypeInfo): TValue;
     function ConvertToParam(const value: TValue;
@@ -894,17 +894,17 @@ type
       const parameter: TValue): TValue;
     function TryConvertTo(const value: TValue;
       const targetTypeInfo: PTypeInfo;
-      out targetValue: TValue): Boolean;
+      var targetValue: TValue): Boolean;
     function TryConvertToParam(const value: TValue;
       const targetTypeInfo: PTypeInfo;
-      out targetValue: TValue;
+      var targetValue: TValue;
       const parameter: TValue): Boolean;
   private const
     Vtable: array[0..6] of Pointer =
     (
-      @TDefaultConverter.QueryInterface,
-      @TDefaultConverter._AddRef,
-      @TDefaultConverter._Release,
+      @NopQueryInterface,
+      @NopRef,
+      @NopRef,
       @TDefaultConverter.ConvertTo,
       @TDefaultConverter.ConvertToParam,
       @TDefaultConverter.TryConvertTo,
@@ -912,21 +912,6 @@ type
     );
     Instance: Pointer = @TDefaultConverter.Vtable;
   end;
-
-function TDefaultConverter.QueryInterface(const IID: TGUID; out Obj): HResult;
-begin
-  Result := E_NOINTERFACE;
-end;
-
-function TDefaultConverter._AddRef: Integer;
-begin
-  Result := -1;
-end;
-
-function TDefaultConverter._Release: Integer;
-begin
-  Result := -1;
-end;
 
 function TDefaultConverter.ConvertToParam(const value: TValue;
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
@@ -960,7 +945,7 @@ end;
 
 function TDefaultConverter.TryConvertToParam(const value: TValue;
   const targetTypeInfo: PTypeInfo;
-  out targetValue: TValue;
+  var targetValue: TValue;
   const parameter: TValue): Boolean;
 var
   converter: IValueConverter;
@@ -979,7 +964,7 @@ end;
 
 function TDefaultConverter.TryConvertTo(const value: TValue;
   const targetTypeInfo: PTypeInfo;
-  out targetValue: TValue): Boolean;
+  var targetValue: TValue): Boolean;
 begin
   Result := TryConvertToParam(value, targetTypeInfo, targetValue, EmptyValue);
 end;
@@ -1013,13 +998,13 @@ begin
 end;
 
 function TValueConverter.TryConvertTo(const value: TValue;
-  const targetTypeInfo: PTypeInfo; out targetValue: TValue): Boolean;
+  const targetTypeInfo: PTypeInfo; var targetValue: TValue): Boolean;
 begin
   Result := TryConvertTo(value, targetTypeInfo, targetValue, EmptyValue);
 end;
 
 function TValueConverter.TryConvertTo(const value: TValue;
-  const targetTypeInfo: PTypeInfo; out targetValue: TValue;
+  const targetTypeInfo: PTypeInfo; var targetValue: TValue;
   const parameter: TValue): Boolean;
 begin
   try
@@ -1055,17 +1040,17 @@ end;
 
 {$REGION 'TStringToIntegerConverter'}
 
-function TStringToIntegerConverter.DoConvertTo(const value: TValue;
+function TStringToIntegerConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 begin
   if targetTypeInfo = TypeInfo(Integer) then
     Result := TValue.From<Integer>(StrToInt(value.AsString))
   else if targetTypeInfo = TypeInfo(Cardinal) then
-    Result := TValue.From<Cardinal>(StrToInt64(value.AsString))
+    Result := TValue.From<Cardinal>(StrToUInt(value.AsString))
   else if targetTypeInfo = TypeInfo(Int64) then
     Result := TValue.From<Int64>(StrToInt64(value.AsString))
   else if targetTypeInfo = TypeInfo(UInt64) then
-    Result := TValue.From<UInt64>(StrToInt64(value.AsString))
+    Result := TValue.From<UInt64>(StrToUInt64(value.AsString))
   else if targetTypeInfo = TypeInfo(SmallInt) then
     Result := TValue.From<SmallInt>(StrToInt(value.AsString))
   else if targetTypeInfo = TypeInfo(Word) then
@@ -1114,25 +1099,25 @@ end;
 
 {$REGION 'TBooleanToIntegerConverter'}
 
-function TBooleanToIntegerConverter.DoConvertTo(const value: TValue;
+function TBooleanToIntegerConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 begin
   if targetTypeInfo = TypeInfo(Integer) then
     Result := TValue.From<Integer>(Integer(value.AsBoolean))
   else if targetTypeInfo = TypeInfo(Cardinal) then
-    Result := TValue.From<Cardinal>(Integer(value.AsBoolean))
+    Result := TValue.From<Cardinal>(Cardinal(value.AsBoolean))
   else if targetTypeInfo = TypeInfo(Int64) then
     Result := TValue.From<Int64>(Integer(value.AsBoolean))
   else if targetTypeInfo = TypeInfo(UInt64) then
-    Result := TValue.From<UInt64>(Integer(value.AsBoolean))
+    Result := TValue.From<UInt64>(UInt64(value.AsBoolean))
   else if targetTypeInfo = TypeInfo(SmallInt) then
-    Result := TValue.From<SmallInt>(Integer(value.AsBoolean))
+    Result := TValue.From<SmallInt>(SmallInt(value.AsBoolean))
   else if targetTypeInfo = TypeInfo(Word) then
-    Result := TValue.From<Word>(Integer(value.AsBoolean))
+    Result := TValue.From<Word>(Word(value.AsBoolean))
   else if targetTypeInfo = TypeInfo(ShortInt) then
-    Result := TValue.From<ShortInt>(Integer(value.AsBoolean))
+    Result := TValue.From<ShortInt>(ShortInt(value.AsBoolean))
   else if targetTypeInfo = TypeInfo(Byte) then
-    Result := TValue.From<Byte>(Integer(value.AsBoolean))
+    Result := TValue.From<Byte>(Byte(value.AsBoolean))
   else
     RaiseConvertError(value.TypeInfo, targetTypeInfo);
 end;
@@ -1172,7 +1157,7 @@ end;
 
 {$REGION 'TTypeToNullableConverter'}
 
-function TTypeToNullableConverter.DoConvertTo(const value: TValue;
+function TTypeToNullableConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 var
   innerTypeInfo: PTypeInfo;
@@ -1310,7 +1295,7 @@ function TFloatToStringConverter.DoConvertTo(const value: TValue;
 var
   format: string;
 begin
-  if not parameter.IsEmpty and parameter.TryAsType<string>(format) then
+  if not parameter.IsEmpty and parameter.TryAsType(TypeInfo(string), format) then
   begin
     case targetTypeInfo.Kind of
       tkString, tkUString:
@@ -1341,7 +1326,7 @@ end;
 
 {$REGION 'TFloatToIntegerConverter'}
 
-function TFloatToIntegerConverter.DoConvertTo(const value: TValue;
+function TFloatToIntegerConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 var
   f: Extended;
@@ -1374,7 +1359,7 @@ end;
 
 {$REGION 'TStringToFloatConverter'}
 
-function TStringToFloatConverter.DoConvertTo(const value: TValue;
+function TStringToFloatConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 var
   targetTypeData: PTypeData;
@@ -1442,7 +1427,7 @@ function TCurrencyToStringConverter.DoConvertTo(const value: TValue;
 var
   format: string;
 begin
-  if not parameter.IsEmpty and parameter.TryAsType<string>(format) then
+  if not parameter.IsEmpty and parameter.TryAsType(TypeInfo(string), format) then
   begin
     case targetTypeInfo.Kind of
       tkString, tkUString:
@@ -1489,7 +1474,7 @@ function TDateTimeToStringConverter.DoConvertTo(const value: TValue;
 var
   format: string;
 begin
-  if not parameter.IsEmpty and parameter.TryAsType<string>(format) then
+  if not parameter.IsEmpty and parameter.TryAsType(TypeInfo(string), format) then
   begin
     case targetTypeInfo.Kind of
       tkString, tkUString:
@@ -1525,7 +1510,7 @@ function TStringToDateTimeConverter.DoConvertTo(const value: TValue;
 var
   format: string;
 begin
-  if not parameter.IsEmpty and parameter.TryAsType<string>(format) then
+  if not parameter.IsEmpty and parameter.TryAsType(TypeInfo(string), format) then
     Result := TValue.From<TDateTime>(StrToDateTimeFmt(value.AsString, format))
   else
     Result := TValue.From<TDateTime>(StrToDateTime(value.AsString));
@@ -1552,7 +1537,7 @@ function TDateToStringConverter.DoConvertTo(const value: TValue;
 var
   format: TFormatSettings;
 begin
-  if not parameter.IsEmpty and parameter.TryAsType<TFormatSettings>(format) then
+  if not parameter.IsEmpty and parameter.TryAsType(TypeInfo(TFormatSettings), format) then
   begin
     case targetTypeInfo.Kind of
       tkString, tkUString:
@@ -1588,7 +1573,7 @@ function TStringToDateConverter.DoConvertTo(const value: TValue;
 var
   format: TFormatSettings;
 begin
-  if not parameter.IsEmpty and parameter.TryAsType<TFormatSettings>(format) then
+  if not parameter.IsEmpty and parameter.TryAsType(TypeInfo(TFormatSettings), format) then
     Result := TValue.From<TDate>(StrToDate(value.AsString, format))
   else
     Result := TValue.From<TDate>(StrToDate(value.AsString));
@@ -1604,7 +1589,7 @@ function TTimeToStringConverter.DoConvertTo(const value: TValue;
 var
   format: TFormatSettings;
 begin
-  if not parameter.IsEmpty and parameter.TryAsType<TFormatSettings>(format) then
+  if not parameter.IsEmpty and parameter.TryAsType(TypeInfo(TFormatSettings), format) then
   begin
     case targetTypeInfo.Kind of
       tkString, tkUString:
@@ -1640,7 +1625,7 @@ function TStringToTimeConverter.DoConvertTo(const value: TValue;
 var
   format: TFormatSettings;
 begin
-  if not parameter.IsEmpty and parameter.TryAsType<TFormatSettings>(format) then
+  if not parameter.IsEmpty and parameter.TryAsType(TypeInfo(TFormatSettings), format) then
     Result := TValue.From<TTime>(StrToTime(value.AsString, format))
   else
     Result := TValue.From<TTime>(StrToTime(value.AsString));
@@ -1671,7 +1656,7 @@ end;
 
 {$REGION 'TObjectToInterfaceConverter'}
 
-function TObjectToInterfaceConverter.DoConvertTo(const value: TValue;
+function TObjectToInterfaceConverter.DoConvertTo(const value: TValue; //FI:W521
   const targetTypeInfo: PTypeInfo; const parameter: TValue): TValue;
 var
   guid: TGUID;
@@ -1757,14 +1742,14 @@ function TInterfaceToInterfaceConverter.DoConvertTo(const value: TValue;
   ///     then
   ///   </note>
   /// </remarks>
-  function TryGetInterface(const instance: TValue; const guid: TGuid; out intf): Boolean;
+  function TryGetInterface(const instance: TValue; const guid: TGuid; var intf): Boolean;
   var
     localInterface: IInterface;
   begin
     if instance.IsEmpty then Exit(False);
     if instance.IsObject then
       Result := instance.AsObject.GetInterface(guid, intf)
-    else if instance.TryAsType<IInterface>(localInterface) then
+    else if instance.TryAsType(TypeInfo(IInterface), localInterface) then
       Result := localInterface.QueryInterface(guid, intf) = S_OK
     else
       Result := False;
@@ -2227,28 +2212,54 @@ class procedure TValueConverterFactory.RegisterConverter(
   sourceTypeInfo, targetTypeInfo: PTypeInfo;
   converterClass: TConverterClass);
 begin
-  RegisterConverter(sourceTypeInfo, targetTypeInfo, converterClass.Create);
+  RegisterConverter(sourceTypeInfo, targetTypeInfo, converterClass.Create); //FI:W536
 end;
 
 class procedure TValueConverterFactory.RegisterConverter(
   sourceTypeInfo: PTypeInfo; targetTypeKinds: TTypeKinds;
   converterClass: TConverterClass);
 begin
-  RegisterConverter(sourceTypeInfo, targetTypeKinds, converterClass.Create);
+  RegisterConverter(sourceTypeInfo, targetTypeKinds, converterClass.Create); //FI:W536
 end;
 
 class procedure TValueConverterFactory.RegisterConverter(
   sourceTypeKinds: TTypeKinds; targetTypeInfo: PTypeInfo;
   converterClass: TConverterClass);
 begin
-  RegisterConverter(sourceTypeKinds, targetTypeInfo, converterClass.Create);
+  RegisterConverter(sourceTypeKinds, targetTypeInfo, converterClass.Create); //FI:W536
 end;
 
 class procedure TValueConverterFactory.RegisterConverter(
   sourceTypeKinds, targetTypeKinds: TTypeKinds;
   converterClass: TConverterClass);
 begin
-  RegisterConverter(sourceTypeKinds, targetTypeKinds, converterClass.Create);
+  RegisterConverter(sourceTypeKinds, targetTypeKinds, converterClass.Create); //FI:W536
+end;
+
+class procedure TValueConverterFactory.UnregisterConverter<T>(
+  registry: TDictionary<T, IValueConverter>; converterClass: TConverterClass);
+var
+  registeredConverters: TArray<TPair<T, IValueConverter>>;
+  i: Integer;
+begin
+  System.MonitorEnter(registry);
+  try
+    registeredConverters := registry.ToArray;
+    for i := 0 to High(registeredConverters) do
+      if TObject(registeredConverters[i].Value).ClassType = converterClass then
+        registry.Remove(registeredConverters[i].Key);
+  finally
+    System.MonitorExit(registry);
+  end;
+end;
+
+class procedure TValueConverterFactory.UnregisterConverter(
+  converterClass: TConverterClass);
+begin
+  UnregisterConverter<TTypeMapping<PTypeInfo, PTypeInfo>>(fTypeInfoToTypeInfoRegistry, converterClass);
+  UnregisterConverter<TTypeMapping<PTypeInfo, TTypeKind>>(fTypeInfoToTypeKindsRegistry, converterClass);
+  UnregisterConverter<TTypeMapping<TTypeKind, PTypeInfo>>(fTypeKindsToTypeInfoRegistry, converterClass);
+  UnregisterConverter<TTypeMapping<TTypeKind, TTypeKind>>(fTypeKindsToTypeKindsRegistry, converterClass);
 end;
 
 {$ENDREGION}

@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -76,11 +76,13 @@ implementation
 
 uses
 {$IFDEF DELPHIXE}
+  Spring,
   Spring.Patches.GetInvokeInfo,
   Spring.Patches.QC93646,
   Spring.Patches.QC98671,
   Spring.Patches.QC107219,
 {$ENDIF}
+  Spring.Patches.RSP13163,
   RTLConsts;
 
 
@@ -88,10 +90,6 @@ uses
 
 {$IFNDEF DELPHIXE2_UP}
 constructor TVirtualInterface.Create(typeInfo: PTypeInfo);
-type
-{$POINTERMATH ON}
-  PVTable = ^Pointer;
-{$POINTERMATH OFF}
 var
   i: Integer;
   maxVirtualIndex: SmallInt;

@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -103,7 +103,7 @@ const
   {$EXTERNALSYM MAX_SCOPE_ID_LEN}
 
 type
-  time_t = Longint;
+  time_t = NativeInt;
   {$EXTERNALSYM time_t}
 
   PIP_MASK_STRING = ^IP_MASK_STRING;

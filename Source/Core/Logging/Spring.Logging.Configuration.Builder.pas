@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2018 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -64,7 +64,6 @@ type
     TAppenderBuilder = record
     private
       fBuilder: IBuilder;
-      {$IFDEF DELPHI2010}{$HINTS OFF}fDummy: Pointer;{$ENDIF}
     public
       function EndAppender: TLoggingConfigurationBuilder;
 
@@ -82,7 +81,6 @@ type
     TControllerBuilder = record
     private
       fBuilder: IBuilder;
-      {$IFDEF DELPHI2010}{$HINTS OFF}fDummy: Pointer;{$ENDIF}
     public
       function EndController: TLoggingConfigurationBuilder;
 
@@ -103,7 +101,6 @@ type
     TLoggerBuilder = record
     private
       fBuilder: IBuilder;
-      {$IFDEF DELPHI2010}{$HINTS OFF}fDummy: Pointer;{$ENDIF}
     public
       function EndLogger: TLoggingConfigurationBuilder;
 
@@ -120,7 +117,6 @@ type
     {$ENDREGION}
   private
     fBuilder: IBuilder;
-    {$IFDEF DELPHI2010}{$HINTS OFF}fDummy: Pointer;{$ENDIF}
   public
     class function Create: TLoggingConfigurationBuilder; static;
 
