@@ -509,17 +509,26 @@ end;
 
 function THashMultiSet<T>.ToArray: TArray<T>;
 var
-  sourceIndex, targetIndex, count: Integer;
+  target: ^T;
+  source: PItem;
+  i, count: Integer;
 begin
   SetLength(Result, fCount);
-  targetIndex := 0;
-  for sourceIndex := 0 to fHashTable.ItemCount - 1 do
-    if TItems(fHashTable.Items)[sourceIndex].HashCode >= 0 then
-      for count := 1 to TItems(fHashTable.Items)[sourceIndex].Count do //FI:W528
-      begin
-        Result[targetIndex] := TItems(fHashTable.Items)[sourceIndex].Item;
-        Inc(targetIndex);
-      end;
+  target := Pointer(Result);
+  if Assigned(target) then
+  begin
+    source := Pointer(fHashTable.Items);
+    for i := 1 to fHashTable.ItemCount do
+    begin
+      if source.HashCode >= 0 then
+        for count := 1 to source.Count do //FI:W528
+        begin
+          target^ := source.Item;
+          Inc(target);
+        end;
+      Inc(source);
+    end;
+  end;
 end;
 
 {$ENDREGION}
