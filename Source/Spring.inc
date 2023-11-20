@@ -2,7 +2,7 @@
 {                                                                           }
 {           Spring Framework for Delphi                                     }
 {                                                                           }
-{           Copyright (c) 2009-2022 Spring4D Team                           }
+{           Copyright (c) 2009-2023 Spring4D Team                           }
 {                                                                           }
 {           http://www.spring4d.org                                         }
 {                                                                           }
@@ -48,10 +48,6 @@
   {$UNDEF CPU386}
   {$UNDEF CPU32}
   {$UNDEF CPUASM}
-{$ENDIF}
-
-{$IFDEF OSX64}
-  {$DEFINE PUREPASCAL}
 {$ENDIF}
 
 // JEDI will assert that at least CPU386 is defined
@@ -135,14 +131,6 @@
 {$ENDIF}
 {$IFDEF MACOS}
   {$DEFINE FMX}
-{$ENDIF}
-
-{$IFDEF VER360}
-  // This is just a workaround to silence the compiler
-  // about the warnings it now also raises from generic code
-  // in 2.0 this is properly fixed
-  {$WARN NO_RETVAL OFF}
-  {$WARN USE_BEFORE_DEF OFF}
 {$ENDIF}
 
 // This option is needed to enable code browsing (aka Ctrl+Click)
