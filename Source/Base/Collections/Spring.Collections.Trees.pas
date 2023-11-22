@@ -25,6 +25,10 @@
 unit Spring.Collections.Trees;
 
 {$I Spring.inc}
+// node records must not be packed because when they get stored in an array the
+// pointers must be at least 2 byte aligned to leave the least significant bit 0
+// aligning them by 2 byte causes at most wasting 1 byte of space for each
+{$A2}
 
 interface
 
@@ -89,7 +93,7 @@ type
       property Current: PNode read fCurrent;
     end;
 
-    TNode = packed record
+    TNode = record
     strict private
       fParent, fLeft, fRight: PNode;
       function GetParent: PNode; inline;
@@ -130,7 +134,7 @@ type
   private type
     PNode = ^TNode;
     TChildNodes = array[0..1] of PNode;
-    TNode = packed record
+    TNode = record
     strict private
       function GetColor: TNodeColor; inline;
       function GetParent: PNode; inline;
@@ -203,7 +207,7 @@ type
       property Keys: TKeyEnumerable read GetKeys;
     end;
 
-    TNode = packed record
+    TNode = record
     strict private
       function GetLeftMost: PNode; inline;
       function GetRightMost: PNode; inline;
@@ -304,7 +308,7 @@ type
       property Values: TValueEnumerable read GetValues;
     end;
 
-    TNode = packed record
+    TNode = record
     strict private
       function GetLeftMost: PNode; inline;
       function GetRightMost: PNode; inline;
