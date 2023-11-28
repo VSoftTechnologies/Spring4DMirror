@@ -200,6 +200,7 @@ type
     OSX64,
     OSXARM64,
     iOSSimulator,
+    iOSSimARM64,
     iOSDevice,
     iOSDevice32,
     iOSDevice64,
@@ -463,6 +464,7 @@ const // luckily, the compiler file names have not changed over the Delphi versi
     'dccosx64.exe',
     'dccosxarm64.exe',
     'dccios32.exe',
+    'dcciossimarm64.exe',
     'dcciosarm.exe',
     'dcciosarm.exe',
     'dcciosarm64.exe',
@@ -476,7 +478,7 @@ var
 begin
   for knownPlatform := Low(TKnownPlatforms) to High(TKnownPlatforms) do
   begin
-    knownPlatformName := TEnum.GetName(knownPlatform);
+    knownPlatformName := Spring.TEnum.GetName(knownPlatform);
     if SameText(knownPlatformName, targetPlatform) then
     begin
       Result := CCommandLineCompilers[knownPlatform];
@@ -759,7 +761,7 @@ begin
     config := iniFile.ReadString('Globals', 'Config', 'Debug');
     fBuildConfigs := [];
     for config in SplitString(config, ',') do
-      Include(fBuildConfigs, TEnum.Parse<TBuildConfig>(config));
+      Include(fBuildConfigs, Spring.TEnum.Parse<TBuildConfig>(config));
     fSourceBaseDir := iniFile.ReadString('Globals', 'SourceBaseDir', '');
     fSourceBaseDir := ApplicationPath + fSourceBaseDir;
     fSourcePaths.DelimitedText := iniFile.ReadString('Globals', 'SourcePaths', '');
