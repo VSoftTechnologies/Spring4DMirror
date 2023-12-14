@@ -71,6 +71,7 @@ type
     fMatch: TArgMatch;
     fExpectedCalls: IMultiMap<TRttiMethod,TMethodCall>;
     fReceivedCalls: IMultiMap<TRttiMethod,TArray<TValue>>;
+    fResetCount: Byte;
     fState: TMockState;
     fSequence: IMockSequence;
     class function CreateArgMatch(const arguments: TArray<TValue>;
@@ -360,7 +361,7 @@ begin
       Result := m.Match(invocation.Arguments);
     end);
 
-  if not Assigned(methodCall) then
+  if not Assigned(methodCall) and (fResetCount = 0) then
     if fCallBase then
       invocation.Proceed
     else
@@ -394,7 +395,8 @@ begin
         end;
       end;
 
-  fReceivedCalls.Add(invocation.Method, Copy(invocation.Arguments));
+  if fResetCount = 0 then
+    fReceivedCalls.Add(invocation.Method, Copy(invocation.Arguments));
   if Assigned(methodCall) then
     invocation.Result := methodCall.Invoke(invocation);
 end;
@@ -460,10 +462,15 @@ end;
 procedure TMockInterceptor.Reset;
 begin
   fState := TMockState.Act;
-  fCurrentAction := nil;
-  fCurrentValues := nil;
-  fExpectedCalls.Clear;
-  fReceivedCalls.Clear;
+  Inc(fResetCount);
+  try
+    fCurrentAction := nil;
+    fCurrentValues := nil;
+    fReceivedCalls.Clear;
+    fExpectedCalls.Clear;
+  finally
+    Dec(fResetCount);
+  end;
 end;
 
 procedure TMockInterceptor.Returns(const values: array of TValue);

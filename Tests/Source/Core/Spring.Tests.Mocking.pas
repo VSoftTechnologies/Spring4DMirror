@@ -60,6 +60,7 @@ type
 
     procedure ReturnsMultipleValues;
     procedure WrapperObjectsNotLeaking;
+    procedure ResetClearsProperly;
   end;
 
   ReceivedChecksForInputValueOfVarParams = class(TTestCase)
@@ -171,6 +172,34 @@ type
     function Method(const rec: TRec): Integer; virtual; abstract;
   end;
 
+  IObserver = interface(IInvokable)
+  end;
+
+  ISubject = interface(IInvokable)
+    procedure Attach(const observer: IObserver);
+    procedure Detach(const observer: IObserver);
+  end;
+
+  TService = class(TInterfacedObject, IObserver)
+  private
+    fSubject: ISubject;
+  public
+    constructor Create(const subject: ISubject);
+    destructor Destroy; override;
+  end;
+
+constructor TService.Create(const subject: ISubject);
+begin
+  fSubject := subject;
+  fSubject.Attach(Self);
+end;
+
+destructor TService.Destroy;
+begin
+  if Assigned(fSubject) then
+    fSubject.Detach(Self);
+  inherited;
+end;
 
 {$REGION 'TTestMRec'}
 
@@ -325,6 +354,23 @@ var
   intf: IInterface;
 begin
   mock.Setup.Executes.When.TestIntf(intf, Arg.IsAny<Integer>);
+  Pass;
+end;
+
+procedure TParameterMatchingTests.ResetClearsProperly;
+var
+  subject: Mock<ISubject>;
+  observer: IObserver;
+begin
+  subject.Behavior := TMockbehavior.Strict;
+  with subject.Setup do
+  begin
+    Executes.When(Args.Any).Attach(nil);
+    Executes.When(Args.Any).Detach(nil);
+  end;
+  observer := TService.Create(subject);
+  observer := nil;
+  subject.Free;
   Pass;
 end;
 
