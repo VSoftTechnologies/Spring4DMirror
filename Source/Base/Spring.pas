@@ -832,6 +832,17 @@ type
   {$ENDREGION}
 
 
+  {$REGION 'TRttiNamedObjectHelper'}
+
+{$IFNDEF DELPHIX_ALEXANDRIA_UP}
+  TRttiNamedObjectHelper = class helper for TRttiNamedObject
+    function HasName(const name: string): Boolean;
+  end;
+{$ENDIF}
+
+  {$ENDREGION}
+
+
   {$REGION 'TRttiMethodHelper'}
 
 {$IFNDEF DELPHIX_BERLIN_UP}
@@ -3563,7 +3574,7 @@ function FormatValue(const value: TValue): string;
 
     // use function ToString: string when available
     for method in value.TypeInfo.RttiType.GetMethods do
-      if SameText(method.Name, 'ToString')
+      if method.HasName('ToString')
         and (method.MethodKind = mkFunction)
         and (method.GetParameters = nil)
         and (method.ReturnType.TypeKind = tkUString) then
@@ -7774,6 +7785,18 @@ class procedure TValueHelper.UpdateFormatSettings;
 begin
   ConvertSettings := TFormatSettings.Create;
 end;
+
+{$ENDREGION}
+
+
+{$REGION 'TRttiNamedObjectHelper'}
+
+{$IFNDEF DELPHIX_ALEXANDRIA_UP}
+function TRttiNamedObjectHelper.HasName(const name: string): Boolean;
+begin
+  Result := SameText(Self.Name, name);
+end;
+{$ENDIF}
 
 {$ENDREGION}
 

@@ -195,7 +195,7 @@ begin
       Result := False;
       for i := Low(parameters) to High(parameters) do
       begin // look for parameter that matches the name and type
-        if SameText(parameters[i].Name, value.Name)
+        if parameters[i].HasName(value.Name)
           and value.Value.IsType(parameters[i].ParamType.Handle) then
         begin
           arguments[i] := value.Value;

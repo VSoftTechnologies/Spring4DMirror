@@ -745,7 +745,7 @@ begin
   Result := Context.FindType(qualifiedName);
   if not Assigned(Result) then
     for item in Context.GetTypes do
-      if SameText(item.Name, qualifiedName) then
+      if item.HasName(qualifiedName) then
         Exit(item);
 end;
 
@@ -1668,7 +1668,7 @@ end;
 
 function TNameFilter<T>.IsSatisfiedBy(const member: T): Boolean;
 begin
-  Result := SameText(TRttiNamedObject(member).Name, fName);
+  Result := TRttiNamedObject(member).HasName(fName);
 end;
 
 { TTypeFilter<T> }

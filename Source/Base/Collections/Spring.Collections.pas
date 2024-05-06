@@ -7015,7 +7015,7 @@ begin
   else
   begin
     for item in TType.Context.GetTypes do
-      if SameText(item.Name, qualifiedName) then
+      if item.HasName(qualifiedName) then
         Exit(item.Handle);
     Result := nil;
   end;
