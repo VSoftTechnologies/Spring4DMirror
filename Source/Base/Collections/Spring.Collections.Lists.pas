@@ -35,7 +35,8 @@ uses
   Spring,
   Spring.Collections,
   Spring.Collections.Base,
-  Spring.Events;
+  Spring.Events,
+  Spring.Span;
 
 {$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
@@ -106,6 +107,7 @@ type
     function TryGetFirst(var value: T): Boolean; overload;
     function TryGetLast(var value: T): Boolean; overload;
     function TryGetSingle(var value: T): Boolean; overload;
+    function AsSpan: Span<T>;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
     property Count: Integer read GetCount;
@@ -268,6 +270,7 @@ type
   {$ENDREGION}
     procedure DeleteRangeInternal(index, count: Integer; doClear: Boolean);
     function AsReadOnly: IReadOnlyList<T>;
+    function AsSpan: Span<T>;
   protected
     function GetElementType: PTypeInfo; override;
   public
@@ -492,6 +495,11 @@ end;
 function TAbstractArrayList<T>.GetOwnsObjects: Boolean;
 begin
   Result := {$IFDEF DELPHIXE7_UP}(GetTypeKind(T) = tkClass) and {$ENDIF}(fCount < 0);
+end;
+
+function TAbstractArrayList<T>.AsSpan: Span<T>;
+begin
+  Result.Init(Pointer(fItems), Count);
 end;
 
 function TAbstractArrayList<T>.Add(const item: T): Integer;
@@ -1875,6 +1883,20 @@ end;
 
 {$REGION 'TCollectionList<T>'}
 
+type
+  TCollectionHelper = class helper for TCollection
+    function GetListItems: Pointer; inline;
+    property ListItems: Pointer read GetListItems;
+  end;
+
+{$HINTS OFF}
+function TCollectionHelper.GetListItems: Pointer;
+begin
+  with Self do
+    Result := FItems.List;
+end;
+{$HINTS ON}
+
 constructor TCollectionList<T>.Create(const collection: TCollection);
 begin
   if not Assigned(collection) then RaiseHelper.ArgumentNil(ExceptionArgument.collection);
@@ -1898,6 +1920,11 @@ end;
 function TCollectionList<T>.AsReadOnly: IReadOnlyList<T>;
 begin
   Result := Self;
+end;
+
+function TCollectionList<T>.AsSpan: Span<T>;
+begin
+  Result.Init(fCollection.ListItems, fCollection.Count);
 end;
 
 procedure TCollectionList<T>.Clear;

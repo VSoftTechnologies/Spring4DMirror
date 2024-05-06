@@ -35,7 +35,8 @@ uses
   Spring,
   Spring.Collections,
   Spring.Collections.Base,
-  Spring.Collections.Lists;
+  Spring.Collections.Lists,
+  Spring.Span;
 
 {$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
@@ -901,6 +902,7 @@ type
   {$ENDREGION}
     procedure DeleteRangeInternal(index, count: Integer; doClear: Boolean);
     function AsReadOnly: IReadOnlyList<string>;
+    function AsSpan: Span<string>;
     function TryGet(var value: string; index: Integer): Boolean;
   public
     constructor Create(const strings: TStrings; ownsObject: Boolean);
@@ -3436,6 +3438,11 @@ end;
 function TStringsAdapter.AsReadOnly: IReadOnlyList<string>;
 begin
   Result := Self;
+end;
+
+function TStringsAdapter.AsSpan: Span<string>;
+begin
+  RaiseHelper.NotSupported;
 end;
 
 procedure TStringsAdapter.BeforeDestruction;

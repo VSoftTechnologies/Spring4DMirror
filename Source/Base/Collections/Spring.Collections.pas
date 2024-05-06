@@ -38,7 +38,8 @@ uses
   SysUtils,
   TypInfo,
   Spring,
-  Spring.Comparers;
+  Spring.Comparers,
+  Spring.Span;
 
 const
   doOwnsKeys = Spring.doOwnsKeys;
@@ -2510,6 +2511,11 @@ type
     ///   as <see cref="Spring.Collections|IReadOnlyList&lt;T&gt;" />.
     /// </remarks>
     function AsReadOnly: IReadOnlyList<T>;
+
+    /// <summary>
+    ///   Returns direct access to the internal array where the items are stored.
+    /// </summary>
+    function AsSpan: Span<T>;
 
     /// <summary>
     ///   Sets the capacity to the actual number of elements in the list.
