@@ -225,6 +225,7 @@ implementation
 
 uses
   FmtBcd,
+  RTLConsts,
   StrUtils,
   SysUtils,
   TypInfo,
@@ -364,11 +365,8 @@ begin
     if Assigned(OnFilterRecord) then
       OnFilterRecord(Self, Accept)
     else
-    begin
-      FilterCache.Clear;
       if fFilterParser.Eval then
         Accept := fFilterParser.Value;
-    end;
   end
   else
     Accept := False;
@@ -474,7 +472,10 @@ begin
       IndexList.InsertItem(newItem, Index);
 
   if Sorted and sortNeeded then
+  begin
     InternalSetSort(Sort, Index);
+    Index := IndexList.IndexOf(newItem);
+  end;
 
   SetCurrent(Index);
 end;
@@ -605,19 +606,30 @@ begin
 end;
 
 function TObjectDataSet.InternalGetFieldValue(field: TField; const obj: TObject): Variant;
+
+  function Error(field: TField): Exception;
+  begin
+    Result := EObjectDataSetException.CreateFmt(SPropertyNotFound, [field.FieldName]);
+  end;
+
 var
-  prop: TRttiProperty;
+  i: Integer;
+  prop: TRttiInstanceProperty;
 begin
-  if fProperties.TryGetFirst(prop, TPropertyFilters.IsNamed(field.FieldName)) then
-    Result := prop.GetValue(obj).ToVariant
-  else
-    if field.FieldKind = fkData then
-      if fDisabledFields.Add(field) then
-      begin
-        field.ReadOnly := True;
-        field.Visible := False;
-        raise EObjectDataSetException.CreateFmt(SPropertyNotFound, [field.FieldName]);
-      end;
+  for i := 0 to fProperties.Count - 1 do
+  begin
+    prop := TRttiInstanceProperty(fProperties[i]);
+    if prop.HasName(field.FieldName) then
+      Exit(prop.GetValue(obj).ToVariant);
+  end;
+
+  if field.FieldKind = fkData then
+    if fDisabledFields.Add(field) then
+    begin
+      field.ReadOnly := True;
+      field.Visible := False;
+      raise Error(field);
+    end;
 end;
 
 procedure TObjectDataSet.InternalInitFieldDefs;
@@ -889,17 +901,14 @@ function TObjectDataSet.ParserGetVariableValue(Sender: TObject;
 var
   field: TField;
 begin
-  Result := FilterCache.TryGetValue(VarName, Value);
-  if not Result then
+  field := FindField(VarName);
+  if Assigned(field) then
   begin
-    field := FindField(Varname);
-    if Assigned(field) then
-    begin
-      Value := InternalGetFieldValue(field, IndexList.Items[Index]);
-      FilterCache.Add(VarName, Value);
-      Result := True;
-    end;
-  end;
+    Value := InternalGetFieldValue(field, IndexList.Items[Index]);
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 procedure TObjectDataSet.RegisterChangeHandler;

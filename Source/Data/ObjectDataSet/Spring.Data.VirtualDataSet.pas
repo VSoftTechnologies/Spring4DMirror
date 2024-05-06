@@ -46,13 +46,11 @@ type
 {$IFNDEF DELPHIXE3_UP}
   TValueBuffer  = Pointer;
 {$ENDIF}
-  PVariantList = ^TVariantList;
-  TVariantList = array[0..0] of OleVariant;
-  PArrayRecInfo = ^TArrayRecInfo;
-
-  TArrayRecInfo = record
+  PRecordBufferData = ^TRecordBufferData;
+  TRecordBufferData = record
     Index: Integer;
     BookmarkFlag: TBookmarkFlag;
+    Values: array[0..0] of Variant;
   end;
 
   TBaseVirtualDataSet = class;
@@ -64,7 +62,6 @@ type
 
   TBaseVirtualDataSet = class(TDataSet)
   private
-    fRowBufSize: Integer;
     fFilterBuffer: TRecordBuffer;
     fOldValueBuffer: TRecordBuffer;
     fReadOnly: Boolean;
@@ -124,7 +121,6 @@ type
     procedure InternalEdit; override;
     procedure SetRecNo(Value: Integer); override;
     procedure SetCurrent(value: Integer); virtual;
-    procedure SetRecBufSize;
 
     // Abstract overrides
     function AllocRecordBuffer: TRecordBuffer; override;
@@ -148,7 +144,6 @@ type
 
     function GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode;
       DoCheck: Boolean): TGetResult; override;
-    function GetRecordSize: Word; override;
 
     procedure InternalAddRecord(Buffer: {$IFDEF DELPHIXE3_UP}TRecordBuffer{$ELSE}Pointer{$ENDIF}; Append: Boolean); override;
     procedure InternalClose; override;
@@ -171,7 +166,6 @@ type
     function InternalGetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoCheck: Boolean): TGetResult; virtual;
     procedure SetFieldData(const field: TField; const buffer: Variant); overload;
 
-    property FilterCache: IDictionary<string, Variant> read fFilterCache;
     property IndexList: TIndexList read fIndexList;
     {$IFDEF DELPHIXE3_UP}
     property Reserved: Pointer read fReserved write fReserved;
@@ -444,10 +438,7 @@ end;
 function TBaseVirtualDataSet.AllocRecordBuffer: TRecordBuffer;
 begin
   if not (csDestroying in ComponentState) then
-  begin
-    Pointer(Result) := AllocMem(fRowBufSize);
-    Initialize(PVariantList(Result + SizeOf(TArrayRecInfo))^, Fields.Count);
-  end
+    Pointer(Result) := AllocMem(SizeOf(TRecordBufferData) + Fields.Count * SizeOf(Variant))
   else
     Pointer(Result) := nil;
 end;
@@ -514,7 +505,7 @@ begin
   if Pointer(fOldValueBuffer) = nil then
     fOldValueBuffer := AllocRecordBuffer
   else
-    Finalize(PVariantList(fOldValueBuffer + SizeOf(TArrayRecInfo))^, Fields.Count);
+    FinalizeArray(@PRecordBufferData(fOldValueBuffer).Values, TypeInfo(Variant), Fields.Count);
 
   InitRecord({$IFDEF DELPHIXE4_UP}NativeInt(fOldValueBuffer){$ELSE}fOldValueBuffer{$ENDIF});
   inherited DoOnNewRecord;
@@ -535,7 +526,7 @@ end;
 
 procedure TBaseVirtualDataSet.FreeRecordBuffer(var Buffer: TRecordBuffer);
 begin
-  Finalize(PVariantList(Buffer + SizeOf(TArrayRecInfo))^, Fields.Count);
+  FinalizeArray(@PRecordBufferData(Buffer).Values, TypeInfo(Variant), Fields.Count);
   FreeMem(Pointer(Buffer));
 end;
 
@@ -567,49 +558,49 @@ end;
 {$IFDEF DELPHIXE4_UP}
 procedure TBaseVirtualDataSet.GetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
 begin
-  PObject(Data)^ := fIndexList[PArrayRecInfo(Buffer).Index];
+  PObject(Data)^ := fIndexList[PRecordBufferData(Buffer).Index];
 end;
 
 procedure TBaseVirtualDataSet.SetBookmarkData(Buffer: TRecBuf; Data: TBookmark);
 begin
-  if PArrayRecInfo(Buffer).BookmarkFlag in [bfCurrent, bfInserted] then
-    PArrayRecInfo(Buffer).Index := fIndexList.IndexOf(PObject(@Data[0])^)
+  if PRecordBufferData(Buffer).BookmarkFlag in [bfCurrent, bfInserted] then
+    PRecordBufferData(Buffer).Index := fIndexList.IndexOf(PObject(@Data[0])^)
   else
-    PArrayRecInfo(Buffer).Index := -1;
+    PRecordBufferData(Buffer).Index := -1;
 end;
 {$ENDIF}
 
 {$IFDEF DELPHIXE3_UP}
 procedure TBaseVirtualDataSet.GetBookmarkData(Buffer: TRecordBuffer; Data: TBookmark);
 begin
-  PObject(Data)^ := fIndexList[PArrayRecInfo(Buffer).Index];
+  PObject(Data)^ := fIndexList[PRecordBufferData(Buffer).Index];
 end;
 
 procedure TBaseVirtualDataSet.SetBookmarkData(Buffer: TRecordBuffer; Data: TBookmark);
 begin
-  if PArrayRecInfo(Buffer).BookmarkFlag in [bfCurrent, bfInserted] then
-    PArrayRecInfo(Buffer).Index := fIndexList.IndexOf(PObject(@Data[0])^)
+  if PRecordBufferData(Buffer).BookmarkFlag in [bfCurrent, bfInserted] then
+    PRecordBufferData(Buffer).Index := fIndexList.IndexOf(PObject(@Data[0])^)
   else
-    PArrayRecInfo(Buffer).Index := -1;
+    PRecordBufferData(Buffer).Index := -1;
 end;
 {$ENDIF}
 
 procedure TBaseVirtualDataSet.GetBookmarkData(Buffer: TRecordBuffer; Data: Pointer);
 begin
-  PObject(Data)^ := fIndexList[PArrayRecInfo(Buffer).Index];
+  PObject(Data)^ := fIndexList[PRecordBufferData(Buffer).Index];
 end;
 
 procedure TBaseVirtualDataSet.SetBookmarkData(Buffer: TRecordBuffer; Data: Pointer);
 begin
-  if PArrayRecInfo(Buffer).BookmarkFlag in [bfCurrent, bfInserted] then
-    PArrayRecInfo(Buffer).Index := fIndexList.IndexOf(PObject(Data)^)
+  if PRecordBufferData(Buffer).BookmarkFlag in [bfCurrent, bfInserted] then
+    PRecordBufferData(Buffer).Index := fIndexList.IndexOf(PObject(Data)^)
   else
-    PArrayRecInfo(Buffer).Index := -1;
+    PRecordBufferData(Buffer).Index := -1;
 end;
 
 function TBaseVirtualDataSet.GetBookmarkFlag(Buffer: TRecordBuffer): TBookmarkFlag;
 begin
-  Result := PArrayRecInfo(Buffer).BookmarkFlag;
+  Result := PRecordBufferData(Buffer).BookmarkFlag;
 end;
 
 function TBaseVirtualDataSet.GetCanModify: Boolean;
@@ -832,7 +823,7 @@ var
         if NativeFormat then
           DataConvert(Field, @Data, Buffer, True)
         else
-          OleVariant(Buffer^) := Data;
+          Variant(Buffer^) := Data;
       ftInterface:
         IUnknown(Buffer^) := Data;
       ftIDispatch:
@@ -843,7 +834,7 @@ var
         else
           LargeInt(Buffer^) := PDecimal(@Data).Lo64;
       ftBlob .. ftTypedBinary, ftVariant, ftWideMemo:
-        OleVariant(Buffer^) := Data;
+        Variant(Buffer^) := Data;
     else
       DatabaseErrorFmt(SUnsupportedFieldType, [FieldTypeNames[Field.DataType],
         Field.DisplayName]);
@@ -875,18 +866,18 @@ begin
   if not Result then
     Exit;
 
-  Data := PVariantList(recBuf + SizeOf(TArrayRecInfo))[Field.Index];
+  Data := PRecordBufferData(recBuf).Values[Field.Index];
 
   if VarIsEmpty(Data) then
   begin
-    DoGetFieldValue(Field, PArrayRecInfo(recBuf).Index, Data);
+    DoGetFieldValue(Field, PRecordBufferData(recBuf).Index, Data);
     if VarIsEmpty(Data) then
       Data := Null;
 
     if VarType(Data) = varInt64 then
-      PVariantList(recBuf + SizeOf(TArrayRecInfo))[Field.Index] := DataToInt64
+      PRecordBufferData(recBuf).Values[Field.Index] := DataToInt64
     else
-      PVariantList(recBuf + SizeOf(TArrayRecInfo))[Field.Index] := Data;
+      PRecordBufferData(recBuf).Values[Field.Index] := Data;
   end;
 
   Result := not VarIsNull(Data);
@@ -906,8 +897,8 @@ var
 begin
   Result := -1;
   CheckActive;
-  if GetActiveRecBuf(recBuf) and (PArrayRecInfo(recBuf).BookmarkFlag = bfCurrent) then
-    Result := PArrayRecInfo(recBuf).Index;
+  if GetActiveRecBuf(recBuf) and (PRecordBufferData(recBuf).BookmarkFlag = bfCurrent) then
+    Result := PRecordBufferData(recBuf).Index;
 end;
 
 function TBaseVirtualDataSet.GetRecNo: Integer;
@@ -916,8 +907,8 @@ var
 begin
   CheckActive;
   Result := -1;
-  if GetActiveRecBuf(recBuf) and (PArrayRecInfo(recBuf).BookmarkFlag = bfCurrent) then
-    Result := PArrayRecInfo(recBuf).Index + 1;
+  if GetActiveRecBuf(recBuf) and (PRecordBufferData(recBuf).BookmarkFlag = bfCurrent) then
+    Result := PRecordBufferData(recBuf).Index + 1;
 end;
 
 function TBaseVirtualDataSet.GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode;
@@ -956,11 +947,6 @@ begin
     fOnGetRecordCount(Self, Result);
 end;
 
-function TBaseVirtualDataSet.GetRecordSize: Word;
-begin
-  Result := SizeOf(TArrayRecInfo);
-end;
-
 procedure TBaseVirtualDataSet.InternalAddRecord(
   Buffer: {$IFDEF DELPHIXE3_UP}TRecordBuffer{$ELSE}Pointer{$ENDIF}; Append: Boolean);
 begin
@@ -975,8 +961,7 @@ begin
   if Pointer(fOldValueBuffer) <> nil then
   begin
     try
-      Finalize(PVariantList(fOldValueBuffer + SizeOf(TArrayRecInfo))^, Fields.Count);
-      FreeMem(Pointer(fOldValueBuffer));
+      FreeRecordBuffer(fOldValueBuffer);
     finally
       Pointer(fOldValueBuffer) := nil;
     end;
@@ -995,7 +980,7 @@ var
   recBuf: TRecordBuffer;
 begin
   if GetActiveRecBuf(recBuf) then
-    DoDeleteRecord(PArrayRecInfo(recBuf).Index);
+    DoDeleteRecord(PRecordBufferData(recBuf).Index);
 end;
 
 procedure TBaseVirtualDataSet.InternalEdit;
@@ -1005,7 +990,7 @@ begin
   if Pointer(fOldValueBuffer) = nil then
     fOldValueBuffer := AllocRecordBuffer
   else
-    Finalize(PVariantList(fOldValueBuffer + SizeOf(TArrayRecInfo))^, Fields.Count);
+    FinalizeArray(@PRecordBufferData(fOldValueBuffer).Values, TypeInfo(Variant), Fields.Count);
 end;
 
 procedure TBaseVirtualDataSet.InternalFirst;
@@ -1053,10 +1038,10 @@ begin
 
     if Result = grOK then
     begin
-      PArrayRecInfo(Buffer).Index := fCurrent;
-      PArrayRecInfo(Buffer).BookmarkFlag := bfCurrent;
+      PRecordBufferData(Buffer).Index := fCurrent;
+      PRecordBufferData(Buffer).BookmarkFlag := bfCurrent;
 
-      Finalize(PVariantList(Buffer + SizeOf(TArrayRecInfo))^, Fields.Count);
+      FinalizeArray(@PRecordBufferData(Buffer).Values, TypeInfo(Variant), Fields.Count);
       GetCalcFields({$IFDEF DELPHIXE4_UP}NativeInt(Buffer){$ELSE}Buffer{$ENDIF});
     end;
   except
@@ -1118,7 +1103,10 @@ var
   i: Integer;
 begin
   for i := 0 to Fields.Count - 1 do
-    PVariantList(Buffer + SizeOf(TArrayRecInfo))[i] := Null;
+  begin
+    System.VarClearProc(TVarData(PRecordBufferData(Buffer).Values[i]));
+    TVarData(PRecordBufferData(Buffer).Values[i]).VType := varNull;
+  end;
 end;
 
 procedure TBaseVirtualDataSet.InternalLast;
@@ -1139,7 +1127,6 @@ begin
   InternalCreateFields;
   Reserved := Pointer(FieldListCheckSum(Self));
   BindFields(True);
-  SetRecBufSize;
 end;
 
 procedure TBaseVirtualDataSet.InternalPost;
@@ -1150,10 +1137,10 @@ begin
   UpdateCursorPos;
   GetActiveRecBuf(recBuf);
 
-  if PArrayRecInfo(recBuf).BookmarkFlag =  bfEOF then
+  if PRecordBufferData(recBuf).BookmarkFlag = bfEOF then
     DoPostRecord(-1, True)
   else
-    DoPostRecord(PArrayRecInfo(recBuf).Index, False);
+    DoPostRecord(PRecordBufferData(recBuf).Index, False);
 end;
 
 procedure TBaseVirtualDataSet.InternalRefresh;
@@ -1163,8 +1150,8 @@ end;
 
 procedure TBaseVirtualDataSet.InternalSetToRecord(Buffer: TRecordBuffer);
 begin
-  if PArrayRecInfo(Buffer).BookmarkFlag in [bfCurrent, bfInserted] then
-    fCurrent := PArrayRecInfo(Buffer).Index;
+  if PRecordBufferData(Buffer).BookmarkFlag in [bfCurrent, bfInserted] then
+    fCurrent := PRecordBufferData(Buffer).Index;
 end;
 
 function TBaseVirtualDataSet.IsCursorOpen: Boolean;
@@ -1199,7 +1186,7 @@ end;
 
 procedure TBaseVirtualDataSet.SetBookmarkFlag(Buffer: TRecordBuffer; Value: TBookmarkFlag);
 begin
-  PArrayRecInfo(Buffer).BookmarkFlag := Value;
+  PRecordBufferData(Buffer).BookmarkFlag := Value;
 end;
 
 procedure TBaseVirtualDataSet.SetCurrent(value: Integer);
@@ -1214,9 +1201,9 @@ end;
 
 procedure TBaseVirtualDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer; NativeFormat: Boolean);
 
-  procedure BcdToOleVariant(const Bcd: TBcd; var Data: OleVariant);
+  procedure BcdToVariant(const Bcd: TBcd; var Data: Variant);
   var
-    Temp: OleVariant;
+    Temp: Variant;
   begin
     VarClear(Data);
     Temp := BcdToStr(Bcd);
@@ -1225,7 +1212,7 @@ procedure TBaseVirtualDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer; 
   end;
 
   {$IFDEF DELPHIXE3_UP}
-  procedure BufferToVar(var Data: OleVariant);
+  procedure BufferToVar(var Data: Variant);
   var
     LUnknown: IUnknown;
     LDispatch: IDispatch;
@@ -1274,7 +1261,7 @@ procedure TBaseVirtualDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer; 
         else
           Data := TDBBitConverter.UnsafeInto<Double>(Buffer);
       ftFMTBCD:
-        BcdToOleVariant(TDBBitConverter.UnsafeInto<TBcd>(Buffer), Data);
+        BcdToVariant(TDBBitConverter.UnsafeInto<TBcd>(Buffer), Data);
       ftBCD:
         if NativeFormat then
         begin
@@ -1301,7 +1288,7 @@ procedure TBaseVirtualDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer; 
     end;
   end;
   {$ELSE}
-  procedure BufferToVar(var Data: OleVariant);
+  procedure BufferToVar(var Data: Variant);
   begin
     case Field.DataType of
       ftString, ftFixedChar, ftGuid:
@@ -1335,7 +1322,7 @@ procedure TBaseVirtualDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer; 
           DataConvert(Field, Buffer, @TVarData(Data).VDate, False) else
           Data := TDateTime(Buffer^);
       ftFMTBCD:
-        BcdToOleVariant(TBcd(Buffer^), Data);
+        BcdToVariant(TBcd(Buffer^), Data);
       ftBCD:
         if NativeFormat then
           DataConvert(Field, Buffer, @TVarData(Data).VCurrency, False) else
@@ -1343,7 +1330,7 @@ procedure TBaseVirtualDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer; 
       ftBytes, ftVarBytes:
         if NativeFormat then
           DataConvert(Field, Buffer, @Data, False) else
-          Data := OleVariant(Buffer^);
+          Data := Variant(Buffer^);
       ftLargeInt:
         Data := LargeInt(Buffer^);
     else
@@ -1354,7 +1341,7 @@ procedure TBaseVirtualDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer; 
   {$ENDIF}
 
 var
-  data: OleVariant;
+  data: Variant;
   recBuf: TRecordBuffer;
 begin
   if not (State in dsWriteModes) then
@@ -1376,12 +1363,12 @@ begin
 
     if not fModifiedFields.Contains(Field) then
     begin
-      PVariantList(fOldValueBuffer + SizeOf(TArrayRecInfo))[Field.Index] := Field.OldValue;
+      PRecordBufferData(fOldValueBuffer).Values[Field.Index] := Field.OldValue;
       fModifiedFields.Add(Field);
     end;
   end;
 
-  PVariantList(recBuf + SizeOf(TArrayRecInfo))[Field.Index] := data;
+  PRecordBufferData(recBuf).Values[Field.Index] := data;
 
   if not (State in [dsCalcFields, dsInternalCalc, dsFilter, dsNewValue]) then
     DataEvent(deFieldChange, NativeInt(Field));
@@ -1404,12 +1391,12 @@ begin
 
     if not fModifiedFields.Contains(field) then
     begin
-      PVariantList(fOldValueBuffer + SizeOf(TArrayRecInfo))[field.Index] := field.OldValue;
+      PRecordBufferData(fOldValueBuffer).Values[field.Index] := field.OldValue;
       fModifiedFields.Add(field);
     end;
   end;
 
-  PVariantList(recBuf + SizeOf(TArrayRecInfo))[field.Index] := buffer;
+  PRecordBufferData(recBuf).Values[field.Index] := buffer;
 
   if not (State in [dsCalcFields, dsInternalCalc, dsFilter, dsNewValue]) then
     DataEvent(deFieldChange, NativeInt(field));
@@ -1443,11 +1430,6 @@ begin
   Guard.CheckIndex(RecordCount, Value);
 
   fCurrent := value;
-end;
-
-procedure TBaseVirtualDataSet.SetRecBufSize;
-begin
-  fRowBufSize := SizeOf(TArrayRecInfo) + (Fields.Count * SizeOf(Variant));
 end;
 
 procedure TBaseVirtualDataSet.SetRecNo(Value: Integer);
@@ -1508,7 +1490,7 @@ begin
   // but ensure the record holds valid data.
   if fDataSet.GetFieldData(fField, buffer, True) then
     if fDataSet.GetActiveRecBuf(recBuf) then
-      fFieldData := PVariantList(recBuf + SizeOf(TArrayRecInfo))[fField.Index];
+      fFieldData := PRecordBufferData(recBuf).Values[fField.Index];
   if not VarIsNull(fFieldData) then
   begin
     if VarType(fFieldData) = varOleStr then

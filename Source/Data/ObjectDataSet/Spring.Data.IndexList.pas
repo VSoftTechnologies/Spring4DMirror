@@ -34,27 +34,16 @@ uses
 type
   TIndexList = class
   private type
-    TIndexItem = record
-      Index: Integer;
-      Item: TObject;
-    end;
     TComparison = function(const left, right: TObject): Integer of object;
   private
     fDataList: IObjectList;
-    fIndexes: IList<TIndexItem>;
+    fIndexes: IList<Pointer>;
     fIsChanging: Boolean;
     function GetCount: Integer;
-    function GetIndex(index: Integer): TIndexItem;
     function GetItem(index: Integer): TObject;
     procedure SetDataList(const value: IObjectList);
-    procedure SetItem(index: Integer; const value: TObject);
-
-    procedure FixIndexes(startIndex: Integer);
   public
     constructor Create;
-
-    function AddIndex(index: Integer): Integer;
-    procedure DeleteIndex(index: Integer);
 
     function AddItem(const item: TObject): Integer;
     procedure DeleteItem(index: Integer);
@@ -71,9 +60,8 @@ type
 
     property Count: Integer read GetCount;
     property DataList: IObjectList read fDataList write SetDataList;
-    property Indexes[index: Integer]: TIndexItem read GetIndex;
     property IsChanging: Boolean read fIsChanging;
-    property Items[index: Integer]: TObject read GetItem write SetItem; default;
+    property Items[index: Integer]: TObject read GetItem; default;
   end;
 
 implementation
@@ -84,23 +72,15 @@ implementation
 constructor TIndexList.Create;
 begin
   inherited Create;
-  fIndexes := TCollections.CreateList<TIndexItem>;
-end;
-
-function TIndexList.AddIndex(index: Integer): Integer;
-var
-  indexItem: TIndexItem;
-begin
-  indexItem.Index := index;
-  indexItem.Item := fDataList[index];
-  Result := fIndexes.Add(indexItem);
+  fIndexes := TCollections.CreateList<Pointer>;
 end;
 
 function TIndexList.AddItem(const item: TObject): Integer;
 begin
   fIsChanging := True;
   try
-    Result := AddIndex(fDataList.Add(item));
+    fDataList.Add(item);
+    Result := fIndexes.Add(item);
   finally
     fIsChanging := False;
   end;
@@ -113,42 +93,16 @@ end;
 
 function TIndexList.Contains(const item: TObject): Boolean;
 begin
-  Result := IndexOf(item) <> -1;
-end;
-
-procedure TIndexList.DeleteIndex(index: Integer);
-begin
-  fIndexes.Delete(index);
+  Result := IndexOf(item) >= 0;
 end;
 
 procedure TIndexList.DeleteItem(index: Integer);
-var
-  fixIndex: Integer;
 begin
-  fixIndex := fIndexes[index].Index;
   fIsChanging := True;
   try
-    fDataList.Delete(fixIndex);
-    DeleteIndex(index);
-    FixIndexes(fixIndex);
+    fDataList.Remove(fIndexes.ExtractAt(index));
   finally
     fIsChanging := False;
-  end;
-end;
-
-procedure TIndexList.FixIndexes(startIndex: Integer);
-var
-  i: Integer;
-  indexItem: TIndexItem;
-begin
-  for i := 0 to Count - 1 do
-  begin
-    indexItem := fIndexes[i];
-    if indexItem.Index > startIndex then
-    begin
-      Dec(indexItem.Index);
-      fIndexes[i] := indexItem;
-    end;
   end;
 end;
 
@@ -157,36 +111,25 @@ begin
   Result := fIndexes.Count;
 end;
 
-function TIndexList.GetIndex(index: Integer): TIndexItem;
+function TIndexList.GetItem(index: Integer): TObject;
 begin
   Result := fIndexes[index];
 end;
 
-function TIndexList.GetItem(index: Integer): TObject;
-begin
-  Result := fIndexes[index].Item;
-end;
-
 function TIndexList.IndexOf(const item: TObject): Integer;
 begin
-  if item = nil then
-    Exit(-1);
-
-  for Result := 0 to Count - 1 do
-    if Items[Result] = item then
-      Exit;
-  Result := -1;
+  if Assigned(item) then
+    Result := fIndexes.IndexOf(item)
+  else
+    Result := -1;
 end;
 
 procedure TIndexList.InsertItem(const item: TObject; index: Integer);
-var
-  indexItem: TIndexItem;
 begin
   fIsChanging := True;
   try
-    indexItem.Index := fDataList.Add(item);
-    indexItem.Item := item;
-    fIndexes.Insert(index, indexItem);
+    fDataList.Add(item);
+    fIndexes.Insert(index, item);
   finally
     fIsChanging := False;
   end;
@@ -204,14 +147,14 @@ begin
 
   for i := startIndex + 1 to Count - 1 Do
   begin
-    temp := Items[i];
+    temp := fIndexes[i];
     j := i;
-    while (j > 0) and (comparer(Items[j - 1], temp) > 0) do
+    while (j > 0) and (comparer(fIndexes[j - 1], temp) > 0) do
     begin
-      Items[j] := Items[j - 1];
+      fIndexes[j] := fIndexes[j - 1];
       Dec(j);
     end;
-    Items[j] := temp;
+    fIndexes[j] := temp;
   end;
 end;
 
@@ -224,7 +167,7 @@ var
     i, j, k: Integer;
   begin
     for i := low to high do
-      cache[i] := Items[i];
+      cache[i] := fIndexes[i];
     i := low;
     j := mid + 1;
     k := low;
@@ -232,12 +175,12 @@ var
     begin
       if comparer(cache[i], cache[j]) <= 0 then
       begin
-        Items[k] := cache[i];
+        fIndexes[k] := cache[i];
         Inc(i);
       end
       else
       begin
-        Items[k] := cache[j];
+        fIndexes[k] := cache[j];
         Inc(j);
       end;
       Inc(k);
@@ -245,7 +188,7 @@ var
 
     while i <= mid do
     begin
-      Items[k] := cache[i];
+      fIndexes[k] := cache[i];
       Inc(k);
       Inc(i);
     end;
@@ -270,28 +213,16 @@ begin
 end;
 
 procedure TIndexList.Rebuild;
-var
-  i: Integer;
 begin
   Clear;
   if Assigned(fDataList) then
-    for i := 0 to fDataList.Count - 1 do
-      AddIndex(i);
+    fIndexes.AddRange(IEnumerable<Pointer>(fDataList));
 end;
 
 procedure TIndexList.SetDataList(const value: IObjectList);
 begin
   fDataList := value;
   Rebuild;
-end;
-
-procedure TIndexList.SetItem(index: Integer; const value: TObject);
-var
-  indexItem: TIndexItem;
-begin
-  indexItem := fIndexes[index];
-  indexItem.Item := value;
-  fIndexes[index] := indexItem;
 end;
 
 {$ENDREGION}
