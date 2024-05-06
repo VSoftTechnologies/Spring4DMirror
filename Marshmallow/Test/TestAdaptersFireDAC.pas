@@ -120,9 +120,14 @@ type
 
 implementation
 
+{$I Spring.inc}
+
 uses
   Spring.Persistence.Core.ConnectionFactory,
   FireDAC.Phys.SQLite,
+  {$IFDEF DELPHIX_SYDNEY_UP}
+  FireDAC.Phys.SQLiteWrapper.Stat,
+  {$ENDIF}
   Spring.Persistence.SQL.Interfaces,
   Spring.Collections,
   TestSession,
