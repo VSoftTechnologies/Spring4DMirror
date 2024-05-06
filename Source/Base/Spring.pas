@@ -50,7 +50,8 @@ uses
   SysUtils,
   TimeSpan,
   Types,
-  TypInfo;
+  TypInfo,
+  Spring.Span;
 
 
   {$REGION 'Interface helper routines'}
@@ -2678,11 +2679,6 @@ type
     class procedure Shuffle_Method(const values: PMethodPointer; hi: NativeInt); static;
     class procedure Shuffle_Ref(const values: PByte; hi, size: NativeInt); static;
     class procedure Shuffle_Generic<T>(var values: array of T); static;
-
-    class function BinarySearchInternal<T>(const values: array of T;
-      const item: T; out foundIndex: Integer; const comparer: IComparer<T>): Boolean; static;
-    class function BinarySearchUpperBoundInternal<T>(const values: array of T;
-      const item: T; out foundIndex: Integer; const comparer: IComparer<T>): Boolean; static;
   public
     /// <summary>
     ///   Searches a sorted array for the given value, using a binary search
@@ -2726,6 +2722,30 @@ type
       out foundIndex: Integer; const comparison: TComparison<T>): Boolean; overload; static;
 
     /// <summary>
+    ///   Searches a sorted span for the given value, using a binary search
+    ///   algorithm returning the index for the first found value using the
+    ///   default comparer.
+    /// </summary>
+    class function BinarySearch<T>(const values: Span<T>; const item: T;
+      out foundIndex: Integer): Boolean; overload; static;
+
+    /// <summary>
+    ///   Searches a sorted span for the given value, using a binary search
+    ///   algorithm returning the index for the first found value using the
+    ///   specified comparer.
+    /// </summary>
+    class function BinarySearch<T>(const values: Span<T>; const item: T;
+      out foundIndex: Integer; const comparer: IComparer<T>): Boolean; overload; static;
+
+    /// <summary>
+    ///   Searches a sorted span for the given value, using a binary search
+    ///   algorithm returning the index for the first found value using the
+    ///   specified comparison.
+    /// </summary>
+    class function BinarySearch<T>(const values: Span<T>; const item: T;
+      out foundIndex: Integer; const comparison: TComparison<T>): Boolean; overload; static;
+
+    /// <summary>
     ///   Searches a range of elements in a sorted array for the given value,
     ///   using a binary search algorithm returning the index for the first
     ///   found value using the specified comparison.
@@ -2736,7 +2756,8 @@ type
 
     /// <summary>
     ///   Searches a sorted array for the given value, using a binary search
-    ///   algorithm returning the index for the last found value.
+    ///   algorithm returning the index for the last found value using the
+    ///   default comparer.
     /// </summary>
     class function BinarySearchUpperBound<T>(const values: array of T;
       const item: T; out foundIndex: Integer): Boolean; overload; static;
@@ -2771,7 +2792,7 @@ type
     /// <summary>
     ///   Searches a sorted array for the given value, using a binary search
     ///   algorithm returning the index for the last found value using the
-    ///   specified comparer.
+    ///   specified comparison.
     /// </summary>
     class function BinarySearchUpperBound<T>(const values: array of T;
       const item: T; out foundIndex: Integer;
@@ -2785,6 +2806,30 @@ type
     class function BinarySearchUpperBound<T>(const values: array of T;
       const item: T; out foundIndex: Integer; const comparison: TComparison<T>;
       index, count: Integer): Boolean; overload; static;
+
+    /// <summary>
+    ///   Searches a sorted span for the given value, using a binary search
+    ///   algorithm returning the index for the last found value using the
+    ///   default comparer.
+    /// </summary>
+    class function BinarySearchUpperBound<T>(const values: Span<T>; const item: T;
+      out foundIndex: Integer): Boolean; overload; static;
+
+    /// <summary>
+    ///   Searches a sorted span for the given value, using a binary search
+    ///   algorithm returning the index for the last found value using the
+    ///   specified comparer.
+    /// </summary>
+    class function BinarySearchUpperBound<T>(const values: Span<T>; const item: T;
+      out foundIndex: Integer; const comparer: IComparer<T>): Boolean; overload; static;
+
+    /// <summary>
+    ///   Searches a sorted span for the given value, using a binary search
+    ///   algorithm returning the index for the last found value using the
+    ///   specified comparison.
+    /// </summary>
+    class function BinarySearchUpperBound<T>(const values: Span<T>; const item: T;
+      out foundIndex: Integer; const comparison: TComparison<T>): Boolean; overload; static;
 
     /// <summary>
     ///   Concatenates an array of arrays to one array
@@ -10872,24 +10917,37 @@ end;
 
 {$REGION 'TArray'}
 
-class function TArray.BinarySearchInternal<T>(const values: array of T; const item: T;
+class function TArray.BinarySearch<T>(const values: Span<T>; const item: T;
+  out foundIndex: Integer): Boolean;
+var
+  comparer: Pointer;
+begin
+  comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+  Result := BinarySearch<T>(values, item, foundIndex, IComparer<T>(comparer));
+end;
+
+class function TArray.BinarySearch<T>(const values: Span<T>; const item: T;
   out foundIndex: Integer; const comparer: IComparer<T>): Boolean;
 var
   count, left, right: NativeInt;
   compareResult: Integer;
   compare: TCompareMethod<T>;
+  data: Span<T>.PData;
 begin
+  data := values.Data;
+  count := values.Length;
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
   Result := False;
-  count := Length(values);
   left := 0;
   if count > 0 then
   repeat
     right := left + (1 and count);
     count := count shr 1;
     right := right + count;
-    compareResult := compare(values[left + count], item);
+    {$IFDEF DELPHIXE}{$R-}{$ENDIF}
+    compareResult := compare(data[left + count], item);
+    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
     if compareResult < 0 then
       left := right;
     {$B+}
@@ -10899,88 +10957,123 @@ begin
   foundIndex := left;
 end;
 
+class function TArray.BinarySearch<T>(const values: Span<T>; const item: T;
+  out foundIndex: Integer; const comparison: TComparison<T>): Boolean;
+begin
+  Result := BinarySearch<T>(values, item, foundIndex, IComparer<T>((@comparison)^));
+end;
+
 class function TArray.BinarySearch<T>(const values: array of T; const item: T;
   out foundIndex: Integer): Boolean;
 var
   comparer: Pointer;
+  span: Span<T>;
 begin
   comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
-  Result := BinarySearchInternal<T>(values, item, foundIndex, IComparer<T>(comparer));
+  {$R-}
+  span.Init(@values[0], Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearch<T>(span, item, foundIndex, IComparer<T>(comparer));
 end;
 
 class function TArray.BinarySearch<T>(const values: array of T; const item: T;
   out foundIndex: Integer; index, count: Integer): Boolean;
 var
   comparer: Pointer;
+  span: Span<T>;
 begin
   CheckRange(index, count, Length(values));
   comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
   {$R-}
-  Result := BinarySearchInternal<T>(
-    Slice(TSlice<T>((@values[index])^), count),
-    item, foundIndex, IComparer<T>(comparer));
+  span.Init(@values[index], count);
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearch<T>(span, item, foundIndex, IComparer<T>(comparer));
   Inc(foundIndex, index);
 end;
 
 class function TArray.BinarySearch<T>(const values: array of T; const item: T;
   out foundIndex: Integer; const comparer: IComparer<T>): Boolean;
+var
+  span: Span<T>;
 begin
-  Result := BinarySearchInternal<T>(values, item, foundIndex, comparer);
+  {$R-}
+  span.Init(@values[0], Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearch<T>(span, item, foundIndex, comparer);
 end;
 
 class function TArray.BinarySearch<T>(const values: array of T; const item: T;
   out foundIndex: Integer; const comparer: IComparer<T>;
   index, count: Integer): Boolean;
+var
+  span: Span<T>;
 begin
   CheckRange(index, count, Length(values));
   if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
   {$R-}
-  Result := BinarySearchInternal<T>(
-    Slice(TSlice<T>((@values[index])^), count),
-    item, foundIndex, comparer);
+  span.Init(@values[index], count);
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearch<T>(span, item, foundIndex, comparer);
   Inc(foundIndex, index);
 end;
 
 class function TArray.BinarySearch<T>(const values: array of T; const item: T;
   out foundIndex: Integer; const comparison: TComparison<T>): Boolean;
+var
+  span: Span<T>;
 begin
-  Result := BinarySearchInternal<T>(values, item, foundIndex, IComparer<T>((@comparison)^));
+  {$R-}
+  span.Init(@values[0], Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearch<T>(span, item, foundIndex, IComparer<T>((@comparison)^));
 end;
 
 class function TArray.BinarySearch<T>(const values: array of T; const item: T;
   out foundIndex: Integer; const comparison: TComparison<T>;
   index, count: Integer): Boolean;
+var
+  span: Span<T>;
 begin
   CheckRange(index, count, Length(values));
   if not Assigned(comparison) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
   {$R-}
-  Result := BinarySearchInternal<T>(
-    Slice(TSlice<T>((@values[index])^), count),
-    item, foundIndex, IComparer<T>((@comparison)^));
+  span.Init(@values[index], count);
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearch<T>(span, item, foundIndex, IComparer<T>((@comparison)^));
   Inc(foundIndex, index);
 end;
 
-class function TArray.BinarySearchUpperBoundInternal<T>(const values: array of T;
+class function TArray.BinarySearchUpperBound<T>(const values: Span<T>; const item: T;
+  out foundIndex: Integer): Boolean;
+var
+  comparer: Pointer;
+begin
+  comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+  Result := BinarySearchUpperBound<T>(values, item, foundIndex, IComparer<T>(comparer));
+end;
+
+class function TArray.BinarySearchUpperBound<T>(const values: Span<T>;
   const item: T; out foundIndex: Integer; const comparer: IComparer<T>): Boolean;
 var
   count, left, right: NativeInt;
   compareResult: Integer;
   compare: TCompareMethod<T>;
+  data: Span<T>.PData;
 begin
+  data := values.Data;
+  count := values.Length;
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
   Result := False;
-  count := Length(values);
   left := 0;
   if count > 0 then
   repeat
     right := left + (1 and count);
     count := count shr 1;
     right := right + count;
-    compareResult := compare(values[left + count], item);
+    {$IFDEF DELPHIXE}{$R-}{$ENDIF}
+    compareResult := compare(data[left + count], item);
+    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
     if compareResult > 0 then Continue;
     left := right;
     {$B+}
@@ -10990,67 +11083,89 @@ begin
   foundIndex := left - Ord(Result);
 end;
 
+class function TArray.BinarySearchUpperBound<T>(const values: Span<T>; const item: T;
+  out foundIndex: Integer; const comparison: TComparison<T>): Boolean;
+begin
+  Result := BinarySearchUpperBound<T>(values, item, foundIndex, IComparer<T>((@comparison)^));
+end;
+
 class function TArray.BinarySearchUpperBound<T>(const values: array of T;
   const item: T; out foundIndex: Integer): Boolean;
 var
   comparer: Pointer;
+  span: Span<T>;
 begin
   comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
-  Result := BinarySearchUpperBoundInternal<T>(values, item, foundIndex, IComparer<T>(comparer));
+  {$R-}
+  span.Init(@values[0], Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearchUpperBound<T>(span, item, foundIndex, IComparer<T>(comparer));
 end;
 
 class function TArray.BinarySearchUpperBound<T>(const values: array of T;
   const item: T; out foundIndex: Integer; index, count: Integer): Boolean;
 var
   comparer: Pointer;
+  span: Span<T>;
 begin
   CheckRange(index, count, Length(values));
   comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
   {$R-}
-  Result := BinarySearchUpperBoundInternal<T>(
-    Slice(TSlice<T>((@values[index])^), count),
-    item, foundIndex, IComparer<T>(comparer));
+  span.Init(@values[index], count);
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearchUpperBound<T>(span, item, foundIndex, IComparer<T>(comparer));
   Inc(foundIndex, index);
 end;
 
 class function TArray.BinarySearchUpperBound<T>(const values: array of T;
   const item: T; out foundIndex: Integer; const comparer: IComparer<T>): Boolean;
+var
+  span: Span<T>;
 begin
-  Result := BinarySearchUpperBoundInternal<T>(values, item, foundIndex, comparer);
+  {$R-}
+  span.Init(@values[0], Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearchUpperBound<T>(span, item, foundIndex, comparer);
 end;
 
 class function TArray.BinarySearchUpperBound<T>(const values: array of T;
   const item: T; out foundIndex: Integer; const comparer: IComparer<T>;
   index, count: Integer): Boolean;
+var
+  span: Span<T>;
 begin
   CheckRange(index, count, Length(values));
   if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
   {$R-}
-  Result := BinarySearchUpperBoundInternal<T>(
-    Slice(TSlice<T>((@values[index])^), count),
-    item, foundIndex, comparer);
+  span.Init(@values[index], count);
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearchUpperBound<T>(span, item, foundIndex, comparer);
   Inc(foundIndex, index);
 end;
 
 class function TArray.BinarySearchUpperBound<T>(const values: array of T; const item: T;
   out foundIndex: Integer; const comparison: TComparison<T>): Boolean;
+var
+  span: Span<T>;
 begin
-  Result := BinarySearchUpperBoundInternal<T>(values, item, foundIndex, IComparer<T>((@comparison)^));
+  {$R-}
+  span.Init(@values[0], Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearchUpperBound<T>(span, item, foundIndex, IComparer<T>((@comparison)^));
 end;
 
 class function TArray.BinarySearchUpperBound<T>(const values: array of T; const item: T;
   out foundIndex: Integer; const comparison: TComparison<T>;
   index, count: Integer): Boolean;
+var
+  span: Span<T>;
 begin
   CheckRange(index, count, Length(values));
   if not Assigned(comparison) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
   {$R-}
-  Result := BinarySearchUpperBoundInternal<T>(
-    Slice(TSlice<T>((@values[index])^), count),
-    item, foundIndex, IComparer<T>((@comparison)^));
+  span.Init(@values[index], count);
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := BinarySearchUpperBound<T>(span, item, foundIndex, IComparer<T>((@comparison)^));
   Inc(foundIndex, index);
 end;
 

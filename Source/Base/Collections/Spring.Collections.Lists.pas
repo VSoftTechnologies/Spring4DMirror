@@ -1714,16 +1714,21 @@ end;
 {$REGION 'TSortedList<T>'}
 
 function TSortedList<T>.Add(const item: T): Integer;
+var
+  span: Span<T>;
 begin
   Result := Count;
   if Result > 0 then
   begin
     // If the new item is smaller than the last one in the list ...
     if fComparer.Compare(fItems[Result - 1], item) > 0 then
+    begin
+      span.Init(Pointer(fItems), Result);
       // ... search for the correct insertion point
       {$R-}
-      TArray.BinarySearchInternal<T>(Slice(TSlice<T>((@fItems[0])^), Result), item, Result, fComparer);
+      TArray.BinarySearch<T>(span, item, Result, fComparer);
       {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+    end;
   end;
   inherited Insert(Result, item);
 end;
@@ -1758,11 +1763,11 @@ end;
 
 function TSortedList<T>.Contains(const value: T): Boolean;
 var
+  span: Span<T>;
   index: Integer;
 begin
-  {$R-}
-  Result := TArray.BinarySearchInternal<T>(Slice(TSlice<T>((@fItems[0])^), Count), value, index, fComparer);
-  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  span.Init(Pointer(fItems), Count);
+  Result := TArray.BinarySearch<T>(span, value, index, fComparer);
 end;
 
 procedure TSortedList<T>.Exchange(index1, index2: Integer);
@@ -1771,8 +1776,14 @@ begin
 end;
 
 function TSortedList<T>.IndexOf(const item: T): Integer;
+var
+  span: Span<T>;
+  foundIndex: Integer;
+  searchResult: Boolean;
 begin
-  Result := IndexOf(item, 0, Count);
+  span.Init(Pointer(fItems), Count);
+  searchResult := TArray.BinarySearch<T>(span, item, foundIndex, fComparer);
+  Result := foundIndex or Pred(Integer(searchResult));
 end;
 
 function TSortedList<T>.IndexOf(const item: T; index: Integer): Integer;
@@ -1783,6 +1794,7 @@ end;
 function TSortedList<T>.IndexOf(const item: T; index, count: Integer): Integer;
 var
   listCount, foundIndex: Integer;
+  span: Span<T>;
   searchResult: Boolean;
 begin
   listCount := Self.Count;
@@ -1790,8 +1802,9 @@ begin
     if (count >= 0) and (listCount - count >= index) then
     begin
       {$R-}
-      searchResult := TArray.BinarySearchInternal<T>(Slice(TSlice<T>((@fItems[index])^), count), item, foundIndex, fComparer);
+      span.Init(@fItems[index], count);
       {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+      searchResult := TArray.BinarySearch<T>(span, item, foundIndex, fComparer);
       Inc(foundIndex, index);
       Result := foundIndex or Pred(Integer(searchResult));
     end
@@ -1822,6 +1835,7 @@ end;
 function TSortedList<T>.LastIndexOf(const item: T; index, count: Integer): Integer;
 var
   listCount, foundIndex: Integer;
+  span: Span<T>;
   offset: NativeInt;
   searchResult: Boolean;
 begin
@@ -1831,9 +1845,9 @@ begin
     begin
       {$R-}
       offset := index - count + 1;
-      searchResult := TArray.BinarySearchUpperBoundInternal<T>(
-        Slice(TSlice<T>((@fItems[offset])^), count), item, foundIndex, fComparer);
+      span.Init(@fItems[offset], count);
       {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+      searchResult := TArray.BinarySearchUpperBound<T>(span, item, foundIndex, fComparer);
       Inc(foundIndex, offset);
       Result := foundIndex or Pred(Integer(searchResult));
     end
