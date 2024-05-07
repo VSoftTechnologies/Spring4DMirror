@@ -5410,14 +5410,14 @@ begin
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
     {$R-}
-    Result := IEqualityComparer<T>(comparer).Equals(item, TSlice<T>(values^)[index]);
+    Result := IEqualityComparer<T>(comparer).Equals(item, TArray<T>(values)[index]);
     {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   end
   else
   {$ENDIF}
   {$R-}
   Result := IEqualityComparer<T>(comparer).Equals(
-    IEnumerator<T>(enumerator).Current, TSlice<T>(values^)[index]);
+    IEnumerator<T>(enumerator).Current, TArray<T>(values)[index]);
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 

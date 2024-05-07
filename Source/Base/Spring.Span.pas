@@ -34,14 +34,6 @@ type
   Span<T> = packed record
   public type
     PT = ^T;
-    {$IFNDEF DELPHIXE}
-    {$POINTERMATH ON}
-    PData = ^T;
-    {$POINTERMATH OFF}
-    {$ELSE}
-    TData = array[0..0] of T;
-    PData = ^TData;
-    {$ENDIF}
   private type
     TEnumerator = record
     private
@@ -53,7 +45,7 @@ type
       property Current: PT read GetCurrent;
     end;
   private
-    fData: PData;
+    fData: Pointer;
     fLength: NativeInt;
     function GetIsEmpty: Boolean; inline;
     function GetItem(index: NativeInt): PT; inline;
@@ -72,7 +64,7 @@ type
 
     function ToArray: TArray<T>;
 
-    property Data: PData read fData;
+    property Data: Pointer read fData;
     property IsEmpty: Boolean read GetIsEmpty;
     property Items[index: NativeInt]: PT read GetItem; default;
     property Length: NativeInt read fLength;
@@ -148,23 +140,23 @@ end;
 
 function Span<T>.GetItem(index: NativeInt): PT;
 begin
-  {$IFDEF DELPHIXE}{$R-}{$ENDIF}
-  Result := @fData[index];
+  {$R-}
+  Result := @TArray<T>(fData)[index];
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
 function Span<T>.Slice(startIndex: NativeInt): Span<T>;
 begin
-  {$IFDEF DELPHIXE}{$R-}{$ENDIF}
-  Result.fData := @fData[startIndex];
+  {$R-}
+  Result.fData := @TArray<T>(fData)[startIndex];
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   Result.fLength := fLength - startIndex;
 end;
 
 function Span<T>.Slice(startIndex, length: NativeInt): Span<T>;
 begin
-  {$IFDEF DELPHIXE}{$R-}{$ENDIF}
-  Result.fData := @fData[startIndex];
+  {$R-}
+  Result.fData := @TArray<T>(fData)[startIndex];
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   Result.fLength := length;
 end;
@@ -201,8 +193,8 @@ end;
 
 function Span<T>.TEnumerator.GetCurrent: PT;
 begin
-  {$IFDEF DELPHIXE}{$R-}{$ENDIF}
-  Result := @fSpan.fData[fIndex];
+  {$R-}
+  Result := @TArray<T>(fSpan.fData)[fIndex];
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 

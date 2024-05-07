@@ -1179,6 +1179,7 @@ end;
 procedure TAbstractArrayList<T>.Sort(const comparer: IComparer<T>; index, count: Integer);
 var
   listCount: Integer;
+  span: Span<T>;
 begin
   listCount := Self.Count;
   if Cardinal(index) <= Cardinal(listCount) then
@@ -1199,38 +1200,40 @@ begin
       {$ENDIF}
       begin
         {$R-}
+        span.Init(@fItems[index], count);
+        {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
         {$IFDEF DELPHIXE7_UP}
         case GetTypeKind(T) of
           tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkLString, tkWString,
           tkInterface, tkInt64, tkDynArray, tkUString, tkClassRef, tkPointer, tkProcedure:
             case SizeOf(T) of
-              1: TArray.IntroSort_Int8(Slice(TSlice<Int8>((@fItems[index])^), count), IComparer<Int8>(comparer));
-              2: TArray.IntroSort_Int16(Slice(TSlice<Int16>((@fItems[index])^), count), IComparer<Int16>(comparer));
-              4: TArray.IntroSort_Int32(Slice(TSlice<Int32>((@fItems[index])^), count), IComparer<Int32>(comparer));
-              8: TArray.IntroSort_Int64(Slice(TSlice<Int64>((@fItems[index])^), count), IComparer<Int64>(comparer));
+              1: TArray.IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
+              2: TArray.IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
+              4: TArray.IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
+              8: TArray.IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
             end;
           tkFloat:
             case SizeOf(T) of
-              4: TArray.IntroSort_Single(Slice(TSlice<System.Single>((@fItems[index])^), count), IComparer<System.Single>(comparer));
-              10,16: TArray.IntroSort_Extended(Slice(TSlice<Extended>((@fItems[index])^), count), IComparer<Extended>(comparer));
+              4: TArray.IntroSort_Single(Span<System.Single>(span), IComparer<System.Single>(comparer));
+              10,16: TArray.IntroSort_Extended(Span<Extended>(span), IComparer<Extended>(comparer));
             else
               if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
-                TArray.IntroSort_Double(Slice(TSlice<Double>((@fItems[index])^), count), IComparer<Double>(comparer))
+                TArray.IntroSort_Double(Span<Double>(span), IComparer<Double>(comparer))
               else
-                TArray.IntroSort_Int64(Slice(TSlice<Int64>((@fItems[index])^), count), IComparer<Int64>(comparer));
+                TArray.IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
             end;
           tkString:
             TArray.IntroSort_Ref(@fItems[index], index + count - 1, IComparerRef(comparer), SizeOf(T));
           tkSet:
             case SizeOf(T) of
-              1: TArray.IntroSort_Int8(Slice(TSlice<Int8>((@fItems[index])^), count), IComparer<Int8>(comparer));
-              2: TArray.IntroSort_Int16(Slice(TSlice<Int16>((@fItems[index])^), count), IComparer<Int16>(comparer));
-              4: TArray.IntroSort_Int32(Slice(TSlice<Int32>((@fItems[index])^), count), IComparer<Int32>(comparer));
+              1: TArray.IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
+              2: TArray.IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
+              4: TArray.IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
             else
               TArray.IntroSort_Ref(@fItems[index], index + count - 1, IComparerRef(comparer), SizeOf(T));
             end;
           tkMethod:
-            TArray.IntroSort_Method(Slice(TSlice<TMethodPointer>((@fItems[index])^), count), IComparer<TMethodPointer>(comparer));
+            TArray.IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
           tkVariant,
           {$IF Declared(tkMRecord)}
           tkMRecord,
@@ -1238,21 +1241,21 @@ begin
           tkRecord:
             if not System.HasWeakRef(T) then
               case SizeOf(T) of
-                1: TArray.IntroSort_Int8(Slice(TSlice<Int8>((@fItems[index])^), count), IComparer<Int8>(comparer));
-                2: TArray.IntroSort_Int16(Slice(TSlice<Int16>((@fItems[index])^), count), IComparer<Int16>(comparer));
-                3: TArray.IntroSort_Int24(Slice(TSlice<Int24>((@fItems[index])^), count), IComparer<Int24>(comparer));
-                4: TArray.IntroSort_Int32(Slice(TSlice<Int32>((@fItems[index])^), count), IComparer<Int32>(comparer));
+                1: TArray.IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
+                2: TArray.IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
+                3: TArray.IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(comparer));
+                4: TArray.IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
               else
                 TArray.IntroSort_Ref(@fItems[index], index + count - 1, IComparerRef(comparer), SizeOf(T))
               end
             else
-              TArray.IntroSort<T>(Slice(TSlice<T>((@fItems[index])^), count), comparer);
+              TArray.IntroSort<T>(span, comparer);
           tkArray:
             case SizeOf(T) of
-              1: TArray.IntroSort_Int8(Slice(TSlice<Int8>((@fItems[index])^), count), IComparer<Int8>(comparer));
-              2: TArray.IntroSort_Int16(Slice(TSlice<Int16>((@fItems[index])^), count), IComparer<Int16>(comparer));
-              3: TArray.IntroSort_Int24(Slice(TSlice<Int24>((@fItems[index])^), count), IComparer<Int24>(comparer));
-              4: TArray.IntroSort_Int32(Slice(TSlice<Int32>((@fItems[index])^), count), IComparer<Int32>(comparer));
+              1: TArray.IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
+              2: TArray.IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
+              3: TArray.IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(comparer));
+              4: TArray.IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
             else
               TArray.IntroSort_Ref(@fItems[index], index + count - 1, IComparerRef(comparer), SizeOf(T));
             end;
@@ -1260,9 +1263,8 @@ begin
         {$ELSE}
         begin
         {$ENDIF}
-          TArray.IntroSort<T>(Slice(TSlice<T>((@fItems[index])^), count), comparer);
+          TArray.IntroSort<T>(span, comparer);
         end;
-        {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
       end;
 
       Reset;
@@ -1725,9 +1727,7 @@ begin
     begin
       span.Init(Pointer(fItems), Result);
       // ... search for the correct insertion point
-      {$R-}
       TArray.BinarySearch<T>(span, item, Result, fComparer);
-      {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
     end;
   end;
   inherited Insert(Result, item);
