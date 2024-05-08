@@ -37,12 +37,10 @@ type
   private type
     TEnumerator = record
     private
-      fSpan: ^Span<T>;
-      fIndex: NativeInt;
-      function GetCurrent: PT; inline;
+      fCurrent, fEnd: PT;
     public
       function MoveNext: Boolean; inline;
-      property Current: PT read GetCurrent;
+      property Current: PT read fCurrent;
     end;
   private
     fData: Pointer;
@@ -57,7 +55,7 @@ type
 
     procedure Init(const p: Pointer; length: NativeInt); inline;
 
-    function GetEnumerator: TEnumerator; inline;
+    function GetEnumerator: TEnumerator;
 
     function Slice(startIndex: NativeInt): Span<T>; overload; inline;
     function Slice(startIndex, length: NativeInt): Span<T>; overload; inline;
@@ -128,9 +126,12 @@ begin
 end;
 
 function Span<T>.GetEnumerator: TEnumerator;
+var
+  data: PByte;
 begin
-  Result.fSpan := @fData;
-  Result.fIndex := -1;
+  data := Pointer(fData);
+  Result.fEnd := Pointer(data + fLength * SizeOf(T));
+  Result.fCurrent := Pointer(data - SizeOf(T));
 end;
 
 function Span<T>.GetIsEmpty: Boolean;
@@ -191,20 +192,10 @@ end;
 
 {$REGION 'Span<T>.TEnumerator'}
 
-function Span<T>.TEnumerator.GetCurrent: PT;
-begin
-  {$R-}
-  Result := @TArray<T>(fSpan.fData)[fIndex];
-  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
-end;
-
 function Span<T>.TEnumerator.MoveNext: Boolean;
-var
-  index: Integer;
 begin
-  index := fIndex + 1;
-  fIndex := index;
-  Result := index < fSpan.fLength;
+  Inc(fCurrent);
+  Result := PByte(fCurrent) < PByte(fEnd);
 end;
 
 {$ENDREGION}
