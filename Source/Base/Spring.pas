@@ -2547,12 +2547,6 @@ type
   {$REGION 'TTimSort'}
 
 {$IFDEF DELPHIXE7_UP}
-  Pointer<T> = record
-    {$POINTERMATH ON}
-    type P = ^T;
-    {$POINTERMATH OFF}
-  end;
-
   PTimSort = ^TTimSort;
   TTimSort = record
   private
@@ -2567,6 +2561,11 @@ type
         base: Pointer; len: Integer;
       end;
       TSliceArray = array[0..48] of TSlice;
+      Pointer<T> = record
+        {$POINTERMATH ON}
+        type P = ^T;
+        {$POINTERMATH OFF}
+      end;
   private
     const
       MIN_MERGE = 64;

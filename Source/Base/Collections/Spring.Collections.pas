@@ -71,6 +71,10 @@ type
   ICollectionChangedEvent<T> = interface(IEvent<TCollectionChangedEvent<T>>)
   end;
 
+  Ref<T> = record
+    type PT = ^T;
+  end;
+
   INotifyCollectionChanged<T> = interface //FI:W524
     ['{B4F756F2-B436-462D-8046-AB70377228F1}']
   {$REGION 'Property Accessors'}
@@ -3296,6 +3300,7 @@ type
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer;
     function GetItem(const key: TKey): TValue;
+    function GetValueRefOrNil(const key: TKey): Ref<TValue>.PT;
     procedure SetCapacity(value: Integer);
     procedure SetItem(const key: TKey; const value: TValue);
   {$ENDREGION}
@@ -3449,6 +3454,23 @@ type
     ///   dictionary.
     /// </exception>
     property Items[const key: TKey]: TValue read GetItem write SetItem; default;
+
+    /// <summary>
+    ///   Gets the reference to the value associated with the specified key or <c>
+    ///   nil</c> if the key does not exist.
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the value to get.
+    /// </param>
+    /// <value>
+    ///   The reference to the value associated with the specified key. If the
+    ///   specified key is not found, <c>nil</c> is returned.
+    /// </value>
+    /// <remarks>
+    ///   Items should not be added to or removed from the dictionary while the
+    ///   reference is in use.
+    /// </remarks>
+    property Refs[const key: TKey]: Ref<TValue>.PT read GetValueRefOrNil;
   end;
 
   /// <summary>

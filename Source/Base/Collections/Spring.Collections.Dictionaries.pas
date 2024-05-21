@@ -88,6 +88,7 @@ type
     function GetItemByIndex(index: Integer): TPair<TKey, TValue>;
     function GetKeys: IReadOnlyCollection<TKey>;
     function GetNonEnumeratedCount: Integer;
+    function GetValueRefOrNil(const key: TKey): Ref<TValue>.PT;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
     procedure SetItem(const key: TKey; const value: TValue);
@@ -183,6 +184,7 @@ type
       function GetNonEnumeratedCount: Integer;
       function GetOnKeyChanged: ICollectionChangedEvent<TValue>;
       function GetOnValueChanged: ICollectionChangedEvent<TKey>;
+      function GetValueRefOrNil(const value: TValue): Ref<TKey>.PT;
       function GetValues: IReadOnlyCollection<TKey>;
       function GetValueType: PTypeInfo;
       procedure SetCapacity(value: Integer);
@@ -328,6 +330,7 @@ type
     function GetItem(const key: TKey): TValue;
     function GetKeys: IReadOnlyCollection<TKey>;
     function GetNonEnumeratedCount: Integer;
+    function GetValueRefOrNil(const key: TKey): Ref<TValue>.PT;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
     procedure SetItem(const key: TKey; const value: TValue);
@@ -449,6 +452,7 @@ type
     function GetItem(const key: TKey): TValue;
     function GetKeys: IReadOnlyCollection<TKey>;
     function GetNonEnumeratedCount: Integer;
+    function GetValueRefOrNil(const key: TKey): Ref<TValue>.PT;
     function GetValues: IReadOnlyCollection<TValue>;
     procedure SetCapacity(value: Integer);
     procedure SetItem(const key: TKey; const value: TValue);
@@ -997,6 +1001,15 @@ begin
     Result := item.Value
   else
     Result := defaultValue;
+end;
+
+function TDictionary<TKey, TValue>.GetValueRefOrNil(const key: TKey): Ref<TValue>.PT;
+var
+  item: PItem;
+begin
+  item := IHashTable<TKey>(@fHashTable).Find(key);
+  if item = nil then Exit(Pointer(item));
+  Result := @item.Value;
 end;
 
 function TDictionary<TKey, TValue>.GetValues: IReadOnlyCollection<TValue>;
@@ -1782,6 +1795,15 @@ begin
     Result := defaultValue;
 end;
 
+function TBidiDictionary<TKey, TValue>.GetValueRefOrNil(const key: TKey): Ref<TValue>.PT;
+var
+  bucketIndex, itemIndex: Integer;
+begin
+  Result := Pointer(FindKey(key, KeyHash(key), bucketIndex, itemIndex));
+  if Assigned(Result) then
+    Result := @fItems[itemIndex].Value;
+end;
+
 function TBidiDictionary<TKey, TValue>.GetValues: IReadOnlyCollection<TValue>;
 begin
   Result := fValues;
@@ -1997,6 +2019,16 @@ function TBidiDictionary<TKey, TValue>.TInverse.GetValueOrDefault(
 begin
   if not TryGetValue(value, Result) then
     Result := defaultKey;
+end;
+
+function TBidiDictionary<TKey, TValue>.TInverse.GetValueRefOrNil(
+  const value: TValue): Ref<TKey>.PT;
+var
+  bucketIndex, itemIndex: Integer;
+begin
+  Result := Pointer(fSource.FindValue(value, fSource.ValueHash(value), bucketIndex, itemIndex));
+  if Assigned(Result) then
+    Result := @fSource.fItems[itemIndex].Key;
 end;
 
 function TBidiDictionary<TKey, TValue>.TInverse.GetValues: IReadOnlyCollection<TKey>;
@@ -2687,6 +2719,16 @@ begin
     Result := PNode(node).Value
   else
     Result := defaultValue;
+end;
+
+function TSortedDictionary<TKey, TValue>.GetValueRefOrNil(
+  const key: TKey): Ref<TValue>.PT;
+var
+  node: Pointer;
+begin
+  node := fTree.FindNode(key);
+  if node = nil then Exit(Pointer(node));
+  Result := @PNode(node).Value;
 end;
 
 function TSortedDictionary<TKey, TValue>.GetValues: IReadOnlyCollection<TValue>;
