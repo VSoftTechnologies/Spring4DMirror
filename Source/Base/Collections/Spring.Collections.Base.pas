@@ -1081,6 +1081,8 @@ const
 
   IPartitionOfTGuid: TGUID = '{ACFB79AB-F593-4F2B-9720-E6CE984F6844}';
 
+  DefaultMethod: TMethod = ();
+
 procedure AssignComparer(var comparer; const source: IInterface);
 procedure EnsureEventInstance(var event: TEventBase; var result;
   eventClass: TEventBaseClass; eventChanged: TNotifyEvent);

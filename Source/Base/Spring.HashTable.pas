@@ -178,8 +178,10 @@ const
   RaiseOnExisting    = 4;
   DeleteExisting     = 8;
   InsertNonExisting  = 16;
-  RaiseOnNonExisting = 32;
+  MarkNonExisting    = 32;
+  RaiseOnNonExisting = 64;
   ExistingMask       = IgnoreExisting or OverwriteExisting or RaiseOnExisting or DeleteExisting;
+  MarkNonExistingShift = 32-6; // number of bits that the MarkNonExisting bit needs to be shifted left to result RemovedFlag
 
 {$IF defined(DELPHIXE6) or defined(DELPHIXE7)}
 function HashTableFindItem(hashTable: PHashTable; const key; options: Byte = 0): Pointer;
@@ -216,6 +218,11 @@ end;
 
 procedure __SuppressWarning(var value); inline;
 begin
+end;
+
+function GetMarkNonExistingMask(const options: Byte): Integer; inline;
+begin
+  Result := Integer(options) and MarkNonExisting shl MarkNonExistingShift;
 end;
 
 
@@ -412,7 +419,7 @@ findAgain:
           Inc(hashTable.fItemCount);
 
           Result := @hashTable.Items[NativeInt(hashTable.ItemSize) * itemIndex];
-          PInteger(Result)^ := hashCode;
+          PInteger(Result)^ := hashCode or GetMarkNonExistingMask(options);
           Exit;
         end;
         hashTable.Grow;
@@ -690,7 +697,7 @@ deletedFound:
           Inc(hashTable.fItemCount);
 
           Result := @hashTable.Items[NativeInt(hashTable.ItemSize) * itemIndex];
-          PInteger(Result)^ := stackData.hashCode;
+          PInteger(Result)^ := stackData.hashCode or GetMarkNonExistingMask(options);
           Exit;
         end;
         stackData.hashTable.Grow;
@@ -869,7 +876,7 @@ deletedFound:
           Inc(hashTable.fItemCount);
 
           Result := @hashTable.Items[NativeInt(hashTable.ItemSize) * itemIndex];
-          PInteger(Result)^ := hashCode;
+          PInteger(Result)^ := hashCode or GetMarkNonExistingMask(options);
           Exit;
         end;
         stackData.hashTable.Grow;

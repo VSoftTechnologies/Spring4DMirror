@@ -58,6 +58,7 @@ type
     TItem = TDictionaryItem<TKey, TValue>;
     TItems = TArray<TItem>;
     PItem = ^TItem;
+    PValue = ^TValue;
 
     PEnumerator = ^TEnumerator;
     TEnumerator = record
@@ -130,6 +131,8 @@ type
   {$REGION 'Implements IDictionary<TKey, TValue>'}
     procedure AddOrSetValue(const key: TKey; const value: TValue);
     function Extract(const key: TKey): TValue; overload;
+    function GetValueOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
+    function GetValueOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
     function GetValueOrDefault(const key: TKey): TValue; overload;
     function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
     function TryExtract(const key: TKey; var value: TValue): Boolean;
@@ -166,6 +169,8 @@ type
     {$POINTERMATH ON}
     PItem = ^TItem;
     {$POINTERMATH OFF}
+    PKey = ^TKey;
+    PValue = ^TValue;
 
     TInverse = class(TCollectionBase<TValueKeyPair>,
       IEnumerable<TValueKeyPair>, IReadOnlyCollection<TValueKeyPair>,
@@ -232,6 +237,8 @@ type
     {$REGION 'Implements IDictionary<TValue, TKey>'}
       procedure AddOrSetValue(const value: TValue; const key: TKey);
       function Extract(const value: TValue): TKey; overload;
+      function GetValueOrAddDefault(const value: TValue): Ref<TKey>.PT; overload;
+      function GetValueOrAddDefault(const value: TValue; const defaultKey: TKey): Ref<TKey>.PT; overload;
       function GetValueOrDefault(const value: TValue): TKey; overload;
       function GetValueOrDefault(const value: TValue; const defaultKey: TKey): TKey; overload;
       function TryExtract(const value: TValue; var key: TKey): Boolean;
@@ -393,6 +400,8 @@ type
   {$REGION 'Implements IDictionary<TKey, TValue>'}
     procedure AddOrSetValue(const key: TKey; const value: TValue);
     function Extract(const key: TKey): TValue; overload;
+    function GetValueOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
+    function GetValueOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
     function GetValueOrDefault(const key: TKey): TValue; overload;
     function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
     function TryExtract(const key: TKey; var value: TValue): Boolean;
@@ -419,6 +428,7 @@ type
       Key: TKey;
       Value: TValue;
     end;
+    PValue = ^TValue;
 
     PEnumerator = ^TEnumerator;
     TEnumerator = record
@@ -492,6 +502,10 @@ type
   {$REGION 'Implements IDictionary<TKey, TValue>'}
     procedure AddOrSetValue(const key: TKey; const value: TValue);
     function Extract(const key: TKey): TValue; overload;
+    function GetValueOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
+    function GetValueOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+    function GetValueOrDefault(const key: TKey): TValue; overload;
+    function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
     function TryExtract(const key: TKey; var value: TValue): Boolean;
     function TryGetValue(const key: TKey; var value: TValue): Boolean;
     function TryUpdateValue(const key: TKey; const newValue: TValue; var oldValue: TValue): Boolean;
@@ -501,10 +515,6 @@ type
     property Items[const key: TKey]: TValue read GetItem write SetItem; default;
   {$ENDREGION}
 
-  {$REGION 'Implements IReadOnlyDictionary<TKey, TValue>'}
-    function GetValueOrDefault(const key: TKey): TValue; overload;
-    function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
-  {$ENDREGION}
   end;
 
   TFoldedDictionary<TKey, TValue> = class(TDictionary<TKey, TValue>)
@@ -991,6 +1001,37 @@ begin
     Result := Default(TValue);
 end;
 
+function TDictionary<TKey, TValue>.GetValueOrAddDefault(
+  const key: TKey): Ref<TValue>.PT;
+begin
+  if {$IFDEF DELPHIXE7_UP}GetTypeKind(TValue){$ELSE}PTypeInfo(TypeInfo(TValue)).Kind{$ENDIF} = tkMethod then
+    Result := GetValueOrAddDefault(key, PValue(@DefaultMethod)^)
+  else
+    Result := GetValueOrAddDefault(key, Default(TValue));
+end;
+
+function TDictionary<TKey, TValue>.GetValueOrAddDefault(const key: TKey;
+  const defaultValue: TValue): Ref<TValue>.PT;
+var
+  item: PItem;
+begin
+  item := IHashTable<TKey>(@fHashTable).Find(key, InsertNonExisting or MarkNonExisting);
+  if item.HashCode < 0 then
+  begin
+    item.HashCode := item.HashCode and not RemovedFlag;
+    item.Key := key;
+    item.Value := defaultValue;
+
+    if Assigned(Notify) then
+      Notify(Self, PKeyValuePair(@item.Key)^, caAdded);
+    with fOnKeyChanged do if CanInvoke then
+      Invoke(Self, item.Key, caAdded);
+    with fOnValueChanged do if CanInvoke then
+      Invoke(Self, item.Value, caAdded);
+  end;
+  Result := @item.Value;
+end;
+
 function TDictionary<TKey, TValue>.GetValueOrDefault(const key: TKey;
   const defaultValue: TValue): TValue;
 var
@@ -1265,15 +1306,15 @@ begin
   mask := DynArrayLength(fKeyBuckets) - 1;
   perturb := hashCode;
   bucketIndex := hashCode and mask;
-  while True do
-  begin
+  repeat
     bucketValue := fKeyBuckets[bucketIndex];
 
     if bucketValue >= 0 then
     begin
       itemIndex := bucketValue;
-      if fKeyComparer.Equals(fItems[itemIndex].Key, key) then
-        Exit(True);
+      Result := fKeyComparer.Equals(fItems[itemIndex].Key, key);
+      if Result then
+        Exit;
     end else if bucketValue = EmptyBucket then
     begin
       itemIndex := fItemCount;
@@ -1282,7 +1323,7 @@ begin
 
     perturb := perturb shr PerturbShift;
     bucketIndex := (5 * bucketIndex + 1 + Integer(perturb)) and mask;
-  end;
+  until False;
 end;
 
 function TBidiDictionary<TKey, TValue>.FindValue(const value: TValue; hashCode: Integer; //FI:W521
@@ -1300,21 +1341,15 @@ begin
   mask := DynArrayLength(fValueBuckets) - 1;
   perturb := hashCode;
   bucketIndex := hashCode and mask;
-  while True do
-  begin
+  repeat
     bucketValue := fValueBuckets[bucketIndex];
-
-    if bucketValue = EmptyBucket then
-    begin
-      itemIndex := fItemCount;
-      Exit(False);
-    end;
 
     if bucketValue >= 0 then
     begin
       itemIndex := bucketValue;
-      if fValueComparer.Equals(fItems[itemIndex].Value, value) then
-        Exit(True);
+      Result := fValueComparer.Equals(fItems[itemIndex].Value, value);
+      if Result then
+        Exit;
     end
     else if bucketValue = EmptyBucket then
     begin
@@ -1324,7 +1359,7 @@ begin
 
     perturb := perturb shr PerturbShift;
     bucketIndex := (5 * bucketIndex + 1 + Integer(perturb)) and mask;
-  end;
+  until False;
 end;
 
 function TBidiDictionary<TKey, TValue>.KeyHash(const key: TKey): Integer;
@@ -1788,6 +1823,23 @@ begin
   TryGetValue(key, Result);
 end;
 
+function TBidiDictionary<TKey, TValue>.GetValueOrAddDefault(
+  const key: TKey): Ref<TValue>.PT;
+begin
+  if {$IFDEF DELPHIXE7_UP}GetTypeKind(TValue){$ELSE}PTypeInfo(TypeInfo(TValue)).Kind{$ENDIF} = tkMethod then
+    Result := GetValueOrAddDefault(key, PValue(@DefaultMethod)^)
+  else
+    Result := GetValueOrAddDefault(key, Default(TValue));
+end;
+
+function TBidiDictionary<TKey, TValue>.GetValueOrAddDefault(const key: TKey;
+  const defaultValue: TValue): Ref<TValue>.PT;
+begin
+  // TODO implement
+  RaiseHelper.NotSupported;
+  Result := nil;
+end;
+
 function TBidiDictionary<TKey, TValue>.GetValueOrDefault(const key: TKey;
   const defaultValue: TValue): TValue;
 begin
@@ -2012,6 +2064,23 @@ function TBidiDictionary<TKey, TValue>.TInverse.GetValueOrDefault(
   const value: TValue): TKey;
 begin
   TryGetValue(value, Result);
+end;
+
+function TBidiDictionary<TKey, TValue>.TInverse.GetValueOrAddDefault(
+  const value: TValue): Ref<TKey>.PT;
+begin
+  if {$IFDEF DELPHIXE7_UP}GetTypeKind(TKey){$ELSE}PTypeInfo(TypeInfo(TKey)).Kind{$ENDIF} = tkMethod then
+    Result := GetValueOrAddDefault(value, PKey(@DefaultMethod)^)
+  else
+    Result := GetValueOrAddDefault(value, Default(TKey));
+end;
+
+function TBidiDictionary<TKey, TValue>.TInverse.GetValueOrAddDefault(
+  const value: TValue; const defaultKey: TKey): Ref<TKey>.PT;
+begin
+  // TODO implement
+  RaiseHelper.NotSupported;
+  Result := nil;
 end;
 
 function TBidiDictionary<TKey, TValue>.TInverse.GetValueOrDefault(
@@ -2707,6 +2776,42 @@ begin
     Result := PNode(node).Value
   else
     Result := Default(TValue);
+end;
+
+function TSortedDictionary<TKey, TValue>.GetValueOrAddDefault(
+  const key: TKey): Ref<TValue>.PT;
+begin
+  if {$IFDEF DELPHIXE7_UP}GetTypeKind(TValue){$ELSE}PTypeInfo(TypeInfo(TValue)).Kind{$ENDIF} = tkMethod then
+    Result := GetValueOrAddDefault(key, PValue(@DefaultMethod)^)
+  else
+    Result := GetValueOrAddDefault(key, Default(TValue));
+end;
+
+function TSortedDictionary<TKey, TValue>.GetValueOrAddDefault(const key: TKey;
+  const defaultValue: TValue): Ref<TValue>.PT;
+var
+  temp: Pointer;
+  node: PNode;
+begin
+  temp := fTree.AddNode(key, True);
+  node := temp;
+  node := Pointer(IntPtr(node) and not 1); // clear lowest bit
+
+  if not Odd(IntPtr(temp)) then
+  begin
+    node.Value := defaultValue;
+    {$Q-}
+    Inc(fVersion);
+    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+
+    if Assigned(Notify) then
+      Notify(Self, PKeyValuePair(@node.Key)^, caAdded);
+    with fOnKeyChanged do if CanInvoke then
+      Invoke(Self, node.Key, caAdded);
+    with fOnValueChanged do if CanInvoke then
+      Invoke(Self, node.Value, caAdded);
+  end;
+  Result := @node.Value;
 end;
 
 function TSortedDictionary<TKey, TValue>.GetValueOrDefault(const key: TKey;
