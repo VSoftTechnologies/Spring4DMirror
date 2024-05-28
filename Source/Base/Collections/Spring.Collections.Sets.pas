@@ -452,13 +452,14 @@ end;
 procedure THashSet<T>.Clear;
 var
   item: PItem;
-  i: Integer;
+  itemCount, i: Integer;
 begin
   if Assigned(Notify) then
   begin
+    itemCount := fHashTable.ItemCount;
     fHashTable.ClearCount;
     item := PItem(fHashTable.Items);
-    for i := 1 to fHashTable.ItemCount do //FI:W528
+    for i := 1 to itemCount do //FI:W528
       if item.HashCode >= 0 then
         Notify(Self, item.Item, caRemoved);
   end;
@@ -667,6 +668,7 @@ begin
   if Assigned(Notify) then // optimization: if no notification needs to be send the entire tree traversal won't be done
   begin
     node := fTree.Root.LeftMost;
+    fTree.ClearCount;
     while Assigned(node) do
       Notify(Self, PNode(node).Key, caRemoved);
   end;

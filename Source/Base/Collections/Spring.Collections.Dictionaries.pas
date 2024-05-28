@@ -697,12 +697,13 @@ end;
 procedure TDictionary<TKey, TValue>.Clear;
 var
   item: PItem;
-  i: Integer;
+  itemCount, i: Integer;
 begin
+  itemCount := fHashTable.ItemCount;
   fHashTable.ClearCount;
 
   item := PItem(fHashTable.Items);
-  for i := 1 to fHashTable.ItemCount do //FI:W528
+  for i := 1 to itemCount do //FI:W528
   begin
     if item.HashCode >= 0 then
     begin
@@ -783,6 +784,7 @@ function TDictionary<TKey, TValue>.TryInsert(
 var
   temp: Pointer;
   item: PItem;
+  keyAdded: Boolean;
 begin
   temp := IHashTable<TKey>(@fHashTable).Find(key, behavior);
   if not Assigned(temp) then Exit(Boolean(temp));
@@ -790,6 +792,7 @@ begin
   item := temp;
   if item.HashCode < 0 then
   begin
+    item.HashCode := item.HashCode and not RemovedFlag;
     if Assigned(Notify) then
       Notify(Self, PKeyValuePair(@item.Key)^, caRemoved);
     with fOnValueChanged do if CanInvoke then
@@ -799,20 +802,21 @@ begin
   {$ENDIF}
     if doOwnsValues in fHashTable.Ownerships then
       PObject(@item.Value).Free;
-  end;
+    keyAdded := False;
+  end
+  else
+    keyAdded := True;
 
   item.Key := key;
   item.Value := value;
 
   if Assigned(Notify) then
     Notify(Self, PKeyValuePair(@item.Key)^, caAdded);
-  if item.HashCode >= 0 then
+  if keyAdded then
     with fOnKeyChanged do if CanInvoke then
       Invoke(Self, item.Key, caAdded);
   with fOnValueChanged do if CanInvoke then
     Invoke(Self, item.Value, caAdded);
-
-  item.HashCode := item.HashCode and not RemovedFlag;
 
   Result := True;
 end;
@@ -2608,6 +2612,7 @@ begin
   {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
 
   next := fTree.Root.LeftMost;
+  fTree.ClearCount;
   if Assigned(next) then
     repeat
       node := next;

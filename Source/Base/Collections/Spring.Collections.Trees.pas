@@ -125,6 +125,7 @@ type
     function GetRoot: PNode; inline;
   {$ENDREGION}
   public
+    procedure ClearCount;
     property Comparer: IInterface read fComparer;
     property Count: Integer read fCount;
     property Root: PNode read fRoot;
@@ -577,6 +578,12 @@ end;
 
 
 {$REGION 'TBinaryTree'}
+
+procedure TBinaryTree.ClearCount;
+begin
+  fRoot := nil;
+  fCount := 0;
+end;
 
 function TBinaryTree.GetCount: Integer;
 begin

@@ -285,6 +285,7 @@ begin
   Inc(fVersion);
   {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
   fCount := 0;
+  fItemCount := 0;
 end;
 
 procedure THashTable.EnsureCompact;
