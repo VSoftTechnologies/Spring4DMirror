@@ -3121,8 +3121,9 @@ type
     procedure SetCount(value: NativeInt); inline;
     procedure SetItem(index: NativeInt; const value: T); inline;
     procedure InternalInsert(index: NativeInt; const items: array of T);
-    function InternalEquals(const items: array of T): Boolean;
-    function InternalIndexOf(const item: T): NativeInt;
+    function InternalContains(const items: Span<T>; comparer: Pointer = nil): Boolean;
+    function InternalEquals(const items: Span<T>; comparer: Pointer = nil): Boolean;
+    function InternalIndexOf(const item: T; comparer: Pointer = nil): NativeInt;
   public
     class operator Implicit(const value: TArray<T>): Vector<T>; inline;
     class operator Implicit(const value: Vector<T>): TArray<T>; inline;
@@ -3160,10 +3161,14 @@ type
     function Contains(const item: T; const comparer: IEqualityComparer<T>): Boolean; overload;
     function Contains(const item: T; const comparer: TEqualityComparison<T>): Boolean; overload;
     function Contains(const items: array of T): Boolean; overload;
-    function Contains(const items: TArray<T>): Boolean; overload;
-    function IndexOf(const item: T): NativeInt; inline;
+    function Contains(const items: array of T; const comparer: IEqualityComparer<T>): Boolean; overload;
+    function Contains(const items: array of T; const comparer: TEqualityComparison<T>): Boolean; overload;
+    function IndexOf(const item: T): NativeInt; overload; inline;
+    function IndexOf(const item: T; const comparer: IEqualityComparer<T>): NativeInt; overload;
+    function IndexOf(const item: T; const comparer: TEqualityComparison<T>): NativeInt; overload;
     function Equals(const items: array of T): Boolean; overload;
-    function Equals(const items: TArray<T>): Boolean; overload; inline;
+    function Equals(const items: array of T; const comparer: IEqualityComparer<T>): Boolean; overload;
+    function Equals(const items: array of T; const comparer: TEqualityComparison<T>): Boolean; overload;
 
     function Slice(index: NativeInt): Vector<T>; overload; inline;
     function Slice(index: NativeInt; count: NativeInt): Vector<T>; overload; inline;
@@ -13736,48 +13741,60 @@ end;
 
 {$REGION 'Vector<T>'}
 
+function __DynArrayHigh(p: Pointer): NativeInt; inline;
+begin
+  {$POINTERMATH ON}
+  Result := PNativeInt(p)[-1] - 1;
+  {$POINTERMATH OFF}
+end;
+
 class function VectorHelper.InternalIndexOfInt8(const data: Pointer;
   const item: ShortInt): NativeInt;
 begin
-  for Result := 0 to High(TArray<ShortInt>(data)) do
-    if TArray<ShortInt>(data)[Result] = item then
-      Exit;
+  if Assigned(data) then
+    for Result := 0 to __DynArrayHigh(data) do
+      if TArray<ShortInt>(data)[Result] = item then
+        Exit;
   Result := -1;
 end;
 
 class function VectorHelper.InternalIndexOfInt16(const data: Pointer;
   const item: SmallInt): NativeInt;
 begin
-  for Result := 0 to High(TArray<SmallInt>(data)) do
-    if TArray<SmallInt>(data)[Result] = item then
-      Exit;
+  if Assigned(data) then
+    for Result := 0 to __DynArrayHigh(data) do
+      if TArray<SmallInt>(data)[Result] = item then
+        Exit;
   Result := -1;
 end;
 
-class function VectorHelper.InternalIndexOfInt32(const data:Pointer;
+class function VectorHelper.InternalIndexOfInt32(const data: Pointer;
   const item: Integer): NativeInt;
 begin
-  for Result := 0 to High(TArray<Integer>(data)) do
-    if TArray<Integer>(data)[Result] = item then
-      Exit;
+  if Assigned(data) then
+    for Result := 0 to __DynArrayHigh(data) do
+      if TArray<Int32>(data)[Result] = item then
+        Exit;
   Result := -1;
 end;
 
 class function VectorHelper.InternalIndexOfInt64(const data: Pointer;
   const item: Int64): NativeInt;
 begin
-  for Result := 0 to High(TArray<Int64>(data)) do
-    if TArray<Int64>(data)[Result] = item then
-      Exit;
+  if Assigned(data) then
+    for Result := 0 to __DynArrayHigh(data) do
+      if TArray<Int64>(data)[Result] = item then
+        Exit;
   Result := -1;
 end;
 
 class function VectorHelper.InternalIndexOfStr(const data: Pointer;
   const item: string): NativeInt;
 begin
-  for Result := 0 to High(TArray<string>(data)) do
-    if TArray<string>(data)[Result] = item then
-      Exit;
+  if Assigned(data) then
+    for Result := 0 to __DynArrayHigh(data) do
+      if TArray<string>(data)[Result] = item then
+        Exit;
   Result := -1;
 end;
 
@@ -13878,9 +13895,21 @@ begin
   end;
 end;
 
+function Vector<T>.IndexOf(const item: T;
+  const comparer: IEqualityComparer<T>): NativeInt;
+begin
+  Result := InternalIndexOf(item, Pointer(comparer));
+end;
+
+function Vector<T>.IndexOf(const item: T;
+  const comparer: TEqualityComparison<T>): NativeInt;
+begin
+  Result := InternalIndexOf(item, PPointer(@comparer)^);
+end;
+
 function Vector<T>.Contains(const item: T): Boolean;
 begin
-  Result := IndexOf(item) > -1;
+  Result := IndexOf(item) >= 0;
 end;
 
 function Vector<T>.Contains(const item: T;
@@ -13907,22 +13936,34 @@ end;
 
 function Vector<T>.Contains(const items: array of T): Boolean;
 var
-  i: NativeInt;
+  span: Span<T>;
 begin
-  for i := 0 to High(items) do
-    if IndexOf(items[i]) = -1 then
-      Exit(False);
-  Result := True;
+  {$R-}
+  span.Init(@items[0], System.Length(items));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := InternalContains(span);
 end;
 
-function Vector<T>.Contains(const items: TArray<T>): Boolean;
+function Vector<T>.Contains(const items: array of T;
+  const comparer: IEqualityComparer<T>): Boolean;
 var
-  i: NativeInt;
+  span: Span<T>;
 begin
-  for i := 0 to DynArrayHigh(items) do
-    if IndexOf(items[i]) = -1 then
-      Exit(False);
-  Result := True;
+  {$R-}
+  span.Init(@items[0], System.Length(items));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := InternalContains(span, Pointer(comparer));
+end;
+
+function Vector<T>.Contains(const items: array of T;
+  const comparer: TEqualityComparison<T>): Boolean;
+var
+  span: Span<T>;
+begin
+  {$R-}
+  span.Init(@items[0], System.Length(items));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := InternalContains(span, PPointer(@comparer)^);
 end;
 
 procedure Vector<T>.Delete(index: NativeInt);
@@ -13998,6 +14039,7 @@ end;
 function Vector<T>.Equals(const items: array of T): Boolean;
 var
   n, i: NativeInt;
+  span: Span<T>;
 begin
   n := DynArrayLength(fData);
   if n <> System.Length(items) then
@@ -14013,30 +14055,31 @@ begin
         if PUnicodeString(@fData[i])^ <> PUnicodeString(@items[i])^ then
           Exit(False);
   else
-    Result := InternalEquals(items);
+    span.Init(@items[0], System.Length(items));
+    Result := InternalEquals(span);
   end;
 end;
 
-function Vector<T>.Equals(const items: TArray<T>): Boolean;
+function Vector<T>.Equals(const items: array of T;
+  const comparer: IEqualityComparer<T>): Boolean;
 var
-  n, i: NativeInt;
+  span: Span<T>;
 begin
-  n := DynArrayLength(fData);
-  if n <> DynArrayLength(items) then
-    Exit(False);
-  Result := True;
-  case TType.Kind<T> of
-    tkInteger:
-      for i := 0 to n - 1 do
-        if PInteger(@fData[i])^ <> PInteger(@items[i])^ then
-          Exit(False);
-    tkUString:
-      for i := 0 to n - 1 do
-        if PUnicodeString(@fData[i])^ <> PUnicodeString(@items[i])^ then
-          Exit(False);
-  else
-    Result := InternalEquals(items);
-  end;
+  {$R-}
+  span.Init(@items[0], System.Length(items));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := InternalEquals(span, Pointer(comparer));
+end;
+
+function Vector<T>.Equals(const items: array of T;
+  const comparer: TEqualityComparison<T>): Boolean;
+var
+  span: Span<T>;
+begin
+  {$R-}
+  span.Init(@items[0], System.Length(items));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := InternalEquals(span, PPointer(@comparer)^);
 end;
 
 procedure Vector<T>.ForEach(const action: Action<T>);
@@ -14140,23 +14183,41 @@ begin
 {$ENDIF}
 end;
 
-function Vector<T>.InternalEquals(const items: array of T): Boolean;
+function Vector<T>.InternalContains(const items: Span<T>;
+  comparer: Pointer): Boolean;
 var
-  comparer: Pointer;
   i: NativeInt;
 begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-  for i := 0 to DynArrayHigh(fData) do
-    if not IEqualityComparer<T>(comparer).Equals(fData[i], items[i]) then
-      Exit(False);
+  if comparer = nil then
+    comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
+  for i := 0 to items.Length - 1 do
+  begin
+    Result := InternalIndexOf(items[i]^, comparer) >= 0;
+    if not Result then Exit;
+  end;
   Result := True;
 end;
 
-function Vector<T>.InternalIndexOf(const item: T): NativeInt;
+function Vector<T>.InternalEquals(const items: Span<T>; comparer: Pointer): Boolean;
 var
-  comparer: Pointer;
+  i: NativeInt;
 begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
+  if Length <> items.Length then
+    Exit(False);
+  if comparer = nil then
+    comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
+  for i := 0 to DynArrayHigh(fData) do
+  begin
+    Result := IEqualityComparer<T>(comparer).Equals(fData[i], items[i]^);
+    if not Result then Exit;
+  end;
+  Result := True;
+end;
+
+function Vector<T>.InternalIndexOf(const item: T; comparer: Pointer): NativeInt;
+begin
+  if comparer = nil then
+    comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
   for Result := 0 to DynArrayHigh(fData) do
     if IEqualityComparer<T>(comparer).Equals(fData[Result], item) then
       Exit;
