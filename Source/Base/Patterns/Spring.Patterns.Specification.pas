@@ -71,7 +71,7 @@ type
   end;
 
   /// <summary>
-  ///   Provides the abstract base class for ISpecification<T>.
+  ///   Provides the abstract base class for ISpecification&lt;T&gt;.
   /// </summary>
   TSpecification<T> = class abstract(TInterfacedObject, ISpecification<T>, Predicate<T>)
   protected

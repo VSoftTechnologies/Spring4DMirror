@@ -262,12 +262,12 @@ type
     procedure SaveList<T: class, constructor>(const entities: IEnumerable<T>);
 
     /// <summary>
-    /// Registers IRowMapper<T> interface to use when mapping given class into result object
+    /// Registers IRowMapper&lt;T&gt; interface to use when mapping given class into result object
     /// </summary>
     procedure RegisterRowMapper<T: class, constructor>(const rowMapper: IRowMapper<T>);
 
     /// <summary>
-    /// Unregisters IRowMapper<T> interface
+    /// Unregisters IRowMapper&lt;T&gt; interface
     /// </summary>
     procedure UnregisterRowMapper<T: class, constructor>;
   end;

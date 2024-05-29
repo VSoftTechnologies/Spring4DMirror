@@ -725,7 +725,7 @@ type
   {$REGION 'TByteArrayToGUIDConverter}
 
   /// <summary>
-  ///   Provides conversion routine between TArray<Byte> and TGUID
+  ///   Provides conversion routine between TArray&lt;Byte&gt; and TGUID
   /// </summary>
   TByteArrayToGUIDConverter = class(TValueConverter)
   protected
@@ -740,7 +740,7 @@ type
   {$REGION 'TGUIDToByteArrayConverter}
 
   /// <summary>
-  ///   Provides conversion routine between TGUID and TArray<Byte>
+  ///   Provides conversion routine between TGUID and TArray&lt;Byte&gt;
   /// </summary>
   TGUIDToByteArrayConverter = class(TValueConverter)
   protected
