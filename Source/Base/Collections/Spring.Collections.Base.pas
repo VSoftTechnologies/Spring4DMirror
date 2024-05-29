@@ -1373,7 +1373,7 @@ begin
     IEnumerable(obj) := TEnumerableWrapper.Create(IEnumerable(this), getCurrent);
     Result := S_OK;
   end
-  else if IID = ICollectionGuid then
+  else if (IID = ICollectionGuid) and Assigned(GetInterfaceEntry(ICollectionOfTGuid)) then
   begin
     ICollection(obj) := TCollectionWrapper.Create(IEnumerable(this), getCurrent, add);
     Result := S_OK;
