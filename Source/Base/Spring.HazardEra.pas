@@ -113,6 +113,8 @@ const
   // size of used data in THazardEraThreadControlBlock
   DataSize =
     SizeOf(Pointer) +     // Next
+    SizeOf(Pointer) +     // Prev
+    SizeOf(NativeUInt) +  // ThreadId
     SizeOf(NativeInt) +   // Active
     SizeOf(TEra);         // Era
   CacheLineSize = 64;
@@ -122,7 +124,8 @@ type
   PHazardEraThreadControlBlock = ^THazardEraThreadControlBlock;
   THazardEraThreadControlBlock = record
   private
-    Next: PHazardEraThreadControlBlock;
+    Next, Prev: PHazardEraThreadControlBlock;
+    ThreadId: NativeUInt;
     Active: NativeInt;
     Era: TEra;
   strict private
@@ -138,6 +141,7 @@ type
   TThreadBlockList = record
   private class var
     blocks: array[0..255] of PHazardEraThreadControlBlock;
+    latest: PHazardEraThreadControlBlock;
   class threadvar
     activeBlock: PHazardEraThreadControlBlock;
   public
@@ -181,10 +185,12 @@ class function TThreadBlockList.Acquire(isFirstAttempt: Boolean): PHazardEraThre
   function New(var era: PHazardEraThreadControlBlock; currentThreadId: TThreadID): PHazardEraThreadControlBlock;
   begin
     Result := GetMem_Aligned64(SizeOf(THazardEraThreadControlBlock));
+    Result.ThreadId := currentThreadId;
     Result.Active := Active;
     Result.Era := Inactive;
 
     Result.Next := PHazardEraThreadControlBlock(AtomicExchange(Pointer(era), Pointer(Result)));
+    Result.Prev := PHazardEraThreadControlBlock(AtomicExchange(Pointer(latest), Pointer(Result)));
     activeBlock := Result;
   end;
 
@@ -209,6 +215,7 @@ begin
   repeat
     if AtomicExchange(Result.Active, Active) = Inactive then
     begin
+      Result.ThreadId := currentThreadId;
       activeBlock := Result;
       Exit;
     end;
@@ -261,40 +268,54 @@ begin
   Result := value.ptr;
 end;
 
-function Delete_Ptr(const obj: PEraEntity): Boolean;
+function Delete_Ptr(const obj: PEraEntity): TThreadId;
+label
+  Exit;
 var
-  era: TEra;
   info: PHazardEraThreadControlBlock;
-  i: Integer;
+  era: TEra;
 begin
-  for i := 0 to High(TThreadBlockList.blocks) do
+  info := TThreadBlockList.latest;
+  while Assigned(info) do
   begin
-    info := TThreadBlockList.blocks[i];
-    while Assigned(info) do
+    if info.Active <> Inactive then
     begin
-      if info.Active <> Inactive then
-        era := info.Load
-      else
-        era := None;
-
-      if (era = None) or (era < obj.newEra) or (era > obj.delEra) then
-      begin
-        info := info.Next;
-        Continue;
-      end;
-      Exit(False);
+      era := info.Load;
+      if (era >= obj.newEra) and (era <= obj.delEra) then
+        goto Exit;
     end;
+    info := info.Prev;
   end;
   FreeMem(obj);
-  Result := True;
+  System.Exit(0);
+Exit:
+  Result := info.ThreadId;
+end;
+
+type
+  TListHelper = class helper for TList
+    procedure DeleteRange(Index, Count: NativeInt);
+  end;
+
+procedure TListHelper.DeleteRange(Index, Count: NativeInt);
+var
+  DeleteCount, TailCount: NativeInt;
+begin
+  DeleteCount := Count;
+  with Self do
+  begin
+    Dec(FCount, DeleteCount);
+    TailCount := FCount - Index;
+    if TailCount > 0 then
+      System.Move(FList[Index + DeleteCount], FList[Index], TailCount * SizeOf(Pointer));
+  end;
 end;
 
 procedure Retire(p: PEraEntity);
 var
   currEra: TEra;
-  entity: PEraEntity;
-  info: PHazardEraThreadControlBlock;
-  i: Integer;
+  threadId, currentThreadId: TThreadID;
+  i, index, count: Integer;
 begin
   if Assigned(lock) then
   begin
@@ -311,17 +332,27 @@ begin
       if AtomicLoad(eraClock) = currEra then
         AtomicIncrement(eraClock);
 
-      i := 0;
-      while i < retiredList.Count do
-        if Delete_Ptr(retiredList.List[i]) then
-          retiredList.Delete(i)
-        else
+      currentThreadId := GetCurrentThreadID;
+      index := 0;
+      count := 0;
+      for i := 1 to retiredList.Count do
+      begin
+        threadId := Delete_Ptr(retiredList.List[index + count]);
+        if threadId <> 0 then
         begin
-          entity := retiredList.List[i];
-          repeat
-            Inc(i);
-          until (i >= retiredList.Count) or (PEraEntity(retiredList.List[i]).delEra > entity.delEra);
-        end;
+          if threadId = currentThreadId then Break;
+          if count > 0 then
+          begin
+            retiredList.DeleteRange(index, count);
+            count := 0;
+          end;
+          Inc(index);
+        end
+        else
+          Inc(count);
+      end;
+      if count > 0 then
+        retiredList.DeleteRange(index, count);
     finally
       lock.Release;
     end;
