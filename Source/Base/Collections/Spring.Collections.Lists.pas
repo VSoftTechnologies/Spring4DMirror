@@ -85,7 +85,7 @@ type
     function DeleteAllInternal(const match: Predicate<T>;
       action: TCollectionChangedAction; extractedItems: PPointer): Integer;
     procedure DeleteRangeInternal(index, count: Integer;
-      action: TCollectionChangedAction; doClear: Boolean; result: PPointer);
+      action: TCollectionChangedAction; result: PPointer);
     function InsertInternal(index: Integer; const item: T): Integer;
     procedure SetItemInternal(index: Integer; const value: T);
     procedure DoNotifyExtracted(count: Integer);
@@ -1037,73 +1037,150 @@ end;
 procedure TAbstractArrayList<T>.Clear;
 var
   listCount: Integer;
+  items, hi: Pointer;
+  item: ^T;
 begin
   listCount := Count;
-  if listCount > 0 then
-  begin
-    if OwnsObjects or Assigned(Notify) then
-      DeleteRangeInternal(0, listCount, caRemoved, True, nil)
-    else
+  try
+    fCapacity := 0;
+    Pointer(items) := Pointer(fItems);
+    Pointer(fItems) := nil;
+
+    if listCount > 0 then
     begin
       {$Q-}
       Inc(fVersion);
       {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
       Dec(fCount, listCount);
+
+      item := Pointer(items);
+      {$POINTERMATH ON}
+      hi := item + listCount;
+      {$POINTERMATH OFF}
+      if Assigned(Notify) then
+      begin
+        Reset;
+        if not OwnsObjects then
+          repeat
+            Notify(Self, item^, caRemoved);
+            Inc(item);
+          until item = hi
+        else
+          repeat
+            Notify(Self, item^, caRemoved);
+            PObject(item).Free;
+            Inc(item);
+          until item = hi;
+      end else if OwnsObjects then
+        repeat
+          PObject(item).Free;
+          Inc(item);
+        until item = hi;
     end;
+  finally
+    TArray<T>(items) := nil;
   end;
-  fCapacity := 0;
-  SetLength(fItems, 0);
 end;
 
 procedure TAbstractArrayList<T>.DeleteRangeInternal(index, count: Integer;
-  action: TCollectionChangedAction; doClear: Boolean; result: PPointer);
+  action: TCollectionChangedAction; result: PPointer);
 var
-  oldItems: TArray<T>;
-  tailCount, i: Integer;
+  buffer: array[0..1023] of Byte;
+  bufferPointer: Pointer;
+  tailCount: NativeInt;
+  items, hi: Pointer;
+  item: ^T;
 begin
-  SetLength(oldItems, count);
-  if ItemType.HasWeakRef then
-    MoveManaged(@fItems[index], @oldItems[0], TypeInfo(T), count)
-  else
-    System.Move(fItems[index], oldItems[0], SizeOf(T) * count);
-
-  {$Q-}
-  Inc(fVersion);
-  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-  tailCount := Self.Count - (index + count);
-  if tailCount > 0 then
+  // check if the range that is about to get deleted fits into stack buffer
+  // and the elements should not be passed back via result reference
+  if (count <= Length(buffer) div SizeOf(T)) and (result = nil) then
   begin
+    // point to stack and clear stack buffer
+    bufferPointer := @buffer[0];
     if ItemType.HasWeakRef then
-      MoveManaged(@fItems[index + count], @fItems[index], TypeInfo(T), tailCount)
-    else
-      System.Move(fItems[index + count], fItems[index], SizeOf(T) * tailCount);
-    Inc(index, tailCount);
-  end;
-  if ItemType.HasWeakRef then
-    System.Finalize(fItems[index], count);
-  System.FillChar(fItems[index], SizeOf(T) * count, 0);
-  Dec(fCount, count);
-
-  if doClear then
-    Reset;
-
-  if Assigned(Notify) then
-    if OwnsObjects and (action = caRemoved) then
-      for i := 0 to count - 1 do
-      begin
-        Notify(Self, oldItems[i], action);
-        TArray<TObject>(oldItems)[i].Free;
-      end
-    else
-      for i := 0 to count - 1 do
-        Notify(Self, oldItems[i], action)
+      System.FillChar(bufferPointer^, SizeOf(T) * count, 0);
+  end
   else
-    if OwnsObjects and (action = caRemoved) then
-      for i := 0 to count - 1 do
-        TArray<TObject>(oldItems)[i].Free;
+  begin
+    // heap allocate buffer
+    bufferPointer := nil;
+    SetLength(TArray<T>(bufferPointer), count);
+  end;
+  try
+    items := @fItems[index];
+    if ItemType.HasWeakRef then
+      MoveManaged(items, bufferPointer, TypeInfo(T), count)
+    else
+      System.Move(items^, bufferPointer^, SizeOf(T) * count);
 
-  if Assigned(result) then
-    TArray<T>(result^) := oldItems;
+    {$Q-}
+    Inc(fVersion);
+    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    tailCount := Self.Count - (index + count);
+
+    {$R-}
+    if ItemType.HasWeakRef then
+    begin
+      if tailCount > 0 then
+        MoveManaged(@TArray<T>(items)[count], items, TypeInfo(T), tailCount);
+      System.Finalize(TArray<T>(items)[tailCount], count);
+    end
+    else
+      if tailCount > 0 then
+      begin
+        tailCount := tailCount * SizeOf(T);
+        System.Move(TArray<T>(items)[count], items^, tailCount);
+        Inc(PByte(items), tailCount);
+      end;
+    {$IFDEF RANGECHECKS_ON}{$Q+}{$ENDIF}
+    System.FillChar(items^, SizeOf(T) * count, 0);
+    Dec(fCount, count);
+
+    item := bufferPointer;
+    {$POINTERMATH ON}
+    hi := item + count;
+    {$POINTERMATH OFF}
+    if Assigned(Notify) then
+    begin
+      if not OwnsObjects or (action <> caRemoved) then
+        repeat
+          Notify(Self, item^, action);
+          Inc(item);
+        until item = hi
+      else
+        repeat
+          Notify(Self, item^, action);
+          PObject(item).Free;
+          Inc(item);
+        until item = hi;
+    end else if OwnsObjects and (action = caRemoved) then
+    begin
+      repeat
+        PObject(item).Free;
+        Inc(item);
+      until item = hi;
+    end;
+    // elements should be passed back via result reference
+    if Assigned(result) then
+    begin
+      // clear result and assign heap allocated buffer which is TArray<T>
+      TArray<T>(result^) := nil;
+      result^ := bufferPointer;
+      bufferPointer := nil;
+    end;
+  finally
+    // bufferPointer still points to either stack or heap
+    if Assigned(bufferPointer) then
+      // it was heap allocated because it did not fit into stack
+      if count > Length(buffer) div SizeOf(T) then
+        // clear array
+        TArray<T>(bufferPointer) := nil
+      // buffer was stack allocated and is a managed type that needs finalization
+      else if ItemType.IsManaged then
+        {$R-}
+        System.Finalize(TArray<T>(bufferPointer)[0], count);
+        {$IFDEF RANGECHECKS_ON}{$Q+}{$ENDIF}
+  end;
 end;
 
 procedure TAbstractArrayList<T>.DoNotifyExtracted(count: Integer);
@@ -1117,6 +1194,7 @@ end;
 procedure TAbstractArrayList<T>.DeleteRange(index, count: Integer);
 var
   listCount, tailCount: Integer;
+  items: Pointer;
 begin
   listCount := Self.Count;
   if Cardinal(index) <= Cardinal(listCount) then
@@ -1134,20 +1212,23 @@ begin
         {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
         Dec(fCount, count);
 
+        {$R-}
+        items := Pointer(@fItems[index]);
         if ItemType.IsManaged then
-          System.Finalize(fItems[index], count);
+          System.Finalize(TArray<T>(items)[0], count);
         if tailCount > 0 then
           if ItemType.HasWeakRef then
           begin
-            MoveManaged(@fItems[index + count], @fItems[index], TypeInfo(T), tailCount);
-            System.Finalize(fItems[index + tailCount], count);
+            MoveManaged(@TArray<T>(items)[count], @TArray<T>(items)[0], TypeInfo(T), tailCount);
+            System.Finalize(TArray<T>(items)[tailCount], count);
           end
           else
-            System.Move(fItems[index + count], fItems[index], SizeOf(T) * tailCount);
-        System.FillChar(fItems[index + tailCount], SizeOf(T) * count, 0);
+            System.Move(TArray<T>(items)[count], TArray<T>(items)[0], SizeOf(T) * tailCount);
+        System.FillChar(TArray<T>(items)[tailCount], SizeOf(T) * count, 0);
+        {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
       end
       else
-        DeleteRangeInternal(index, count, caRemoved, False, nil);
+        DeleteRangeInternal(index, count, caRemoved, nil);
     end
     else
       RaiseHelper.ArgumentOutOfRange_Count;
@@ -1560,7 +1641,7 @@ begin
   if count = 0 then
     Exit(nil);
 
-  DeleteRangeInternal(index, count, caExtracted, False, @Result);
+  DeleteRangeInternal(index, count, caExtracted, @Result);
 end;
 
 function TAbstractArrayList<T>.Contains(const value: T): Boolean;

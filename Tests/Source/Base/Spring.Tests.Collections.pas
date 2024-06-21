@@ -193,6 +193,8 @@ type
     procedure TestDeleteRange;
     procedure TestDeleteRangeEmptyList;
 
+    procedure TestDeleteRangeLarge;
+
     procedure EqualsToArray;
     procedure EqualsToEnumerable;
   end;
@@ -200,6 +202,8 @@ type
   TTestStringList = class(TTestCase)
   private
     SUT: IList<string>;
+    ChangeCount: Integer;
+    procedure HandleChange(Sender: TObject; const item: string; action: TCollectionChangedAction);
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -211,6 +215,8 @@ type
     procedure TestExtractRange;
     procedure TestListInsertRangeIEnumerableSelf;
     procedure TestGetRange_SomeItems;
+
+    procedure TestDeleteRangeLarge;
   end;
 
   TTestSortedList = class(TTestCase)
@@ -1601,6 +1607,30 @@ begin
     end);
 end;
 
+procedure TTestIntegerList.TestDeleteRangeLarge;
+var
+  source: IEnumerable<Integer>;
+  items: TArray<Integer>;
+begin
+  source := TEnumerable.Range(0, 1024);
+  SUT.AddRange(source);
+  SUT.OnChanged.Add(HandleChange);
+  SUT.DeleteRange(256, 512);
+  CheckEquals(512, ChangeCount);
+  CheckEquals(768, SUT[256]);
+  CheckEquals(512, SUT.Count);
+  SUT.DeleteRange(256, 128);
+  CheckEquals(640, ChangeCount);
+  items := SUT.ExtractRange(64, 128);
+  Check(source.Skip(64).Take(128).EqualsTo(items));
+  CheckEquals(768, ChangeCount);
+  items := SUT.ExtractRange(64, 64);
+  Check(source.Skip(192).Take(64).EqualsTo(items));
+  SUT.Clear;
+  CheckEquals(1025, ChangeCount);
+  CheckEquals(0, SUT.Count);
+end;
+
 procedure TTestIntegerList.TestEnumeratorMoveNext_VersionMismatch;
 var
   e: IEnumerator<Integer>;
@@ -2128,6 +2158,12 @@ begin
     SUT.Add(IntToStr(i));
 end;
 
+procedure TTestStringList.HandleChange(Sender: TObject; const item: string;
+  action: TCollectionChangedAction);
+begin
+  Inc(ChangeCount);
+end;
+
 procedure TTestStringList.SetUp;
 begin
   inherited;
@@ -2181,7 +2217,34 @@ begin
   for i := 0 to 5 do
     CheckEquals(IntToStr(i + 1), SUT[i]);
   CheckEquals('8', SUT[6]);
+end;
 
+procedure TTestStringList.TestDeleteRangeLarge;
+var
+  source: IEnumerable<string>;
+  items: TArray<string>;
+begin
+  source := TEnumerable.Select<Integer,string>(TEnumerable.Range(0, 1024),
+    function(const i: Integer): string
+    begin
+      Result := IntToStr(i);
+    end);
+  SUT.AddRange(source);
+  SUT.OnChanged.Add(HandleChange);
+  SUT.DeleteRange(256, 512);
+  CheckEquals(512, ChangeCount);
+  CheckEquals('768', SUT[256]);
+  CheckEquals(512, SUT.Count);
+  SUT.DeleteRange(256, 128);
+  CheckEquals(640, ChangeCount);
+  items := SUT.ExtractRange(64, 128);
+  Check(source.Skip(64).Take(128).EqualsTo(items));
+  CheckEquals(768, ChangeCount);
+  items := SUT.ExtractRange(64, 64);
+  Check(source.Skip(192).Take(64).EqualsTo(items));
+  SUT.Clear;
+  CheckEquals(1025, ChangeCount);
+  CheckEquals(0, SUT.Count);
 end;
 
 procedure TTestStringList.TestExtractRange;
