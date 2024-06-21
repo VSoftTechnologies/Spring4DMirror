@@ -104,6 +104,16 @@ begin
   UIntPtr(Result) := (UIntPtr(Result) + AlignmentMask) and not AlignmentMask;
 end;
 
+{$IFDEF CPUX86}
+function AtomicLoad(var source: Int64): Int64;
+asm
+  movq xmm0,[source]
+  movd eax,xmm0
+  psrldq xmm0,4
+  movd edx,xmm0
+end;
+{$ENDIF}
+
 {$ENDREGION}
 
 
@@ -131,11 +141,6 @@ type
   strict private
     // ensure that each block aligns to its own cache line
     Padding: array[1..CacheLineSize - DataSize] of Byte;
-  public
-    procedure Store(
-      {$IFDEF CPUX86}{$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}{$ENDIF}
-      const value: TEra); {$IFNDEF CPUX86}inline;{$ENDIF}
-    function Load: TEra; {$IFNDEF CPUX86}inline;{$ENDIF}
   end;
 
   TThreadBlockList = record
@@ -147,38 +152,6 @@ type
   public
     class function Acquire(isFirstAttempt: Boolean): PHazardEraThreadControlBlock; static;
   end;
-
-function THazardEraThreadControlBlock.Load: TEra;
-{$IFDEF CPUX86}
-asm
-  movq xmm0,[Self].Era
-  movd eax,xmm0
-  psrldq xmm0,4
-  movd edx,xmm0
-end;
-{$ELSE}
-begin
-  Result := Era;
-end;
-{$ENDIF}
-
-procedure THazardEraThreadControlBlock.Store(
-  {$IFDEF CPUX86}{$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}{$ENDIF}
-  const value: TEra);
-{$IFDEF CPUX86}
-asm
-{$IFDEF SUPPORTS_CONSTREF}
-  movq xmm0,[value]
-{$ELSE}
-  movq xmm0,value
-{$ENDIF}
-  movq [Self].Era,xmm0
-end;
-{$ELSE}
-begin
-  Era := value;
-end;
-{$ENDIF}
 
 class function TThreadBlockList.Acquire(isFirstAttempt: Boolean): PHazardEraThreadControlBlock;
 
@@ -237,31 +210,48 @@ var
 
 
 function AcquireGuard(var p; isFirstAttempt: Boolean): GuardedPointer;
+{$IFDEF CPUX86}
+asm
+  push ebx
+  mov ebx, ecx
+  mov eax, [eax]
+  mov [ebx], eax
+  mov eax, edx
+  call TThreadBlockList.Acquire
+  mov [ebx].GuardedPointer.ThreadControlBlock, eax
+  movq xmm0, eraClock
+  movq [eax].THazardEraThreadControlBlock.Era, xmm0
+  pop ebx
+end;
+{$ELSE}
 var
   current: PHazardEraThreadControlBlock;
-  prevEra, era: TEra;
 begin
+  Result.ptr := Pointer(p);
   current := TThreadBlockList.Acquire(isFirstAttempt);
-  prevEra := current.Load;
-  repeat
-    Result.ptr := Pointer(p);
-    Result.ThreadControlBlock := current;
-
-    era := AtomicLoad(eraClock);
-    if era = prevEra then Break;
-    current.Store(era);
-    prevEra := era;
-  until False;
+  Result.ThreadControlBlock := current;
+  current.Era := eraClock;
 end;
+{$ENDIF}
 
 procedure GuardedPointer.Release;
+{$IFDEF CPUX86}
+asm
+  mov eax, [eax].GuardedPointer.ThreadControlBlock
+  pxor xmm0, xmm0
+  movq [eax].THazardEraThreadControlBlock.Era, xmm0
+  xor edx, edx
+  mov [eax].THazardEraThreadControlBlock.Active, edx
+end;
+{$ELSE}
 begin
   with PHazardEraThreadControlBlock(ThreadControlBlock)^ do
   begin
-    Store(0);
+    Era := 0;
     Active := 0;
   end;
 end;
+{$ENDIF}
 
 class operator GuardedPointer.Implicit(const value: GuardedPointer): Pointer;
 begin
@@ -280,7 +270,7 @@ begin
   begin
     if info.Active <> Inactive then
     begin
-      era := info.Load;
+      era := {$IFDEF CPUX86}AtomicLoad(info.Era){$ELSE}info.Era{$ENDIF};
       if (era >= obj.newEra) and (era <= obj.delEra) then
         goto Exit;
     end;
@@ -319,7 +309,7 @@ var
 begin
   if Assigned(lock) then
   begin
-    currEra := AtomicLoad(eraClock);
+    currEra := {$IFDEF CPUX86}AtomicLoad(eraClock){$ELSE}eraClock{$ENDIF};
 
    	lock.Acquire;
     try
@@ -329,7 +319,7 @@ begin
         retiredList.Add(p);
       end;
 
-      if AtomicLoad(eraClock) = currEra then
+      if {$IFDEF CPUX86}AtomicLoad(eraClock){$ELSE}eraClock{$ENDIF} = currEra then
         AtomicIncrement(eraClock);
 
       currentThreadId := GetCurrentThreadID;
@@ -398,7 +388,7 @@ begin
   ReallocMem(p, newSize);
   if newSize > oldSize then
     FillChar((PByte(p) + oldSize)^, newSize - oldSize, 0);
-  p.newEra := AtomicLoad(eraClock);
+  p.newEra := {$IFDEF CPUX86}AtomicLoad(eraClock){$ELSE}eraClock{$ENDIF};
   p.elemInfo := elemInfo;
   p.Length := count;
   Inc(UIntPtr(p), SizeOf(TEraArray));

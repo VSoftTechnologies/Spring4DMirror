@@ -90,16 +90,24 @@ var
   handlers: PMethodArray;
   i: Integer;
 begin
-  if CanInvoke then
+  if (fRefCount and DisabledFlag = 0) and Assigned(fHandlers) then
   begin
-    guard := GetHandlers;
+    guard := AcquireGuard(fHandlers);
     handlers := guard;
+    if Assigned(handlers) then
     try
-      for i := 0 to DynArrayHigh(handlers) do
-        TCollectionChangedEvent<T>(handlers[i])(Sender, Item, Action);
-    finally
+      {$POINTERMATH ON}
+      for i := 1 to PNativeInt(handlers)[-1] do
+      {$POINTERMATH OFF}
+      begin
+        TCollectionChangedEvent<T>(handlers^)(Sender, Item, Action);
+        Inc(handlers);
+      end;
+    except
       guard.Release;
+      raise;
     end;
+    guard.Release;
   end;
 end;
 

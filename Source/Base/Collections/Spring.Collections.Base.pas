@@ -3349,8 +3349,8 @@ end;
 
 procedure TCollectionBase<T>.Changed(const item: T; action: TCollectionChangedAction);
 begin
-  if Assigned(fOnChanged) and fOnChanged.CanInvoke then
-    fOnChanged.Invoke(Self, item, action);
+  with fOnChanged do if CanInvoke then
+    Invoke(Self, item, action);
 end;
 
 function TCollectionBase<T>.ExtractAll(const match: Predicate<T>): TArray<T>; //FI:W521
