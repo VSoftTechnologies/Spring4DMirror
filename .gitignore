@@ -17,6 +17,7 @@ __recovery/
 *.jdbg
 *.map
 *.plist
+*.res
 *.rsm
 *.tds
 
