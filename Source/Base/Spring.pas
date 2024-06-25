@@ -7798,7 +7798,7 @@ end;
 {$IFNDEF DELPHIX_ALEXANDRIA_UP}
 function TRttiNamedObjectHelper.HasName(const name: string): Boolean;
 begin
-  Result := SameText(Self.Name, name);
+  Result := AnsiSameText(Self.Name, name);
 end;
 {$ENDIF}
 
