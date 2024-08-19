@@ -1667,7 +1667,7 @@ type
     class function GetArgumentOutOfRangeException(argument: ExceptionArgument; resource: ExceptionResource): EArgumentException; overload; static;
     class function GetArgumentOutOfRangeException(resource: ExceptionResource): EArgumentException; overload; static;
   public
-    class procedure ArgumentNil(argument: ExceptionArgument); static;
+    class function ArgumentNil(argument: ExceptionArgument): NativeInt; static;
     class function ArgumentOutOfRange(argument: ExceptionArgument): NativeInt; overload; static;
     class function ArgumentOutOfRange(argument: ExceptionArgument; resource: ExceptionResource): NativeInt; overload; static;
     class function ArgumentOutOfRange(resource: ExceptionResource): NativeInt; overload; static;
@@ -8644,7 +8644,7 @@ end;
 {$REGION 'RaiseHelper'}
 
 {$IFNDEF DELPHIXE2_UP}{$IFNDEF STACKFRAMES_ON}{$W+}{$ENDIF}{$ENDIF}
-class procedure RaiseHelper.ArgumentNil(argument: ExceptionArgument);
+class function RaiseHelper.ArgumentNil(argument: ExceptionArgument): NativeInt;
 begin
   raise EArgumentNilException.Create(GetArgumentName(argument)) at ReturnAddress;
 end;

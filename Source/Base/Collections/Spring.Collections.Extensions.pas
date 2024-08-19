@@ -263,6 +263,7 @@ type
   {$REGION 'Implements IEnumerable<Integer>'}
     function Contains(const item: Integer): Boolean; overload; inline;
     function GetEnumerator: IEnumerator<Integer>;
+    procedure ForEach(const action: Action<Integer>);
     function Ordered: IEnumerable<Integer>; overload;
     function Skip(count: Integer): IEnumerable<Integer>;
     function SkipLast(count: Integer): IEnumerable<Integer>;
@@ -842,6 +843,7 @@ type
     function Clone: TIterator<TArray<T>>; override;
     procedure Dispose; override;
     procedure Start; override;
+    function GetNonEnumeratedCount: Integer;
     function TryMoveNext(var current: TArray<T>): Boolean; override;
   public
     constructor Create(const source: IEnumerable<T>; size: Integer);
@@ -1561,6 +1563,14 @@ begin
     Inc(index);
   end;
   Result := fCount;
+end;
+
+procedure TRangeIterator.ForEach(const action: Action<Integer>);
+var
+  i: Integer;
+begin
+  for i := 0 to fCount - 1 do
+    action(fStart + i);
 end;
 
 function TRangeIterator.GetCount: Integer;
@@ -3309,7 +3319,6 @@ begin
     fCapacity := fSize;
 end;
 
-
 function TChunkIterator<T>.Clone: TIterator<TArray<T>>;
 begin
   Result := TChunkIterator<T>.Create(fSource, fSize);
@@ -3318,6 +3327,13 @@ end;
 procedure TChunkIterator<T>.Dispose;
 begin
   fEnumerator := nil;
+end;
+
+function TChunkIterator<T>.GetNonEnumeratedCount: Integer;
+begin
+  Result := fSource.GetNonEnumeratedCount;
+  if Result > 0 then
+    Result :=  Integer(Cardinal(Result - 1) div Cardinal(fSize) + 1);
 end;
 
 procedure TChunkIterator<T>.Start;

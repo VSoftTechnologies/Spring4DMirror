@@ -66,6 +66,7 @@ type
       ItemType = TTypeInfo<T>;
       TCompareMethod = function(const left, right: T): Integer of object;
       TEqualsMethod = function(const left, right: T): Boolean of object;
+      TActionMethod = procedure(const item: T) of object;
 
       // internal helper type to solve compiler issue with using Slice on the
       // overloaded AddRange method in older Delphi versions
@@ -105,7 +106,9 @@ type
     function CreateList: IList<T>; virtual;
     function TryGetElementAt(var value: T; index: Integer): Boolean;
     function TryGetFirst(var value: T): Boolean; overload;
+    function TryGetFirst(var value: T; const predicate: Predicate<T>): Boolean; overload;
     function TryGetLast(var value: T): Boolean; overload;
+    function TryGetLast(var value: T; const predicate: Predicate<T>): Boolean; overload;
     function TryGetSingle(var value: T): Boolean; overload;
     function AsSpan: Span<T>;
 
@@ -125,8 +128,13 @@ type
   {$REGION 'Implements IEnumerable<T>'}
     function GetEnumerator: IEnumerator<T>;
 
+    procedure ForEach(const action: Action<T>);
+
     function Contains(const value: T): Boolean; overload;
     function Contains(const value: T; const comparer: IEqualityComparer<T>): Boolean; overload;
+
+    function First: T; overload;
+    function Last: T; overload;
 
     function Single: T; overload;
     function SingleOrDefault: T; overload;
@@ -897,6 +905,49 @@ begin
     Result := LastIndexOf(item, index, index + 1)
   else
     Result := RaiseHelper.ArgumentOutOfRange_Index;
+end;
+
+function TAbstractArrayList<T>.First: T;
+begin
+  if Count > 0 then
+    Result := fItems[0]
+  else
+  begin
+    RaiseHelper.NoElements;
+    __SuppressWarning(Result);
+  end;
+end;
+
+procedure TAbstractArrayList<T>.ForEach(const action: Action<T>);
+var
+  item, hi: ^T;
+  _action: TActionMethod;
+begin
+  TMethod(_action).Data := PPointer(@action)^;
+  TMethod(_action).Code := PPVTable(TMethod(_action).Data)^[3];
+  item := Pointer(fItems);
+  {$POINTERMATH ON}
+  hi := item + Count;
+  while item < hi do
+  {$POINTERMATH OFF}
+  begin
+    _action(item^);
+    Inc(item);
+  end;
+end;
+
+function TAbstractArrayList<T>.Last: T;
+var
+  lastIndex: NativeInt;
+begin
+  lastIndex := Count - 1;
+  if lastIndex >= 0 then
+    Result := fItems[lastIndex]
+  else
+  begin
+    RaiseHelper.NoElements;
+    __SuppressWarning(Result);
+  end;
 end;
 
 function TAbstractArrayList<T>.LastIndexOf(const item: T; index, count: Integer): Integer;
@@ -1732,6 +1783,31 @@ begin
   Result := False;
 end;
 
+function TAbstractArrayList<T>.TryGetFirst(var value: T;
+  const predicate: Predicate<T>): Boolean;
+var
+  item: ^T;
+  i: NativeInt;
+begin
+  if Assigned(predicate) then
+  begin
+    item := Pointer(fItems);
+    for i := 1 to Count do
+    begin
+      if predicate(item^) then
+      begin
+        value := item^;
+        Exit(True);
+      end;
+      Inc(item);
+    end;
+    value := Default(T);
+    Result := False;
+  end
+  else
+    Result := Boolean(RaiseHelper.ArgumentNil(ExceptionArgument.predicate));
+end;
+
 function TAbstractArrayList<T>.TryGetLast(var value: T): Boolean;
 var
   index: Integer;
@@ -1744,6 +1820,37 @@ begin
   end;
   value := Default(T);
   Result := False;
+end;
+
+function TAbstractArrayList<T>.TryGetLast(var value: T;
+  const predicate: Predicate<T>): Boolean;
+var
+  listCount: Integer;
+  item: ^T;
+  i: NativeInt;
+begin
+  if Assigned(predicate) then
+  begin
+    Result := False;
+    listCount := Count;
+    if listCount > 0 then
+    begin
+      item := Pointer(@fItems[listCount - 1]);
+      for i := 1 to Count do
+      begin
+        if predicate(item^) then
+        begin
+          value := item^;
+          Exit(True);
+        end;
+        Dec(item);
+      end;
+    end;
+    if not Result then
+      value := Default(T);
+  end
+  else
+    Result := Boolean(RaiseHelper.ArgumentNil(ExceptionArgument.predicate));
 end;
 
 function TAbstractArrayList<T>.TryGetSingle(var value: T): Boolean;

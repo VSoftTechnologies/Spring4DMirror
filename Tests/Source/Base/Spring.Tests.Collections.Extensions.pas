@@ -197,7 +197,6 @@ type
     procedure EarlyOutWithPredicate;
 
     procedure ListWithoutPredicateDoesntIterate;
-    procedure ListWithPredicateStillIterates;
   end;
 
   TTestSingle = class(TTestCase)
@@ -243,7 +242,6 @@ type
     procedure MultipleElementSequenceWithMultiplePredicateMatches;
 
     procedure ListWithoutPredicateDoesntIterate;
-    procedure ListWithPredicateStillIterates;
   end;
 
   TTestFirstOrDefault = class(TTestCase)
@@ -269,7 +267,6 @@ type
     procedure EarlyOutWithPredicate;
 
     procedure ListWithoutPredicateDoesntIterate;
-    procedure ListWithPredicateStillIterates;
   end;
 
   TTestSingleOrDefault = class(TTestCase)
@@ -318,7 +315,6 @@ type
     procedure MultipleElementSequenceWithMultiplePredicateMatches;
 
     procedure ListWithoutPredicateDoesntIterate;
-    procedure ListWithPredicateStillIterates;
   end;
 
   TTestDefaultIfEmpty = class(TTestCase)
@@ -1646,22 +1642,6 @@ begin
   CheckEquals(1, source.First);
 end;
 
-procedure TTestFirst.ListWithPredicateStillIterates;
-var
-  source: IEnumerable<Integer>;
-begin
-  source := TNonEnumerableList<Integer>.Create([1, 5, 10, 3]);
-  CheckException(ENotSupportedException,
-    procedure
-    begin
-      source.First(
-        function(const x: Integer): Boolean
-        begin
-          Result := x > 3;
-        end);
-    end);
-end;
-
 procedure TTestFirst.MultipleElementSequenceWithMultiplePredicateMatches;
 var
   source: IEnumerable<Integer>;
@@ -2056,22 +2036,6 @@ begin
   CheckEquals(3, source.Last);
 end;
 
-procedure TTestLast.ListWithPredicateStillIterates;
-var
-  source: IEnumerable<Integer>;
-begin
-  source := TNonEnumerableList<Integer>.Create([1, 5, 10, 3]);
-  CheckException(ENotSupportedException,
-    procedure
-    begin
-      source.Last(
-        function(const x: Integer): Boolean
-        begin
-          Result := x > 3;
-        end);
-    end);
-end;
-
 procedure TTestLast.MultipleElementSequenceWithMultiplePredicateMatches;
 var
   source: IEnumerable<Integer>;
@@ -2230,22 +2194,6 @@ var
 begin
   source := TNonEnumerableList<Integer>.Create([1, 5, 10, 3]);
   CheckEquals(1, source.FirstOrDefault);
-end;
-
-procedure TTestFirstOrDefault.ListWithPredicateStillIterates;
-var
-  source: IEnumerable<Integer>;
-begin
-  source := TNonEnumerableList<Integer>.Create([1, 5, 10, 3]);
-  CheckException(ENotSupportedException,
-    procedure
-    begin
-      source.FirstOrDefault(
-        function(const x: Integer): Boolean
-        begin
-          Result := x > 3;
-        end);
-    end);
 end;
 
 procedure TTestFirstOrDefault.MultipleElementSequenceWithMultiplePredicateMatches;
@@ -2608,22 +2556,6 @@ var
 begin
   source := TNonEnumerableList<Integer>.Create([1, 5, 10, 3]);
   CheckEquals(3, source.LastOrDefault);
-end;
-
-procedure TTestLastOrDefault.ListWithPredicateStillIterates;
-var
-  source: IEnumerable<Integer>;
-begin
-  source := TNonEnumerableList<Integer>.Create([1, 5, 10, 3]);
-  CheckException(ENotSupportedException,
-    procedure
-    begin
-      source.LastOrDefault(
-        function(const x: Integer): Boolean
-        begin
-          Result := x > 3;
-        end);
-    end);
 end;
 
 procedure TTestLastOrDefault.MultipleElementSequenceWithMultiplePredicateMatches;
@@ -3748,7 +3680,8 @@ begin
         function(const x: Integer): Integer
         begin
           Result := x;
-        end);
+        end,
+        nil);
     end);
 end;
 
