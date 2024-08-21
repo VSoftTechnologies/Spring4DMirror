@@ -2124,7 +2124,7 @@ begin
         registry.WriteExpandString(variable, value)
       else
         registry.WriteString(variable, value);
-    SendMessage(HWND_BROADCAST, WM_SETTINGCHANGE, 0, Integer(PChar('Environment')));
+    SendMessage(HWND_BROADCAST, WM_SETTINGCHANGE, 0, LPARAM(PChar('Environment')));
   finally
     registry.Free;
   end;
