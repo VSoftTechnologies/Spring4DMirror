@@ -1489,10 +1489,10 @@ end;
 
 function GetCodeAddress(const classType: TClass; const proc: Pointer): Pointer;
 begin
-  if (Integer(proc) and $FF000000) = $FF000000 then
+  if (IntPtr(proc) and PROPSLOT_MASK) = PROPSLOT_FIELD then
     Exit(nil);
-  if (Integer(proc) and $FF000000) = $FE000000 then
-    Result := PPointer(Integer(classType) + SmallInt(proc))^
+  if (IntPtr(proc) and PROPSLOT_MASK) = PROPSLOT_VIRTUAL then
+    Result := PPointer(IntPtr(classType) + SmallInt(IntPtr(proc)))^
   else
     Result := proc;
 end;
