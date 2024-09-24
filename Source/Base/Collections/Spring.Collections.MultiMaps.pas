@@ -1510,8 +1510,7 @@ constructor TValueTreeSet<TKey, T>.Create(const key: TKey;
   elementType: PTypeInfo; const comparer: IComparer<T>);
 begin
   fKey := key;
-  fElementType := elementType;
-  inherited Create(comparer);
+  inherited Create(elementType, comparer);
 end;
 
 function TValueTreeSet<TKey, T>.GetKey: TKey;

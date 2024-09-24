@@ -429,7 +429,7 @@ type
     procedure TrimExcess;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
-    property Count: Integer read GetCount;
+    property Count: Integer read fCount;
   end;
 
   TRedBlackTree<T> = class(TRedBlackTreeBase<T>, IInterface, IBinaryTree<T>, IRedBlackTree<T>)
@@ -555,6 +555,8 @@ begin
   for i := oldLength to newLength - 1 do
     DynArraySetLength(TArray<Pointer>(fItems)[i], elemType, 1, @blockLength);
 end;
+
+{$ENDREGION}
 
 
 {$REGION 'TBlockAllocatedArray<T>'}

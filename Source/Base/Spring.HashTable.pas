@@ -55,6 +55,7 @@ type
   IHashTable<T> = interface
     function Find(const key: T; options: Byte = 0): Pointer;
   end;
+  TFindMethod<T> = function(const key: T; options: Byte = 0): Pointer of object;
 
   PHashTable = ^THashTable;
   THashTable = record

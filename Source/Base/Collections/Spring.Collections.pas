@@ -11356,38 +11356,38 @@ end;
 
 class function TCollections.CreateSortedSet<T>: ISet<T>;
 begin
-  Result := TSortedSet<T>.Create(nil);
+  Result := TSortedSet<T>.Create(TypeInfo(T), nil);
 end;
 
 class function TCollections.CreateSortedSet<T>(
   const comparer: IComparer<T>): ISet<T>;
 begin
-  Result := TSortedSet<T>.Create(comparer);
+  Result := TSortedSet<T>.Create(TypeInfo(T), comparer);
 end;
 
 class function TCollections.CreateSortedSet<T>(const values: array of T): ISet<T>;
 begin
-  Result := TSortedSet<T>.Create(nil);
+  Result := TSortedSet<T>.Create(TypeInfo(T), nil);
   Result.AddRange(values);
 end;
 
 class function TCollections.CreateSortedSet<T>(const values: IEnumerable<T>): ISet<T>;
 begin
-  Result := TSortedSet<T>.Create(nil);
+  Result := TSortedSet<T>.Create(TypeInfo(T), nil);
   Result.AddRange(values);
 end;
 
 class function TCollections.CreateSortedSet<T>(const values: array of T;
   const comparer: IComparer<T>): ISet<T>;
 begin
-  Result := TSortedSet<T>.Create(comparer);
+  Result := TSortedSet<T>.Create(TypeInfo(T), comparer);
   Result.AddRange(values);
 end;
 
 class function TCollections.CreateSortedSet<T>(const values: IEnumerable<T>;
   const comparer: IComparer<T>): ISet<T>;
 begin
-  Result := TSortedSet<T>.Create(comparer);
+  Result := TSortedSet<T>.Create(TypeInfo(T), comparer);
   Result.AddRange(values);
 end;
 
