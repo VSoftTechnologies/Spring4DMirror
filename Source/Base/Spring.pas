@@ -12554,7 +12554,6 @@ var
 begin
   {$R-}
   span.Init(@values[0], Length(values));
-  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
   {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
@@ -12625,6 +12624,7 @@ begin
   else{$ELSE}begin{$ENDIF}
     IntroSort<T>(span, IComparer<T>(comparer));
   end;
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
 class procedure TArray.Sort<T>(var values: array of T; const comparer: IComparer<T>);
@@ -12633,7 +12633,6 @@ var
 begin
   {$R-}
   span.Init(@values[0], Length(values));
-  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
     tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkLString, tkWString,
@@ -12703,6 +12702,7 @@ begin
   else{$ELSE}begin{$ENDIF}
     IntroSort<T>(span, IComparer<T>(comparer));
   end;
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
 class procedure TArray.Sort<T>(var values: array of T; const comparer: IComparer<T>; index, count: Integer);
@@ -12715,7 +12715,6 @@ begin
   begin
     {$R-}
     span.Init(@values[index], count);
-    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
     {$IFDEF DELPHIXE7_UP}
     case GetTypeKind(T) of
       tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkLString, tkWString,
@@ -12737,7 +12736,7 @@ begin
             IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
         end;
       tkString:
-        IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
+        IntroSort_Ref(@values[index], count - 1, IComparerRef(comparer), SizeOf(T));
       tkSet:
         case SizeOf(T) of
           1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
@@ -12747,7 +12746,7 @@ begin
           8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
         {$ENDIF}
         else
-          IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
+          IntroSort_Ref(@values[index], count - 1, IComparerRef(comparer), SizeOf(T));
         end;
       tkMethod:
         IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
@@ -12766,7 +12765,7 @@ begin
             8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
           {$ENDIF}
           else
-            IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T))
+            IntroSort_Ref(@values[index], count - 1, IComparerRef(comparer), SizeOf(T))
           end
         else
           IntroSort<T>(span, IComparer<T>(comparer));
@@ -12780,11 +12779,12 @@ begin
           8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
         {$ENDIF}
         else
-          IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
+          IntroSort_Ref(@values[index], count - 1, IComparerRef(comparer), SizeOf(T));
         end;
     else{$ELSE}begin{$ENDIF}
       IntroSort<T>(span, IComparer<T>(comparer));
     end;
+    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   end;
 end;
 
@@ -12794,7 +12794,6 @@ var
 begin
   {$R-}
   span.Init(@values[0], Length(values));
-  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
     tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkLString, tkWString,
@@ -12864,6 +12863,7 @@ begin
   else{$ELSE}begin{$ENDIF}
     IntroSort<T>(span, IComparer<T>(PPointer(@comparison)^));
   end;
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
 class procedure TArray.Sort<T>(var values: array of T; const comparison: TComparison<T>; index, count: Integer);
@@ -12876,7 +12876,6 @@ begin
   begin
     {$R-}
     span.Init(@values[index], count);
-    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
     {$IFDEF DELPHIXE7_UP}
     case GetTypeKind(T) of
       tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkLString, tkWString,
@@ -12898,7 +12897,7 @@ begin
             IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(PPointer(@comparison)^));
         end;
       tkString:
-        IntroSort_Ref(@values[0], High(values), IComparerRef(PPointer(@comparison)^), SizeOf(T));
+        IntroSort_Ref(@values[index], count - 1, IComparerRef(PPointer(@comparison)^), SizeOf(T));
       tkSet:
         case SizeOf(T) of
           1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(PPointer(@comparison)^));
@@ -12908,7 +12907,7 @@ begin
           8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(PPointer(@comparison)^));
         {$ENDIF}
         else
-          IntroSort_Ref(@values[0], High(values), IComparerRef(PPointer(@comparison)^), SizeOf(T));
+          IntroSort_Ref(@values[index], count - 1, IComparerRef(PPointer(@comparison)^), SizeOf(T));
         end;
       tkMethod:
         IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(PPointer(@comparison)^));
@@ -12927,7 +12926,7 @@ begin
             8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(PPointer(@comparison)^));
           {$ENDIF}
           else
-            IntroSort_Ref(@values[0], High(values), IComparerRef(PPointer(@comparison)^), SizeOf(T))
+            IntroSort_Ref(@values[index], count - 1, IComparerRef(PPointer(@comparison)^), SizeOf(T))
           end
         else
           IntroSort<T>(span, IComparer<T>(PPointer(@comparison)^));
@@ -12941,11 +12940,12 @@ begin
           8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(PPointer(@comparison)^));
         {$ENDIF}
         else
-          IntroSort_Ref(@values[0], High(values), IComparerRef(PPointer(@comparison)^), SizeOf(T));
+          IntroSort_Ref(@values[index], count - 1, IComparerRef(PPointer(@comparison)^), SizeOf(T));
         end;
     else{$ELSE}begin{$ENDIF}
       IntroSort<T>(span, IComparer<T>(PPointer(@comparison)^));
     end;
+    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   end;
 end;
 
