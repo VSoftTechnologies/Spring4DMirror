@@ -370,11 +370,19 @@ constructor TEvent.TMethodInfo.Create(typeData: PTypeData);
     Result := P;
   end;
 
-  function PassByRef(typeInfo: PTypeInfo; paramFlags: TParamFlags): Boolean;
+  {$IFDEF CPUX86}
+  function CanPassInRegister(typeInfo: PTypeInfo; paramFlags: TParamFlags): Boolean;
   begin
-    Result := (paramFlags * [pfVar, pfAddress, pfReference, pfOut] <> [])
-      and not (typeInfo.Kind in [tkFloat, tkMethod, tkInt64]);
+    if paramFlags * [pfVar, pfAddress, pfReference, pfOut] = [] then
+      case typeInfo.Kind of
+        tkFloat, tkMethod, tkInt64:
+          Exit(False);
+        tkArray, tkRecord:
+          Exit(GetTypeSize(typeInfo) in [1, 2, 4]);
+      end;
+    Result := True;
   end;
+  {$ENDIF}
 
   function Align4(value: Integer): Integer; inline;
   begin
@@ -413,7 +421,7 @@ begin
     if not Assigned(ParamInfos[i]) then
       raise EInvalidOperationException.CreateRes(@SNoTypeInfo);
 {$IFNDEF CPUX64}
-    if PassByRef(ParamInfos[i]^, TParamFlags(P[0])) then
+    if CanPassInRegister(ParamInfos[i]^, TParamFlags(P[0])) then
     begin
       if curReg < paStack then
         Inc(curReg)
@@ -423,10 +431,7 @@ begin
     else
     begin
       Size := GetTypeSize(ParamInfos[i]^);
-      if (curReg < paStack) and (Size in [1, 2, 4]) and (ParamInfos[i]^.Kind <> tkFloat) then
-        Inc(curReg)
-      else
-        Inc(StackSize, Align4(Size));
+      Inc(StackSize, Align4(Size));
     end;
 {$ELSE}
     Inc(StackSize, PointerSize);

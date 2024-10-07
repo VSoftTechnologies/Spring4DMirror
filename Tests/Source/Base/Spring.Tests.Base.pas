@@ -136,11 +136,23 @@ type
   TTestMulticastEvent = class(TTestCase)
   strict private
     type
+      TThreeBytes = array[0..2] of Byte;
+      TEventThreeBytes = procedure(const Value: TThreeBytes) of object;
+      TEventThreeBytesVar = procedure(var Value: TThreeBytes) of object;
+
       TEventArgs = record i: Integer; s: string; v: Variant; end;
+      TEventInt32 = procedure(const Value: Int32) of object;
+      TEventInt32Var = procedure(var Value: Int32) of object;
       TEventInt64 = procedure(const Value: Int64) of object;
+      TEventInt64Var = procedure(var Value: Int64) of object;
       TEventSingle = procedure(const Value: Single) of object;
+      TEventSingleVar = procedure(var Value: Single) of object;
       TEventDouble = procedure(const Value: Double) of object;
+      TEventDoubleVar = procedure(var Value: Double) of object;
       TEventExtended = procedure(const Value: Extended) of object;
+      TEventExtendedVar = procedure(var Value: Extended) of object;
+      TEventNotifyEvent = procedure(const Value: TNotifyEvent) of object;
+      TEventNotifyEventVar = procedure(var Value: TNotifyEvent) of object;
       TEventWithStackParams = procedure(const Value1: Int64; const Value2: Single;
         const Value3: Double; const Value4: Extended; const Value5: TEventArgs) of object;
       TEventWithRegisterParams = procedure(const Value1, Value2, Value3: NativeInt) of object;
@@ -162,10 +174,20 @@ type
     procedure HandlerA(sender: TObject);
     procedure HandlerB(sender: TObject);
 
+    procedure HandlerThreeBytes(const value: TThreeBytes);
+    procedure HandlerThreeBytesVar(var value: TThreeBytes);
+    procedure HandlerInt32(const value: Int32);
+    procedure HandlerInt32Var(var value: Int32);
     procedure HandlerInt64(const value: Int64);
+    procedure HandlerInt64Var(var value: Int64);
     procedure HandlerSingle(const value: Single);
+    procedure HandlerSingleVar(var value: Single);
     procedure HandlerDouble(const value: Double);
+    procedure HandlerDoubleVar(var value: Double);
     procedure HandlerExtended(const value: Extended);
+    procedure HandlerExtendedVar(var value: Extended);
+    procedure HandlerNotifyEvent(const value: TNotifyEvent);
+    procedure HandlerNotifyEventVar(var value: TNotifyEvent);
     procedure HandlerWithStackParams(const value1: Int64; const value2: Single;
       const value3: Double; const value4: Extended; const value5: TEventArgs);
     procedure HandlerWithRegisterParams(const value1, value2, value3: NativeInt);
@@ -178,7 +200,7 @@ type
     procedure TestRecordType;
     procedure TestIssue58;
     procedure TestDelegate;
-    procedure TestIssue60;
+    procedure TestCorrectParameterPassing;
     procedure TestStackParams;
     procedure TestRegisterParams;
     procedure TestFloatParams;
@@ -986,9 +1008,55 @@ begin
   Inc(fHandlerInvokeCount);
 end;
 
+procedure TTestMulticastEvent.HandlerDoubleVar(var value: Double);
+begin
+  CheckEquals(42, value);
+  value := value + 1;
+  Inc(fHandlerInvokeCount);
+end;
+
 procedure TTestMulticastEvent.HandlerExtended(const value: Extended);
 begin
   CheckEquals(42, value);
+  Inc(fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.HandlerExtendedVar(var value: Extended);
+begin
+  CheckEquals(42, value);
+  value := value + 1;
+  Inc(fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.HandlerThreeBytes(const value: TThreeBytes);
+begin
+  CheckEquals(42, value[0]);
+  CheckEquals(43, value[1]);
+  CheckEquals(44, value[2]);
+  Inc(fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.HandlerThreeBytesVar(var value: TThreeBytes);
+begin
+  CheckEquals(42, value[0]);
+  CheckEquals(43, value[1]);
+  CheckEquals(44, value[2]);
+  Inc(value[0]);
+  Inc(value[1]);
+  Inc(value[2]);
+  Inc(fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.HandlerInt32(const value: Int32);
+begin
+  CheckEquals(42, value);
+  Inc(fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.HandlerInt32Var(var value: Int32);
+begin
+  CheckEquals(42, value);
+  Inc(value);
   Inc(fHandlerInvokeCount);
 end;
 
@@ -998,9 +1066,42 @@ begin
   Inc(fHandlerInvokeCount);
 end;
 
+procedure TTestMulticastEvent.HandlerInt64Var(var value: Int64);
+begin
+  CheckEquals(42, value);
+  Inc(value);
+  Inc(fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.HandlerNotifyEvent(const value: TNotifyEvent);
+var
+  notify: TNotifyEvent;
+begin
+  notify := HandleChanged;
+  CheckEquals(TMethod(value).Code, TMethod(notify).Code);
+  Inc(fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.HandlerNotifyEventVar(var value: TNotifyEvent);
+var
+  notify: TNotifyEvent;
+begin
+  notify := HandleChanged;
+  CheckEquals(TMethod(value).Code, TMethod(notify).Code);
+  value := nil;
+  Inc(fHandlerInvokeCount);
+end;
+
 procedure TTestMulticastEvent.HandlerSingle(const value: Single);
 begin
   CheckEquals(42, value);
+  Inc(fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.HandlerSingleVar(var value: Single);
+begin
+  CheckEquals(42, value);
+  value := value + 1;
   Inc(fHandlerInvokeCount);
 end;
 
@@ -1172,25 +1273,67 @@ begin
   Check(Assigned(i));
 end;
 
-procedure TTestMulticastEvent.TestIssue60;
+procedure TTestMulticastEvent.TestCorrectParameterPassing;
 var
+  eventThreeBytes: Event<TEventThreeBytes>;
+  eventThreeBytesVar: Event<TEventThreeBytesVar>;
+  eventInt32: Event<TEventInt32>;
+  eventInt32Var: Event<TEventInt32Var>;
   eventInt64: Event<TEventInt64>;
+  eventInt64Var: Event<TEventInt64Var>;
   eventSingle: Event<TEventSingle>;
+  eventSingleVar: Event<TEventSingleVar>;
   eventDouble: Event<TEventDouble>;
+  eventDoubleVar: Event<TEventDoubleVar>;
   eventExtended: Event<TEventExtended>;
+  eventExtendedVar: Event<TEventExtendedVar>;
+  eventNotifyEvent: Event<TEventNotifyEvent>;
+  eventNotifyEventVar: Event<TEventNotifyEventVar>;
   expected: Integer;
+  valueThreeBytes: TThreeBytes;
+  valueInt32: Int32;
+  valueInt64: Int64;
+  valueSingle: Single;
+  valueDouble: Double;
+  valueExtended: Extended;
+  valueNotifyEvent: TNotifyEvent;
 begin
   expected := 0;
 
+  eventThreeBytes.Add(HandlerThreeBytes);
+  eventThreeBytesVar.Add(HandlerThreeBytesVar);
+  eventInt32.Add(HandlerInt32);
+  eventInt32Var.Add(HandlerInt32Var);
   eventInt64.Add(HandlerInt64);
+  eventInt64Var.Add(HandlerInt64Var);
   eventSingle.Add(HandlerSingle);
+  eventSingleVar.Add(HandlerSingleVar);
   eventDouble.Add(HandlerDouble);
+  eventDoubleVar.Add(HandlerDoubleVar);
   eventExtended.Add(HandlerExtended);
+  eventExtendedVar.Add(HandlerExtendedVar);
+  eventNotifyEvent.Add(HandlerNotifyEvent);
+  eventNotifyEventVar.Add(HandlerNotifyEventVar);
 
+  valueThreeBytes[0] := 42; valueThreeBytes[1] := 43;  valueThreeBytes[2] := 44;
+  eventThreeBytes.Invoke(valueThreeBytes); Inc(expected);
+  eventThreeBytesVar.Invoke(valueThreeBytes); Inc(expected);
+  CheckEquals(43, valueThreeBytes[0]);
+  CheckEquals(44, valueThreeBytes[1]);
+  CheckEquals(45, valueThreeBytes[2]);
+
+  eventInt32.Invoke(42); Inc(expected);
+  valueInt32 := 42; eventInt32Var.Invoke(valueInt32); Inc(expected); CheckEquals(43, valueInt32);
   eventInt64.Invoke(42); Inc(expected);
+  valueInt64 := 42; eventInt64Var.Invoke(valueInt64); Inc(expected); CheckEquals(43, valueInt64);
   eventSingle.Invoke(42); Inc(expected);
+  valueSingle := 42; eventSingleVar.Invoke(valueSingle); Inc(expected); CheckEquals(43, valueSingle);
   eventDouble.Invoke(42); Inc(expected);
+  valueDouble := 42; eventDoubleVar.Invoke(valueDouble); Inc(expected); CheckEquals(43, valueDouble);
   eventExtended.Invoke(42); Inc(expected);
+  valueExtended := 42; eventExtendedVar.Invoke(valueExtended); Inc(expected); CheckEquals(43, valueExtended);
+  eventNotifyEvent.Invoke(HandleChanged); Inc(expected);
+  valueNotifyEvent := HandleChanged; eventNotifyEventVar.Invoke(valueNotifyEvent); Inc(expected); Check(not Assigned(valueNotifyEvent));
 
   CheckEquals(expected, fHandlerInvokeCount);
 end;
