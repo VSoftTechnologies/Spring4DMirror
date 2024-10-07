@@ -7668,10 +7668,10 @@ begin
   Result := Conversions[Kind, targetType.Kind](Self, targetType, targetValue, formatSettings);
   if not Result then
   begin
-    if TryGetNullableValue(value) and value.TryCast(targetType, targetValue) then
+    if TryGetNullableValue(value) and value.TryConvert(targetType, targetValue) then
       Exit(True);
 
-    if TryGetLazyValue(value) and value.TryCast(targetType, targetValue) then
+    if TryGetLazyValue(value) and value.TryConvert(targetType, targetValue) then
       Exit(True);
 
     if IsNullable(targetType) and TryConvert(GetUnderlyingType(targetType), value) then
