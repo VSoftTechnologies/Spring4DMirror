@@ -11815,8 +11815,6 @@ begin
 end;
 
 class procedure TArray.Reverse<T>(const values: Pointer; hi: NativeInt);
-var
-  items: Pointer;
 begin
   {$R-}
   {$IFDEF DELPHIXE7_UP}
@@ -11841,22 +11839,7 @@ begin
       end;
     tkString:
       Reverse_Ref(values, hi, SizeOf(T));
-    tkSet:
-      case SizeOf(T) of
-        1: Reverse_Int8(values, hi);
-        2: Reverse_Int16(values, hi);
-        4: Reverse_Int32(values, hi);
-        8: Reverse_Int64(values, hi);
-      else
-        Reverse_Ref(values, hi, SizeOf(T));
-      end;
-    tkMethod:
-      Reverse_Method(values, hi);
-    tkVariant,
-    {$IF Declared(tkMRecord)}
-    tkMRecord,
-    {$IFEND}
-    tkRecord:
+    tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
       if not System.HasWeakRef(T) then
         case SizeOf(T) of
           1: Reverse_Int8(values, hi);
@@ -11865,29 +11848,14 @@ begin
           4: Reverse_Int32(values, hi);
           8: Reverse_Int64(values, hi);
         else
-          Reverse_Ref(values, hi, SizeOf(T))
+          Reverse_Ref(values, hi, SizeOf(T));
         end
       else
-      begin
-        items := values;
-        Reverse_Generic<T>(Slice(TSlice<T>(items^), hi+1));
-      end;
-    tkArray:
-      case SizeOf(T) of
-        1: Reverse_Int8(values, hi);
-        2: Reverse_Int16(values, hi);
-        3: Reverse_Int24(values, hi);
-        4: Reverse_Int32(values, hi);
-        8: Reverse_Int64(values, hi);
-      else
-        Reverse_Ref(values, hi, SizeOf(T));
-      end;
-  else
-  {$ELSE}
-  begin
-  {$ENDIF}
-    items := values;
-    Reverse_Generic<T>(Slice(TSlice<T>(items^), hi+1));
+        Reverse_Generic<T>(Slice(TSlice<T>(values^), hi+1));
+    tkMethod:
+      Reverse_Method(values, hi);
+  else{$ELSE}begin{$ENDIF}
+    Reverse_Generic<T>(Slice(TSlice<T>(values^), hi+1));
   end;
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
@@ -12102,22 +12070,7 @@ begin
       end;
     tkString:
       Shuffle_Ref(values, hi, SizeOf(T));
-    tkSet:
-      case SizeOf(T) of
-        1: Shuffle_Int8(values, hi);
-        2: Shuffle_Int16(values, hi);
-        4: Shuffle_Int32(values, hi);
-        8: Shuffle_Int64(values, hi);
-      else
-        Shuffle_Ref(values, hi, SizeOf(T));
-      end;
-    tkMethod:
-      Shuffle_Method(values, hi);
-    tkVariant,
-    {$IF Declared(tkMRecord)}
-    tkMRecord,
-    {$IFEND}
-    tkRecord:
+    tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
       if not System.HasWeakRef(T) then
         case SizeOf(T) of
           1: Shuffle_Int8(values, hi);
@@ -12130,16 +12083,8 @@ begin
         end
       else
         Shuffle_Generic<T>(Slice(TSlice<T>(values^), hi+1));
-    tkArray:
-      case SizeOf(T) of
-        1: Shuffle_Int8(values, hi);
-        2: Shuffle_Int16(values, hi);
-        3: Shuffle_Int24(values, hi);
-        4: Shuffle_Int32(values, hi);
-        8: Shuffle_Int64(values, hi);
-      else
-        Shuffle_Ref(values, hi, SizeOf(T));
-      end;
+    tkMethod:
+      Shuffle_Method(values, hi);
   else
   {$ELSE}
   begin
@@ -12624,24 +12569,7 @@ begin
       end;
     tkString:
       IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
-    tkSet:
-      case SizeOf(T) of
-        1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-        2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-        4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-      {$IFDEF PASS_64BIT_VALUE_REGISTER}
-        8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
-      {$ENDIF}
-      else
-        IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
-      end;
-    tkMethod:
-      IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
-    tkVariant,
-    {$IF Declared(tkMRecord)}
-    tkMRecord,
-    {$IFEND}
-    tkRecord:
+    tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
       if not System.HasWeakRef(T) then
         case SizeOf(T) of
           1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
@@ -12652,22 +12580,12 @@ begin
           8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
         {$ENDIF}
         else
-          IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T))
+          IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
         end
       else
         IntroSort<T>(span, IComparer<T>(comparer));
-    tkArray:
-      case SizeOf(T) of
-        1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-        2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-        3: IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(comparer));
-        4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-      {$IFDEF PASS_64BIT_VALUE_REGISTER}
-        8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
-      {$ENDIF}
-      else
-        IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
-      end;
+    tkMethod:
+      IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
   else{$ELSE}begin{$ENDIF}
     IntroSort<T>(span, IComparer<T>(comparer));
   end;
@@ -12702,24 +12620,7 @@ begin
       end;
     tkString:
       IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
-    tkSet:
-      case SizeOf(T) of
-        1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-        2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-        4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-      {$IFDEF PASS_64BIT_VALUE_REGISTER}
-        8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
-      {$ENDIF}
-      else
-        IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
-      end;
-    tkMethod:
-      IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
-    tkVariant,
-    {$IF Declared(tkMRecord)}
-    tkMRecord,
-    {$IFEND}
-    tkRecord:
+    tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
       if not System.HasWeakRef(T) then
         case SizeOf(T) of
           1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
@@ -12730,22 +12631,12 @@ begin
           8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
         {$ENDIF}
         else
-          IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T))
+          IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
         end
       else
         IntroSort<T>(span, IComparer<T>(comparer));
-    tkArray:
-      case SizeOf(T) of
-        1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-        2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-        3: IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(comparer));
-        4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-      {$IFDEF PASS_64BIT_VALUE_REGISTER}
-        8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
-      {$ENDIF}
-      else
-        IntroSort_Ref(@values[0], High(values), IComparerRef(comparer), SizeOf(T));
-      end;
+    tkMethod:
+      IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
   else{$ELSE}begin{$ENDIF}
     IntroSort<T>(span, IComparer<T>(comparer));
   end;
@@ -12784,24 +12675,7 @@ begin
         end;
       tkString:
         IntroSort_Ref(@values[index], count - 1, IComparerRef(comparer), SizeOf(T));
-      tkSet:
-        case SizeOf(T) of
-          1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-          2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-          4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-        {$IFDEF PASS_64BIT_VALUE_REGISTER}
-          8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
-        {$ENDIF}
-        else
-          IntroSort_Ref(@values[index], count - 1, IComparerRef(comparer), SizeOf(T));
-        end;
-      tkMethod:
-        IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
-      tkVariant,
-      {$IF Declared(tkMRecord)}
-      tkMRecord,
-      {$IFEND}
-      tkRecord:
+      tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
         if not System.HasWeakRef(T) then
           case SizeOf(T) of
             1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
@@ -12816,18 +12690,8 @@ begin
           end
         else
           IntroSort<T>(span, IComparer<T>(comparer));
-      tkArray:
-        case SizeOf(T) of
-          1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-          2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-          3: IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(comparer));
-          4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-        {$IFDEF PASS_64BIT_VALUE_REGISTER}
-          8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
-        {$ENDIF}
-        else
-          IntroSort_Ref(@values[index], count - 1, IComparerRef(comparer), SizeOf(T));
-        end;
+      tkMethod:
+        IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
     else{$ELSE}begin{$ENDIF}
       IntroSort<T>(span, IComparer<T>(comparer));
     end;
@@ -12863,24 +12727,7 @@ begin
       end;
     tkString:
       IntroSort_Ref(@values[0], High(values), IComparerRef(PPointer(@comparison)^), SizeOf(T));
-    tkSet:
-      case SizeOf(T) of
-        1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(PPointer(@comparison)^));
-        2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(PPointer(@comparison)^));
-        4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(PPointer(@comparison)^));
-      {$IFDEF PASS_64BIT_VALUE_REGISTER}
-        8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(PPointer(@comparison)^));
-      {$ENDIF}
-      else
-        IntroSort_Ref(@values[0], High(values), IComparerRef(PPointer(@comparison)^), SizeOf(T));
-      end;
-    tkMethod:
-      IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(PPointer(@comparison)^));
-    tkVariant,
-    {$IF Declared(tkMRecord)}
-    tkMRecord,
-    {$IFEND}
-    tkRecord:
+    tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
       if not System.HasWeakRef(T) then
         case SizeOf(T) of
           1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(PPointer(@comparison)^));
@@ -12895,18 +12742,8 @@ begin
         end
       else
         IntroSort<T>(span, IComparer<T>(PPointer(@comparison)^));
-    tkArray:
-      case SizeOf(T) of
-        1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(PPointer(@comparison)^));
-        2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(PPointer(@comparison)^));
-        3: IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(PPointer(@comparison)^));
-        4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(PPointer(@comparison)^));
-      {$IFDEF PASS_64BIT_VALUE_REGISTER}
-        8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(PPointer(@comparison)^));
-      {$ENDIF}
-      else
-        IntroSort_Ref(@values[0], High(values), IComparerRef(PPointer(@comparison)^), SizeOf(T));
-      end;
+    tkMethod:
+      IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(PPointer(@comparison)^));
   else{$ELSE}begin{$ENDIF}
     IntroSort<T>(span, IComparer<T>(PPointer(@comparison)^));
   end;
@@ -12945,24 +12782,7 @@ begin
         end;
       tkString:
         IntroSort_Ref(@values[index], count - 1, IComparerRef(PPointer(@comparison)^), SizeOf(T));
-      tkSet:
-        case SizeOf(T) of
-          1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(PPointer(@comparison)^));
-          2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(PPointer(@comparison)^));
-          4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(PPointer(@comparison)^));
-        {$IFDEF PASS_64BIT_VALUE_REGISTER}
-          8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(PPointer(@comparison)^));
-        {$ENDIF}
-        else
-          IntroSort_Ref(@values[index], count - 1, IComparerRef(PPointer(@comparison)^), SizeOf(T));
-        end;
-      tkMethod:
-        IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(PPointer(@comparison)^));
-      tkVariant,
-      {$IF Declared(tkMRecord)}
-      tkMRecord,
-      {$IFEND}
-      tkRecord:
+      tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
         if not System.HasWeakRef(T) then
           case SizeOf(T) of
             1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(PPointer(@comparison)^));
@@ -12977,18 +12797,6 @@ begin
           end
         else
           IntroSort<T>(span, IComparer<T>(PPointer(@comparison)^));
-      tkArray:
-        case SizeOf(T) of
-          1: IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(PPointer(@comparison)^));
-          2: IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(PPointer(@comparison)^));
-          3: IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(PPointer(@comparison)^));
-          4: IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(PPointer(@comparison)^));
-        {$IFDEF PASS_64BIT_VALUE_REGISTER}
-          8: IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(PPointer(@comparison)^));
-        {$ENDIF}
-        else
-          IntroSort_Ref(@values[index], count - 1, IComparerRef(PPointer(@comparison)^), SizeOf(T));
-        end;
     else{$ELSE}begin{$ENDIF}
       IntroSort<T>(span, IComparer<T>(PPointer(@comparison)^));
     end;
