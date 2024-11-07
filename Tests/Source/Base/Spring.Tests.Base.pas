@@ -4030,15 +4030,17 @@ begin
 end;
 
 procedure TArrayTest.TestStableSortLongRuns;
+const
+  Len = 100000;
 var
   i: Integer;
   values: TArray<Integer>;
 begin
-  SetLength(values, 100000);
+  SetLength(values, Len);
   for i := Low(values) to High(values) do
     values[i] := i;
   for i := 1 to 5 do
-    TArray.Swap<Integer>(@values[Random(Length(values))], @values[Random(Length(values))]);
+    TArray.Swap<Integer>(@values[Random(Len)], @values[Random(Len)]);
   TArray.StableSort<Integer>(values);
   for i := Low(values) + 1 to High(values) do
     CheckTrue(values[i - 1] < values[i]);

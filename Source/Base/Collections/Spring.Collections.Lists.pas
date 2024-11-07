@@ -430,6 +430,7 @@ uses
   Spring.Collections.Extensions,
   Spring.Comparers,
   Spring.Events.Base,
+  Spring.Sorting,
   Spring.ResourceStrings;
 
 type
@@ -1312,7 +1313,8 @@ end;
 procedure TAbstractArrayList<T>.Sort(const comparer: IComparer<T>; index, count: Integer);
 var
   listCount: Integer;
-  span: Span<T>;
+  hi: Cardinal;
+  compare: TMethod;
 begin
   listCount := Self.Count;
   if Cardinal(index) <= Cardinal(listCount) then
@@ -1333,71 +1335,56 @@ begin
       {$ENDIF}
       begin
         {$R-}
-        span.Init(@fItems[index], count);
-        {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+        hi := Cardinal(index) + Cardinal(count);
         {$IFDEF DELPHIXE7_UP}
         case GetTypeKind(T) of
           tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkLString, tkWString,
           tkInterface, tkInt64, tkDynArray, tkUString, tkClassRef, tkPointer, tkProcedure:
             case SizeOf(T) of
-              1: TArray.IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-              2: TArray.IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-              4: TArray.IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-              8: TArray.IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
+              1: TArray.PatternDefeatingQuickSort_Int8(@fItems[index], @fItems[hi], IComparer<Int8>(comparer));
+              2: TArray.PatternDefeatingQuickSort_Int16(@fItems[index], @fItems[hi], IComparer<Int16>(comparer));
+              4: TArray.PatternDefeatingQuickSort_Int32(@fItems[index], @fItems[hi], IComparer<Int32>(comparer));
+              8: TArray.PatternDefeatingQuickSort_Int64(@fItems[index], @fItems[hi], IComparer<Int64>(comparer));
             end;
           tkFloat:
             case SizeOf(T) of
-              4: TArray.IntroSort_Single(Span<System.Single>(span), IComparer<System.Single>(comparer));
-              10,16: TArray.IntroSort_Extended(Span<Extended>(span), IComparer<Extended>(comparer));
+              4: TArray.PatternDefeatingQuickSort_Single(@fItems[index], @fItems[hi], IComparer<System.Single>(comparer));
+              10,16: TArray.PatternDefeatingQuickSort_Extended(@fItems[index], @fItems[hi], IComparer<Extended>(comparer));
             else
               if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
-                TArray.IntroSort_Double(Span<Double>(span), IComparer<Double>(comparer))
+                TArray.PatternDefeatingQuickSort_Double(@fItems[index], @fItems[hi], IComparer<Double>(comparer))
               else
-                TArray.IntroSort_Int64(Span<Int64>(span), IComparer<Int64>(comparer));
+                TArray.PatternDefeatingQuickSort_Int64(@fItems[index], @fItems[hi], IComparer<Int64>(comparer));
             end;
           tkString:
-            TArray.IntroSort_Ref(@fItems[index], index + count - 1, IComparerRef(comparer), SizeOf(T));
-          tkSet:
-            case SizeOf(T) of
-              1: TArray.IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-              2: TArray.IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-              4: TArray.IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-            else
-              TArray.IntroSort_Ref(@fItems[index], index + count - 1, IComparerRef(comparer), SizeOf(T));
-            end;
-          tkMethod:
-            TArray.IntroSort_Method(Span<TMethodPointer>(span), IComparer<TMethodPointer>(comparer));
-          tkVariant,
-          {$IF Declared(tkMRecord)}
-          tkMRecord,
-          {$IFEND}
-          tkRecord:
+          begin
+            compare.Data := Pointer(comparer);
+            compare.Code := PPVTable(comparer)^[3];
+            TSort_Ref.PatternDefeatingQuickSort(@fItems[index], @fItems[hi], SizeOf(T), TSort_Ref.TCompareMethod(compare));
+          end;
+          tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
             if not System.HasWeakRef(T) then
               case SizeOf(T) of
-                1: TArray.IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-                2: TArray.IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-                3: TArray.IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(comparer));
-                4: TArray.IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
+                1: TArray.PatternDefeatingQuickSort_Int8(@fItems[index], @fItems[hi], IComparer<Int8>(comparer));
+                2: TArray.PatternDefeatingQuickSort_Int16(@fItems[index], @fItems[hi], IComparer<Int16>(comparer));
+                3: TArray.PatternDefeatingQuickSort_Int24(@fItems[index], @fItems[hi], IComparer<Int24>(comparer));
+                4: TArray.PatternDefeatingQuickSort_Int32(@fItems[index], @fItems[hi], IComparer<Int32>(comparer));
+              {$IFDEF PASS_64BIT_VALUE_REGISTER}
+                8: TArray.PatternDefeatingQuickSort_Int64(@fItems[index], @fItems[hi], IComparer<Int64>(comparer));
+              {$ENDIF}
               else
-                TArray.IntroSort_Ref(@fItems[index], index + count - 1, IComparerRef(comparer), SizeOf(T))
+                compare.Data := Pointer(comparer);
+                compare.Code := PPVTable(comparer)^[3];
+                TSort_Ref.PatternDefeatingQuickSort(@fItems[index], @fItems[hi], SizeOf(T), TSort_Ref.TCompareMethod(compare));
               end
             else
-              TArray.IntroSort<T>(span, comparer);
-          tkArray:
-            case SizeOf(T) of
-              1: TArray.IntroSort_Int8(Span<Int8>(span), IComparer<Int8>(comparer));
-              2: TArray.IntroSort_Int16(Span<Int16>(span), IComparer<Int16>(comparer));
-              3: TArray.IntroSort_Int24(Span<Int24>(span), IComparer<Int24>(comparer));
-              4: TArray.IntroSort_Int32(Span<Int32>(span), IComparer<Int32>(comparer));
-            else
-              TArray.IntroSort_Ref(@fItems[index], index + count - 1, IComparerRef(comparer), SizeOf(T));
-            end;
-        else
-        {$ELSE}
-        begin
-        {$ENDIF}
-          TArray.IntroSort<T>(span, comparer);
+              TSort.PatternDefeatingQuickSort<T>(@fItems[index], @fItems[hi], comparer);
+          tkMethod:
+            TArray.PatternDefeatingQuickSort_Method(@fItems[index], @fItems[hi], IComparer<TMethodPointer>(comparer));
+        else{$ELSE}begin{$ENDIF}
+          TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@fItems[index]), TSort.Pointer<T>.Idx(@fItems[hi]), comparer);
         end;
+        {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
       end;
 
       Reset;

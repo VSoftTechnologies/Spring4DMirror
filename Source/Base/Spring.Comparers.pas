@@ -83,6 +83,10 @@ procedure RegisterComparer(intf: TDefaultGenericInterface; typeInfo: PTypeInfo; 
 function SameGuid(const left, right: TGUID): Boolean;
 function GetTypeInfoEqualityComparer: Pointer;
 
+{$IFDEF DELPHIXE7_UP}
+function GetLessThanOperator(typeInfo: PTypeInfo): Pointer;
+{$ENDIF}
+
 var
   DefaultHashFunction: THashFunction = xxHash32;
 
@@ -93,6 +97,7 @@ uses
   Character,
   {$ENDIF}
   Math,
+  Rtti,
   SyncObjs,
   SysUtils,
   {$IFDEF MSWINDOWS}
@@ -103,6 +108,100 @@ uses
   {$ENDIF}
   Spring,
   Spring.HashTable;
+
+{$IFDEF DELPHIXE7_UP}
+{$IFNDEF DELPHIX_ALEXANDRIA_UP}
+type
+  TTypeInfoFieldAccessorHelper = record helper for TTypeInfoFieldAccessor
+    function HasName(const AName: string): Boolean;
+  end;
+
+function TTypeInfoFieldAccessorHelper.HasName(const AName: string): Boolean;
+begin
+  Result := AnsiSameText(ToString, AName);
+end;
+{$ENDIF}
+
+function GetLessThanOperator(typeInfo: PTypeInfo): Pointer;
+const
+  LessThanOperatorName = '&op_LessThan';
+type
+  PFieldTable = ^TFieldTable;
+  TFieldTable = packed record
+    X: Word;
+    RecSize: Cardinal;
+    ManagedFldCount: Cardinal;
+    ManagedFields: array[0..0] of TManagedField;
+  end;
+  PRecordOperatorTable = ^TRecordOperatorTable;
+  TRecordOperatorTable = packed record
+    NumOps: Byte;
+    RecOps: array[0..0] of Pointer;
+  end;
+  PRecFieldTable = ^TRecFieldTable;
+  TRecFieldTable = packed record
+    RecFldCnt: Integer;
+    RecFields: array[0..0] of TRecordTypeField;
+  end;
+var
+  ft: PFieldTable;
+  p: PByte;
+  count, paramCount: Integer;
+  method: TypInfo.PRecordTypeMethod;
+  signature: TypInfo.PProcedureSignature;
+begin
+  Result := nil;
+  if (typeInfo = nil) or not (typeInfo.Kind in [tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}]) then
+    Exit;
+
+  ft := PFieldTable(@PByte(typeInfo)[Byte(PTypeInfo(typeInfo).Name[0])]);
+  p := @ft.ManagedFields[ft.ManagedFldCount];
+  p := @PRecordOperatorTable(p).RecOps[PRecordOperatorTable(p).NumOps];
+
+  count := PInteger(p)^; Inc(p, SizeOf(Integer));
+  while count > 0 do
+  begin
+    // skip Name and AttrData
+    p := PByte(@PRecordTypeField(p).Name[0]) + Byte(PRecordTypeField(p).Name[0]) + 1;
+    Inc(p, PWord(p)^);
+    Dec(count);
+  end;
+
+  Inc(p, PWord(p)^);
+
+  count := PWord(p)^; Inc(p, SizeOf(Word));
+  method := TypInfo.PRecordTypeMethod(p);
+
+  while count > 0 do
+  begin
+    // skip Name
+    signature := TypInfo.PProcedureSignature(PByte(@method.Name[0]) + Byte(method.Name[0]) + 1);
+    if (signature.ParamCount = 2) and ((method.Flags and 3) = 3) and (signature.CC = ccReg)
+      and (signature.ResultType <> nil) and (signature.ResultType^ = System.TypeInfo(Boolean))
+      and method.NameFld.HasName(LessThanOperatorName) then
+    begin
+      Result := method.Code;
+      if PPointer(Result)^ = nil then
+        Result := nil;
+      Break;
+    end;
+
+    paramCount := signature.ParamCount;
+    p := PByte(signature) + SizeOf(TProcedureSignature);
+    while paramCount > 0 do
+    begin
+      // skip Name and AttrData
+      p := PByte(@PProcedureParam(p).Name[0]) + Byte(PProcedureParam(p).Name[0]) + 1;
+      Inc(p, PWord(p)^);
+      Dec(paramCount);
+    end;
+
+    Inc(p, PWord(p)^);
+    method := TypInfo.PRecordTypeMethod(p);
+    Dec(count);
+  end;
+end;
+{$ENDIF}
 
 function BinaryCompare(left, right: Pointer; size: NativeInt): Integer;
 {$IF Defined(ASSEMBLER)}
@@ -353,8 +452,8 @@ type
   TComparerInstance = record
     VTable: Pointer;
     RefCount: Integer;
-    TypeInfo: PTypeInfo;
     Size: Integer;
+    TypeInfo: PTypeInfo;
 
     function AddRef: Integer; stdcall;
     function Release: Integer; stdcall;
@@ -366,6 +465,31 @@ type
     function Compare_DynArray(const left, right: Pointer): Integer;
     function Equals_DynArray(const left, right: Pointer): Boolean;
     function GetHashCode_DynArray(const value: Pointer): Integer;
+  end;
+
+  PRecordComparerInstance = ^TRecordComparerInstance;
+  TRecordComparerInstance = record
+    type
+      TCompareOperator = function(const left, right: Pointer): Boolean;
+      TCompareOperator_UInt24 = function(const left, right: UInt24): Boolean;
+      TGetHashCodeMethod = function(self: Pointer): Integer;
+      TGetHashCodeMethod_UInt24 = function(self: UInt24): Integer;
+
+    function Compare_Record(const left, right: Pointer): Integer;
+    function Compare_Record_UInt24(const left, right: UInt24): Integer;
+    function Equals_Record(const left, right: Pointer): Boolean;
+    function Equals_Record_UInt24(const left, right: UInt24): Boolean;
+    function GetHashCode_Record(const value: Pointer): Integer;
+    function GetHashCode_Record_UInt24(const value: UInt24): Integer;
+  public
+    VTable: Pointer;
+    RefCount: Integer;
+    Size: Integer;
+    TypeInfo: PTypeInfo;
+    Equals: TCompareOperator;
+    case TDefaultGenericInterface of
+      giComparer: (LessThan: TCompareOperator);
+      giEqualityComparer: (GetHashCode: TGetHashCodeMethod);
   end;
 
   TRegistryItem = packed record
@@ -405,8 +529,8 @@ begin
   GetMem(Result, SizeOf(TComparerInstance));
   Result.VTable := vtable;
   Result.RefCount := 0;
-  Result.TypeInfo := typeInfo;
   Result.Size := size;
+  Result.TypeInfo := typeInfo;
 end;
 
 function TComparerInstance.AddRef: Integer; stdcall;
@@ -1770,6 +1894,87 @@ begin
   Result := Integer(hashCode);
 end;
 
+function TRecordComparerInstance.Compare_Record(const left, right: Pointer): Integer;
+{$IFDEF CPUX86}
+asm
+  push ebx
+  push esi
+  push edi
+  mov edi,ecx
+  mov esi,edx
+  mov ebx,eax
+
+  mov eax,esi
+  mov edx,edi
+  call [ebx].LessThan
+  mov ecx,eax
+  mov eax,-1
+  test cl,cl
+  jne @Done
+  mov eax,esi
+  mov edx,edi
+  call [ebx].Equals
+  xor al,1
+  movzx eax,al
+
+@Done:
+  pop edi
+  pop esi
+  pop ebx
+end;
+{$ELSE}
+begin
+  if LessThan(left, right) then
+    Result := -1
+  else
+    Result := Byte(not Equals(left, right));
+end;
+{$ENDIF}
+
+function TRecordComparerInstance.Compare_Record_UInt24(const left, right: UInt24): Integer;
+begin
+  if TCompareOperator_UInt24(LessThan)(left, right) then
+    Result := -1
+  else
+    Result := Byte(not TCompareOperator_UInt24(Equals)(left, right));
+end;
+
+function TRecordComparerInstance.Equals_Record(const left, right: Pointer): Boolean;
+{$IFDEF ASSEMBLER}
+asm
+  xchg Self,left
+  xchg left,right
+  jmp [right].TRecordComparerInstance.Equals
+end;
+{$ELSE}
+begin
+  Result := Equals(left, right);
+end;
+{$ENDIF}
+
+function TRecordComparerInstance.Equals_Record_UInt24(const left, right: UInt24): Boolean;
+begin
+  Result := TCompareOperator_UInt24(Equals)(left, right);
+end;
+
+function TRecordComparerInstance.GetHashCode_Record(const value: Pointer): Integer;
+var
+  selfRef: PPointer;
+begin
+  selfRef := @value;
+  case Size of
+    1, 2, 3, 4 {$IFDEF PASS_64BIT_VALUE_REGISTER}, 8{$ENDIF}: ;
+  else
+    selfRef := selfRef^;
+  end;
+  Result := GetHashCode(selfRef);
+end;
+
+function TRecordComparerInstance.GetHashCode_Record_UInt24(const value: UInt24): Integer;
+begin
+  Result := TGetHashCodeMethod_UInt24(GetHashCode)(value);
+end;
+
 const
   Comparer_Int8: IComparer = (
     VTable: @Comparer_Int8.QueryInterface;
@@ -2158,6 +2363,40 @@ const
     @TComparerInstance.GetHashCode_DynArray
   );
 
+  Comparer_VTable_Record: array[0..3] of Pointer =
+  (
+    @NopQueryInterface,
+    @TComparerInstance.AddRef,
+    @TComparerInstance.Release,
+    @TRecordComparerInstance.Compare_Record
+  );
+
+  EqualityComparer_VTable_Record: array[0..4] of Pointer =
+  (
+    @NopQueryInterface,
+    @TComparerInstance.AddRef,
+    @TComparerInstance.Release,
+    @TRecordComparerInstance.Equals_Record,
+    @TRecordComparerInstance.GetHashCode_Record
+  );
+
+  Comparer_VTable_Record_UInt24: array[0..3] of Pointer =
+  (
+    @NopQueryInterface,
+    @TComparerInstance.AddRef,
+    @TComparerInstance.Release,
+    @TRecordComparerInstance.Compare_Record_UInt24
+  );
+
+  EqualityComparer_VTable_Record_UInt24: array[0..4] of Pointer =
+  (
+    @NopQueryInterface,
+    @TComparerInstance.AddRef,
+    @TComparerInstance.Release,
+    @TRecordComparerInstance.Equals_Record_UInt24,
+    @TRecordComparerInstance.GetHashCode_Record_UInt24
+  );
+
   EqualityComparer_PTypeInfo: IEqualityComparer = (
     VTable: @EqualityComparer_PTypeInfo.QueryInterface;
     QueryInterface: @NopQueryInterface;
@@ -2254,6 +2493,113 @@ begin
   end;
 end;
 
+function Selector_Record(intf: TDefaultGenericInterface; typeInfo: PTypeInfo; size: Integer): PRecordComparerInstance;
+const
+  ComparerTable: array[TDefaultGenericInterface] of Pointer = (
+    @Comparer_VTable_Record, @EqualityComparer_VTable_Record
+  );
+  ComparerTable_UInt24: array[TDefaultGenericInterface] of Pointer = (
+    @Comparer_VTable_Record_UInt24, @EqualityComparer_VTable_Record_UInt24
+  );
+
+  procedure GetRecordMethodAddresses(const typeInfo: PTypeInfo;
+    out equals, lessThan, getHashCode: Pointer);
+  const
+    EqualsOperatorName = '&op_Equality';
+    LessThanOperatorName = '&op_LessThan';
+    GetHashCodeName = 'GetHashCode';
+  var
+    method: TRttiMethod;
+    parameters: TArray<TRttiParameter>;
+  begin
+    equals := nil;
+    lessThan := nil;
+    getHashCode := nil;
+    for method in TType.GetType(typeInfo).GetMethods do
+    begin
+      if method.CallingConvention <> ccReg then
+        Continue;
+
+      if method.HasName(EqualsOperatorName) then
+      begin
+        if method.MethodKind <> mkOperatorOverload then
+          Continue;
+
+        parameters := method.GetParameters;
+        if (Length(parameters) = 2)
+          and (parameters[0].ParamType.Handle = typeInfo) and (parameters[1].ParamType.Handle = typeInfo)
+          and (pfConst in parameters[0].Flags) and (pfConst in parameters[1].Flags) then
+         equals := method.CodeAddress;
+      end else
+      if method.HasName(LessThanOperatorName) then
+      begin
+        if method.MethodKind <> mkOperatorOverload then
+          Continue;
+
+        parameters := method.GetParameters;
+        if (Length(parameters) = 2)
+          and (parameters[0].ParamType.Handle = typeInfo) and (parameters[1].ParamType.Handle = typeInfo)
+          and (pfConst in parameters[0].Flags) and (pfConst in parameters[1].Flags) then
+         lessThan := method.CodeAddress;
+      end else
+      if method.HasName(GetHashCodeName) then
+      begin
+        if method.MethodKind <> mkFunction then
+          Continue;
+
+        parameters := method.GetParameters;
+        if (parameters = nil) and (method.ReturnType.Handle = System.TypeInfo(Integer)) then
+          getHashCode := method.CodeAddress;
+      end;
+    end;
+  end;
+
+var
+  equals, lessThan, getHashCode: Pointer;
+begin
+  lock.Acquire;
+  try
+    Result := FindComparer(intf, typeInfo);
+    if not Assigned(Result) then
+    begin
+      GetRecordMethodAddresses(typeInfo, equals, lessThan, getHashCode);
+      case intf of
+        giComparer:
+          if not (Assigned(equals) and Assigned(PPointer(equals)^)
+            and Assigned(lessThan) and Assigned(PPointer(lessThan)^)) then
+            Exit(Selector_Binary(intf, typeInfo, size));
+        giEqualityComparer:
+          if not (Assigned(equals) and Assigned(PPointer(equals)^)
+            and Assigned(getHashCode) and Assigned(PPointer(getHashCode)^)) then
+            Exit(Selector_Binary(intf, typeInfo, size));
+      end;
+
+      GetMem(Result, SizeOf(TRecordComparerInstance));
+      {$IFDEF WIN32}
+      if size = 3 then
+        Result.VTable := ComparerTable_UInt24[intf]
+      else
+      {$ENDIF}
+      Result.VTable := ComparerTable[intf];
+      Result.RefCount := 0;
+      Result.Size := size;
+      Result.TypeInfo := typeInfo;
+
+      Result.Equals := equals;
+      case intf of
+        giComparer:
+          Result.LessThan := lessThan;
+        giEqualityComparer:
+          Result.GetHashCode := getHashCode;
+      end;
+
+      RegisterComparer(intf, typeInfo, IInterface(Result));
+    end;
+  finally
+    lock.Release;
+  end;
+end;
+
 const
   ComparerTable: array[TTypeKind] of TComparerInfo = (
     (Selector: @Selector_Binary),                               // tkUnknown
@@ -2270,7 +2616,7 @@ const
     (Instance: (@Comparer_WString, @EqualityComparer_WString)), // tkWString,
     (Instance: (@Comparer_Variant, @EqualityComparer_Variant)), // tkVariant
     (Selector: @Selector_Binary),                               // tkArray
-    (Selector: @Selector_Binary),                               // tkRecord
+    (Selector: @Selector_Record),                               // tkRecord
     (Instance: {$IFDEF CPU64BITS}(                              // tkInterface
       @Comparer_UInt64, @EqualityComparer_Int64){$ELSE}(
       @Comparer_UInt32, @EqualityComparer_Int32){$ENDIF}),
@@ -2287,7 +2633,7 @@ const
       @Comparer_UInt64, @EqualityComparer_Int64){$ELSE}(
       @Comparer_UInt32, @EqualityComparer_Int32){$ENDIF})
   {$IF Declared(tkMRecord)}
-    , (Selector: @Selector_Binary)                              // tkMRecord
+    , (Selector: @Selector_Record)                              // tkMRecord
   {$IFEND}
   );
 
@@ -2322,14 +2668,26 @@ begin
 end;
 
 function TStringComparer.TOrdinalCaseInsensitiveStringComparer.Equals(const left, right: string): Boolean;
+{$IFDEF ASSEMBLER}
+asm
+  jmp Equals_UString_OrdinalCaseInsensitive
+end;
+{$ELSE}
 begin
   Result := Equals_UString_OrdinalCaseInsensitive(@Self, Pointer(left), Pointer(right));
 end;
+{$ENDIF}
 
 function TStringComparer.TOrdinalCaseInsensitiveStringComparer.GetHashCode(const value: string): Integer;
+{$IFDEF ASSEMBLER}
+asm
+  jmp GetHashCode_UString_OrdinalCaseInsensitive
+end;
+{$ELSE}
 begin
   Result := GetHashCode_UString_OrdinalCaseInsensitive(@Self, Pointer(value));
 end;
+{$ENDIF}
 
 class operator TStringComparer.TOrdinalCaseInsensitiveStringComparer.Implicit(
   const value: TOrdinalCaseInsensitiveStringComparer): IComparer<string>;
@@ -2344,9 +2702,15 @@ begin
 end;
 
 function TStringComparer.TOrdinalCaseSensitiveStringComparer.Compare(const left, right: string): Integer;
+{$IFDEF ASSEMBLER}
+asm
+  jmp Compare_UString_OrdinalCaseSensitive
+end;
+{$ELSE}
 begin
   Result := Compare_UString_OrdinalCaseSensitive(@Self, Pointer(left), Pointer(right));
 end;
+{$ENDIF}
 
 function TStringComparer.TOrdinalCaseSensitiveStringComparer.Comparer: IComparer<string>;
 begin
@@ -2359,14 +2723,26 @@ begin
 end;
 
 function TStringComparer.TOrdinalCaseSensitiveStringComparer.Equals(const left, right: string): Boolean;
+{$IFDEF ASSEMBLER}
+asm
+  jmp Equals_UString
+end;
+{$ELSE}
 begin
   Result := Equals_UString(@Self, Pointer(left), Pointer(right));
 end;
+{$ENDIF}
 
 function TStringComparer.TOrdinalCaseSensitiveStringComparer.GetHashCode(const value: string): Integer;
+{$IFDEF ASSEMBLER}
+asm
+  jmp GetHashCode_UString
+end;
+{$ELSE}
 begin
   Result := GetHashCode_UString(@Self, Pointer(value));
 end;
+{$ENDIF}
 
 class operator TStringComparer.TOrdinalCaseSensitiveStringComparer.Implicit(
   const value: TOrdinalCaseSensitiveStringComparer): IComparer<string>;
