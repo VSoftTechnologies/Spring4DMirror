@@ -2641,7 +2641,6 @@ type
     const FoldedTypeKinds = [tkInteger, tkChar, tkEnumeration, tkClass, tkMethod, tkWChar, tkInterface, tkInt64, tkUString, tkClassRef, tkPointer, tkProcedure];
     const PointerTypeKinds = [tkClass, tkInterface, tkDynArray, tkUString, tkClassRef, tkPointer, tkProcedure];
     const IntrosortSizeThreshold = 16;
-    class function GetDepthLimit(count: Integer): Integer; static;
 
     class procedure DownHeap<T>(const values: Span<T>; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; i: NativeInt); static;
     class procedure HeapSort<T>(const values: Span<T>; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>); static;
@@ -3376,9 +3375,11 @@ procedure IncUnchecked(var i: Integer; const n: Integer = 1); inline;
 
 procedure SwapPtr(arr: PPointer; left, right: Integer); inline;
 
-function IsPowerOf2(value: NativeInt): Boolean;
+function IsPowerOf2(value: NativeUInt): Boolean;
 
-function NextPowerOf2(value: NativeInt): NativeInt;
+function RoundUpToPowerOf2(value: NativeUInt): NativeUInt;
+
+function Log2(value: NativeUInt): Integer;
 
 // copy from System.pas to make it possible to inline
 function DynArrayLength(const A: Pointer): NativeInt; inline;
@@ -4683,41 +4684,116 @@ begin
   {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
 end;
 
-function IsPowerOf2(value: NativeInt): Boolean;
+function IsPowerOf2(value: NativeUInt): Boolean;
 begin
-  Result := (value > 0) and (value and (value - 1) = 0);
+  if value > 0 then
+    Result := value and (value - 1) = 0
+  else
+    Result := Boolean(value);
 end;
 
-function NextPowerOf2(value: NativeInt): NativeInt;
+function RoundUpToPowerOf2(value: NativeUInt): NativeUInt;
 {$IFDEF ASSEMBLER}
-{$IFDEF CPUX86}
 asm
-  test eax, eax
-  jle @negative
-  bsr ecx, eax
-  mov eax, 2
-  shl eax, cl
-  ret
-@negative:
-  mov eax, 1
+  {$IFDEF CPUX86}
+  cmp value,1
+  je @@done
+  dec value
+  bsr ecx,value
+  mov eax,2
+  shl eax,cl
+  {$ELSE}
+  mov eax,1
+  cmp value,1
+  je @@done
+  dec value
+  bsr rcx,value
+  mov eax,2
+  shl rax,cl
+  {$ENDIF}
+@@done:
 end;
 {$ELSE}
-asm
-  test rcx, rcx
-  jle @negative
-  bsr rcx, rcx
-  mov eax, 2
-  shl rax, cl
-  ret
-@negative:
-  mov eax, 1
+{$IFDEF HAS_BITCOUNTING_INTRINSICS}
+var
+  shift: Cardinal;
+{$ENDIF}
+begin
+  {$Q-,R-}
+  Dec(value);
+  {$IFDEF HAS_BITCOUNTING_INTRINSICS}
+  {$IFDEF CPU32BITS}
+  shift := 32 - CountLeadingZeros32(value);
+  Result := ((shift shr 5) xor 1) shl shift;
+  {$ELSE}
+  shift := 64 - CountLeadingZeros64(value);
+  Result := ((shift shr 6) xor 1) shl shift;
+  {$ENDIF}
+  {$ELSE}
+  value := value or (value shr 1);
+  value := value or (value shr 2);
+  value := value or (value shr 4);
+  value := value or (value shr 8);
+  value := value or (value shr 16);
+  {$IFDEF CPU64BITS}
+  value := value or (value shr 32);
+  {$ENDIF}
+  Result := value + 1;
+  {$ENDIF}
+  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 {$ENDIF}
+
+function Log2SoftwareFallback(value: Cardinal): Integer;
+const
+  Log2DeBruijn: array[0..31] of Byte = (
+    00, 09, 01, 10, 13, 21, 02, 29,
+    11, 14, 16, 18, 22, 25, 03, 30,
+    08, 12, 20, 28, 15, 17, 24, 07,
+    19, 27, 23, 06, 26, 05, 04, 31
+  );
+begin
+  value := value or (value shr 1);
+  value := value or (value shr 2);
+  value := value or (value shr 4);
+  value := value or (value shr 8);
+  value := value or (value shr 16);
+  {$Q-,R-}
+  Result := Log2DeBruijn[(value * 130329821) shr 27];
+  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+function Log2(value: NativeUInt): Integer;
+{$IFDEF ASSEMBLER)}
+asm
+  or value,1
+  {$IFDEF CPUX86}
+  bsr eax,value
+  {$ELSE}
+  bsr rax,value
+  {$ENDIF}
+end;
 {$ELSE}
 begin
-  Result := 1;
-  while (Result <= value) and (Result > 0) do
-    Result := Result shl 1;
+  value := value or 1;
+  {$IFDEF HAS_BITCOUNTING_INTRINSICS}
+  {$IFDEF CPU32BITS}
+  Result := CountLeadingZeros32(value) xor 31;
+  {$ELSE}
+  Result := CountLeadingZeros64(value) xor 63;
+  {$ENDIF}
+  {$ELSE}
+  {$IFDEF CPU32BITS}
+  Result := Log2SoftwareFallback(value);
+  {$ELSE}
+  if value <= High(Cardinal) then
+    Result := Log2SoftwareFallback(Cardinal(value))
+  else
+    Result := Log2SoftwareFallback((value shr 32) or 1) + 32;
+  {$ENDIF}
+  {$ENDIF}
 end;
 {$ENDIF}
 
@@ -12089,35 +12165,6 @@ begin
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
-class function TArray.GetDepthLimit(count: Integer): Integer;
-{$IFDEF ASSEMBLER}
-asm
-  inc eax
-  or eax,1
-  bsr eax,eax
-  shl eax,1
-end;
-{$ELSE}
-const
-  Log2DeBruijn: array[0..31] of Byte = (
-    00, 09, 01, 10, 13, 21, 02, 29,
-    11, 14, 16, 18, 22, 25, 03, 30,
-    08, 12, 20, 28, 15, 17, 24, 07,
-    19, 27, 23, 06, 26, 05, 04, 31
-  );
-begin
-  Inc(count);
-  count := count or (count shr 1);
-  count := count or (count shr 2);
-  count := count or (count shr 4);
-  count := count or (count shr 8);
-  count := count or (count shr 16);
-  {$Q-}
-  Result := Log2DeBruijn[(count * $07C4ACDD) shr 27] * 2;
-  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-end;
-{$ENDIF}
-
 {$IFDEF DELPHIXE7_UP}
 class procedure TArray.StableSort<T>(var values: array of T);
 var
@@ -12360,7 +12407,7 @@ begin
       end;
 
       if depthLimit < 0 then
-        depthLimit := GetDepthLimit(partitionSize);
+        depthLimit := Log2(NativeUInt(partitionSize)) * 2 + 1;
       Dec(depthLimit);
 
       pivot := QuickSortPartition<T>(values.Slice(0, partitionSize), compare);
@@ -12490,7 +12537,7 @@ begin
       end;
 
       if depthLimit < 0 then
-        depthLimit := GetDepthLimit(partitionSize);
+        depthLimit := Log2(NativeUInt(partitionSize)) * 2 + 1;
 
       Dec(depthLimit);
       pivot := QuickSortPartition_Ref(values, partitionSize - 1, compare, size);
@@ -13325,7 +13372,7 @@ end;
 
 procedure TTimSort.Grow(neededCapacity: NativeInt);
 begin
-  neededCapacity := NextPowerOf2(neededCapacity);
+  neededCapacity := RoundUpToPowerOf2(NativeUInt(neededCapacity));
   DynArraySetLength(fTmp, fArrayTypeInfo, 1, @neededCapacity);
 end;
 

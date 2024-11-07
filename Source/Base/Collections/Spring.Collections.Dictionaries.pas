@@ -1235,7 +1235,7 @@ begin
   Inc(fVersion);
   {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
 
-  newBucketCount := NextPowerOf2(newCapacity * 4 div 3 - 1); // 75% load factor
+  newBucketCount := RoundUpToPowerOf2(NativeUInt(newCapacity) * 4 div 3); // 75% load factor
 
   // compact the items array, if necessary
   if fItemCount > fCount then
@@ -1260,7 +1260,7 @@ begin
   Assert(Capacity >= fCount);
 
   // repopulate the bucket array
-  Assert(IsPowerOf2(newBucketCount));
+  Assert(IsPowerOf2(NativeUInt(newBucketCount)));
   SetLength(fKeyBuckets, newBucketCount);
   for bucketIndex := 0 to newBucketCount - 1 do
     fKeyBuckets[bucketIndex] := EmptyBucket;

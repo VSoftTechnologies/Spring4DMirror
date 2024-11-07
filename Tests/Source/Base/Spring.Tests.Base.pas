@@ -738,7 +738,8 @@ type
 
   TTestBaseRoutines = class(TTestCase)
   published
-    procedure TestNextPowerOf2;
+    procedure TestRoundUpToPowerOf2;
+    procedure TestLog2;
   end;
 
   THashKind = (xxHash32, Murmur3Hash);
@@ -4527,29 +4528,54 @@ end;
 
 {$REGION 'TTestBaseRoutines'}
 
-procedure TTestBaseRoutines.TestNextPowerOf2;
+procedure TTestBaseRoutines.TestLog2;
 
-  procedure TestRange(Low, High, Power: NativeInt);
+  procedure TestRange(Low, High, Log: NativeUInt);
   var
-    i: NativeInt;
+    i: NativeUInt;
   begin
     for i := Low to High do
-      CheckEquals(Power, NextPowerOf2(i), Format('NextPowerOf2(%d) did not return %d', [i, Power]));
+      CheckEquals(Log, Log2(i), Format('Log2(%u) did not return %u', [i, Log]));
+  end;
+
+const
+  MaxLog2 = SizeOf(NativeUInt) * 8 - 1;
+begin
+  TestRange(  0,  1,  0);
+  TestRange(  2,  3,  1);
+  TestRange(  4,  7,  2);
+  TestRange(  8, 15,  3);
+  TestRange( 16, 31,  4);
+  TestRange( 32, 63,  5);
+
+  TestRange(High(NativeUInt) div 2 + NativeUInt(2), High(NativeUInt) div 2 + NativeUInt(2), MaxLog2);
+  TestRange(High(NativeUInt) - 1, High(NativeUInt), MaxLog2);
+end;
+
+procedure TTestBaseRoutines.TestRoundUpToPowerOf2;
+
+  procedure TestRange(Low, High, Power: NativeUInt);
+  var
+    i: NativeUInt;
+  begin
+    for i := Low to High do
+      CheckEquals(Power, RoundUpToPowerOf2(i), Format('RoundUpToPowerOf2(%u) did not return %u', [i, Power]));
   end;
 
 const
   Pow_2_30 = 1 shl 30;
 begin
-  TestRange(-50,  0,  1);
-  TestRange(  1,  1,  2);
-  TestRange(  2,  3,  4);
-  TestRange(  4,  7,  8);
-  TestRange(  8, 15, 16);
-  TestRange( 16, 31, 32);
+  TestRange(  0,  0,  0);
+  TestRange(  1,  1,  1);
+  TestRange(  2,  2,  2);
+  TestRange(  3,  4,  4);
+  TestRange(  5,  8,  8);
+  TestRange(  9, 16, 16);
+  TestRange( 17, 32, 32);
 
   TestRange(Pow_2_30 - 50, Pow_2_30 - 1, Pow_2_30);
-  TestRange(High(NativeInt) div 2 + 1, High(NativeInt) div 2 + 2, Low(NativeInt));
-  TestRange(High(NativeInt) - 1, High(NativeInt), Low(NativeInt));
+  TestRange(High(NativeUInt) div 2 + NativeUInt(2), High(NativeUInt) div 2 + NativeUInt(2), 0);
+  TestRange(High(NativeUInt) - 1, High(NativeUInt), 0);
 end;
 
 {$ENDREGION}

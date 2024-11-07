@@ -521,7 +521,7 @@ begin
 
   Assert(newCapacity >= fCount);
 
-  newBucketCount := NextPowerOf2(NativeInt(NativeUInt(newCapacity) * 4 div 3 - 1)); // 75% load factor
+  newBucketCount := RoundUpToPowerOf2(NativeUInt(newCapacity) * 4 div 3); // 75% load factor
   newCapacity := NativeInt(NativeUInt(newBucketCount) * 3 div 4);
 
   if (newCapacity = Capacity) and (fItemCount = fCount) then
