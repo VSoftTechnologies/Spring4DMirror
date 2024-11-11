@@ -1174,13 +1174,17 @@ type
   end;
 
   IInvokableNotifyEvent = interface(INotifyEvent) //FI:W523
+{$IFNDEF INVOKABLE_EVENT}
     function GetInvoke: TNotifyEvent;
     property Invoke: TNotifyEvent read GetInvoke;
+{$ENDIF}
   end;
 
   IInvokableNotifyEvent<T> = interface(INotifyEvent<T>)
+{$IFNDEF INVOKABLE_EVENT}
     function GetInvoke: TNotifyEvent<T>;
     property Invoke: TNotifyEvent<T> read GetInvoke;
+{$ENDIF}
   end;
 
   {$RTTI INHERIT
