@@ -920,6 +920,7 @@ end;
 
 procedure TObjectDataSet.SetDataList(const value: IObjectList);
 begin
+  Cancel;
   fDataList := value;
   if Assigned(fDataList) then
     fItemTypeInfo := fDataList.ElementType
