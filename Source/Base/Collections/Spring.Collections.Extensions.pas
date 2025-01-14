@@ -261,6 +261,7 @@ type
     constructor Create(start, count: Integer);
 
   {$REGION 'Implements IEnumerable<Integer>'}
+    function Contains(const item: Integer): Boolean; overload; inline;
     function GetEnumerator: IEnumerator<Integer>;
     function Ordered: IEnumerable<Integer>; overload;
     function Skip(count: Integer): IEnumerable<Integer>;
@@ -1545,6 +1546,11 @@ begin
   fCount := count;
 end;
 
+function TRangeIterator.Contains(const item: Integer): Boolean;
+begin
+  Result := Cardinal(item - fStart) < Cardinal(fCount);
+end;
+
 function TRangeIterator.CopyTo(var values: TArray<Integer>; index: Integer): Integer;
 var
   i: Integer;
@@ -1581,8 +1587,8 @@ end;
 
 function TRangeIterator.IndexOf(const item: Integer): Integer;
 begin
-  if fCount > 0 then
-    Result := IndexOf(item, 0, fCount)
+  if Contains(item) then
+    Result := item - fStart
   else
     Result := -1;
 end;
