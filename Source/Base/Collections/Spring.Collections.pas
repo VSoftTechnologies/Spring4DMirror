@@ -2015,6 +2015,15 @@ type
     function RemoveRange(const values: IEnumerable<T>): Integer; overload;
 
     /// <summary>
+    ///   Removes all elements without triggering lifetime management for
+    ///   objects.
+    /// </summary>
+    /// <returns>
+    ///   The elements that were removed from the collection.
+    /// </returns>
+    function ExtractAll: TArray<T>; overload;
+
+    /// <summary>
     ///   Removes all the elements that match the conditions defined by the
     ///   specified predicate without triggering lifetime management for
     ///   objects.
@@ -2028,7 +2037,7 @@ type
     /// <exception cref="Spring|EArgumentNilException">
     ///   <c>predicate</c> is <c>nil</c>.
     /// </exception>
-    function ExtractAll(const predicate: Predicate<T>): TArray<T>;
+    function ExtractAll(const predicate: Predicate<T>): TArray<T>; overload;
 
     /// <summary>
     ///   Removes the first occurrence of each element from the collection

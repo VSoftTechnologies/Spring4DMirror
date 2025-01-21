@@ -161,7 +161,8 @@ type
     function MoveTo(const collection: IInterface; typeInfo: PTypeInfo): Integer; overload;
     function MoveTo(const collection, predicate: IInterface; typeInfo: PTypeInfo): Integer; overload;
 
-    procedure ExtractAll(const match: IInterface; var result);
+    procedure ExtractAll(var result); overload;
+    procedure ExtractAll(const match: IInterface; var result); overload;
     function RemoveAll(const match: IInterface; typeInfo: PTypeInfo): Integer;
 
     function Sum(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Integer>): Integer; overload;
@@ -734,7 +735,8 @@ type
     function RemoveRange(const values: array of T): Integer; overload;
     function RemoveRange(const values: IEnumerable<T>): Integer; overload;
 
-    function ExtractAll(const match: Predicate<T>): TArray<T>;
+    function ExtractAll: TArray<T>; overload;
+    function ExtractAll(const match: Predicate<T>): TArray<T>; overload;
     procedure ExtractRange(const values: array of T); overload;
     procedure ExtractRange(const values: IEnumerable<T>); overload;
 
@@ -1750,6 +1752,17 @@ begin
     fEqualityComparer := IInterface(comparer);
     IInterface(result) := IInterface(@IMT);
   end;
+end;
+
+procedure TEnumerableBase.ExtractAll(var result);
+begin
+  {$IFDEF MSWINDOWS}
+  IEnumerableInternal(this).ToArray(result);
+  {$ELSE}
+  TArray<Pointer>(result) := IEnumerable<Pointer>(this).ToArray;
+  {$ENDIF}
+  // little hack - we can hardcast here since we are just passing along an open array
+  ICollection<Pointer>(this).ExtractRange(TArray<Pointer>(result));
 end;
 
 procedure TEnumerableBase.ExtractAll(const match: IInterface; var result);
@@ -3359,6 +3372,11 @@ procedure TCollectionBase<T>.Changed(const item: T; action: TCollectionChangedAc
 begin
   with fOnChanged do if CanInvoke then
     Invoke(Self, item, action);
+end;
+
+function TCollectionBase<T>.ExtractAll: TArray<T>; //FI:W521
+begin
+  inherited ExtractAll(Result);
 end;
 
 function TCollectionBase<T>.ExtractAll(const match: Predicate<T>): TArray<T>; //FI:W521

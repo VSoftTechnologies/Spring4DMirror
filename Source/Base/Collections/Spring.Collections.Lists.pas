@@ -150,8 +150,9 @@ type
     function Remove(const item: T): Boolean;
     function RemoveAll(const match: Predicate<T>): Integer;
 
-    function Extract(const item: T): T;
-    function ExtractAll(const match: Predicate<T>): TArray<T>;
+    function Extract(const item: T): T; overload;
+    function ExtractAll: TArray<T>; overload;
+    function ExtractAll(const match: Predicate<T>): TArray<T>; overload;
 
     procedure Clear;
 
@@ -1678,6 +1679,11 @@ begin
 
   Result := fItems[index];
   DeleteInternal(index, caExtracted);
+end;
+
+function TAbstractArrayList<T>.ExtractAll: TArray<T>;
+begin
+  DeleteRangeInternal(0, Self.Count, caExtracted, @Result);
 end;
 
 function TAbstractArrayList<T>.ExtractAll(const match: Predicate<T>): TArray<T>;
