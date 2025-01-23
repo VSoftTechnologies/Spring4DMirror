@@ -882,6 +882,28 @@ type
       const keySelector: Func<T, TKey>; const comparer: IEqualityComparer<TKey>);
   end;
 
+  TAggregateByIterator<TSource, TKey, TAccumulate> = class(TIterator<TPair<TKey, TAccumulate>>, IEnumerable<TPair<TKey, TAccumulate>>)
+  private
+    fSource: IEnumerable<TSource>;
+    fKeySelector: Func<TSource, TKey>;
+    fSeedSelector: Func<TKey, TAccumulate>;
+    fFunc: Func<TAccumulate, TSource, TAccumulate>;
+    fKeyComparer: IEqualityComparer<TKey>;
+    fEnumerator: IEnumerator<TPair<TKey, TAccumulate>>;
+    fDict: IDictionary<TKey, TAccumulate>;
+  protected
+    function Clone: TIterator<TPair<TKey, TAccumulate>>; override;
+    procedure Dispose; override;
+    procedure Start; override;
+    function TryMoveNext(var current: TPair<TKey, TAccumulate>): Boolean; override;
+  public
+    constructor Create(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>;
+      const seedSelector: Func<TKey, TAccumulate>;
+      const func: Func<TAccumulate, TSource, TAccumulate>;
+      const keyComparer: IEqualityComparer<TKey>);
+  end;
+
   TAnonymousIterator<T> = class(TIterator<T>, IEnumerable<T>)
   private
     fCount: Func<Integer>;
@@ -4121,6 +4143,80 @@ end;
 
 function TCountByIterator<T, TKey>.TryMoveNext(
   var current: TPair<TKey, Integer>): Boolean;
+begin
+  if Assigned(fEnumerator) and fEnumerator.MoveNext then
+  begin
+    current := fEnumerator.Current;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TAggregateByIterator<TSource, TKey, TAccumulate>'}
+
+constructor TAggregateByIterator<TSource, TKey, TAccumulate>.Create(
+  const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
+  const seedSelector: Func<TKey, TAccumulate>;
+  const func: Func<TAccumulate, TSource, TAccumulate>;
+  const keyComparer: IEqualityComparer<TKey>);
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.keySelector);
+  if not Assigned(seedSelector) then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.seedSelector);
+  if not Assigned(func) then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.func);
+
+  fSource := source;
+  fKeySelector := keySelector;
+  fSeedSelector := seedSelector;
+  fFunc := func;
+  fKeyComparer := keyComparer;
+end;
+
+function TAggregateByIterator<TSource, TKey, TAccumulate>.Clone: TIterator<TPair<TKey, TAccumulate>>;
+begin
+  Result := TAggregateByIterator<TSource, TKey, TAccumulate>.Create(fSource, fKeySelector, fSeedSelector, fFunc, fKeyComparer);
+end;
+
+procedure TAggregateByIterator<TSource, TKey, TAccumulate>.Dispose;
+begin
+  fEnumerator := nil;
+  fDict := nil;
+end;
+
+procedure TAggregateByIterator<TSource, TKey, TAccumulate>.Start;
+var
+  enumerator: IEnumerator<TSource>;
+  value: TSource;
+  key: TKey;
+  acc: Ref<TAccumulate>.PT;
+  exists: Boolean;
+begin
+  enumerator := fSource.GetEnumerator;
+
+  if enumerator.MoveNext then
+  begin
+    fDict := TCollections.CreateDictionary<TKey, TAccumulate>(fKeyComparer);
+
+    repeat
+      value := enumerator.Current;
+      key := fKeySelector(value);
+
+      acc := fDict.GetValueRefOrAddDefault(key, Default(TAccumulate), exists);
+      if exists then
+        acc^ := fFunc(acc^, value)
+      else
+        acc^ := fFunc(fSeedSelector(key), value);
+    until not enumerator.MoveNext;
+    fEnumerator := fDict.GetEnumerator;
+  end;
+end;
+
+function TAggregateByIterator<TSource, TKey, TAccumulate>.TryMoveNext(
+  var current: TPair<TKey, TAccumulate>): Boolean;
 begin
   if Assigned(fEnumerator) and fEnumerator.MoveNext then
   begin

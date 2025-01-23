@@ -5510,6 +5510,154 @@ type
       const seed: TAccumulate; const func: Func<TAccumulate, TSource, TAccumulate>;
       const resultSelector: Func<TAccumulate, TResult>): TResult; overload; static;
 
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TAccumulate">
+    ///   The type of the accumulator value.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence to aggregate over.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="seed">
+    ///   The initial accumulator value.
+    /// </param>
+    /// <param name="func">
+    ///   An accumulator function to be invoked on each element.
+    /// </param>
+    /// <returns>
+    ///   A sequence containing the aggregates corresponding to each key
+    ///   deriving from <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>func</c> is <c>nil</c>.
+    /// </exception>
+    class function AggregateBy<TSource, TKey, TAccumulate>(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>; const seed: TAccumulate;
+      const func: Func<TAccumulate, TSource, TAccumulate>): IEnumerable<TPair<TKey, TAccumulate>>; overload; static;
+
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TAccumulate">
+    ///   The type of the accumulator value.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence to aggregate over.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="seed">
+    ///   The initial accumulator value.
+    /// </param>
+    /// <param name="func">
+    ///   An accumulator function to be invoked on each element.
+    /// </param>
+    /// <param name="keyComparer">
+    ///   An equality comparer to compare keys with.
+    /// </param>
+    /// <returns>
+    ///   A sequence containing the aggregates corresponding to each key
+    ///   deriving from <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>func</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>keyComparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function AggregateBy<TSource, TKey, TAccumulate>(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>; const seed: TAccumulate;
+      const func: Func<TAccumulate, TSource, TAccumulate>;
+      const keyComparer: IEqualityComparer<TKey>
+      ): IEnumerable<TPair<TKey, TAccumulate>>; overload; static;
+
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TAccumulate">
+    ///   The type of the accumulator value.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence to aggregate over.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="seedSelector">
+    ///   A factory for the initial accumulator value.
+    /// </param>
+    /// <param name="func">
+    ///   An accumulator function to be invoked on each element.
+    /// </param>
+    /// <returns>
+    ///   A sequence containing the aggregates corresponding to each key
+    ///   deriving from <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>seedSelector</c> or <c>func
+    ///   </c> is <c>nil</c>.
+    /// </exception>
+    class function AggregateBy<TSource, TKey, TAccumulate>(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>; const seedSelector: Func<TKey, TAccumulate>;
+      const func: Func<TAccumulate, TSource, TAccumulate>): IEnumerable<TPair<TKey, TAccumulate>>; overload; static;
+
+    /// <typeparam name="TSource">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <typeparam name="TAccumulate">
+    ///   The type of the accumulator value.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence to aggregate over.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="seedSelector">
+    ///   A factory for the initial accumulator value.
+    /// </param>
+    /// <param name="func">
+    ///   An accumulator function to be invoked on each element.
+    /// </param>
+    /// <param name="keyComparer">
+    ///   An equality comparer to compare keys with.
+    /// </param>
+    /// <returns>
+    ///   A sequence containing the aggregates corresponding to each key
+    ///   deriving from <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> or <c>seedSelector</c> or <c>func
+    ///   </c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>keyComparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function AggregateBy<TSource, TKey, TAccumulate>(const source: IEnumerable<TSource>;
+      const keySelector: Func<TSource, TKey>; const seedSelector: Func<TKey, TAccumulate>;
+      const func: Func<TAccumulate, TSource, TAccumulate>;
+      const keyComparer: IEqualityComparer<TKey>
+      ): IEnumerable<TPair<TKey, TAccumulate>>; overload; static;
+
     /// <summary>
     ///   Splits the elements of a sequence into chunks of size at most <c>size</c>
     ///    .
@@ -12033,6 +12181,43 @@ begin
   while enumerator.MoveNext do
     res := func(res, enumerator.Current);
   Result := resultSelector(res);
+end;
+
+class function TEnumerable.AggregateBy<TSource, TKey, TAccumulate>(
+  const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
+  const seed: TAccumulate;
+  const func: Func<TAccumulate, TSource, TAccumulate>): IEnumerable<TPair<TKey, TAccumulate>>;
+begin
+  Result := TAggregateByIterator<TSource, TKey, TAccumulate>.Create(
+    source, keySelector, function(const key: TKey): TAccumulate begin Result := seed; end, func, nil);
+end;
+
+class function TEnumerable.AggregateBy<TSource, TKey, TAccumulate>(
+  const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
+  const seed: TAccumulate; const func: Func<TAccumulate, TSource, TAccumulate>;
+  const keyComparer: IEqualityComparer<TKey>): IEnumerable<TPair<TKey, TAccumulate>>;
+begin
+  Result := TAggregateByIterator<TSource, TKey, TAccumulate>.Create(
+    source, keySelector, function(const key: TKey): TAccumulate begin Result := seed; end, func, keyComparer);
+end;
+
+class function TEnumerable.AggregateBy<TSource, TKey, TAccumulate>(
+  const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
+  const seedSelector: Func<TKey, TAccumulate>;
+  const func: Func<TAccumulate, TSource, TAccumulate>): IEnumerable<TPair<TKey, TAccumulate>>;
+begin
+  Result := TAggregateByIterator<TSource, TKey, TAccumulate>.Create(
+    source, keySelector, seedSelector, func, nil);
+end;
+
+class function TEnumerable.AggregateBy<TSource, TKey, TAccumulate>(
+  const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
+  const seedSelector: Func<TKey, TAccumulate>;
+  const func: Func<TAccumulate, TSource, TAccumulate>;
+  const keyComparer: IEqualityComparer<TKey>): IEnumerable<TPair<TKey, TAccumulate>>;
+begin
+  Result := TAggregateByIterator<TSource, TKey, TAccumulate>.Create(
+    source, keySelector, seedSelector, func, keyComparer);
 end;
 
 class function TEnumerable.Chunk<T>(const source: IEnumerable<T>;

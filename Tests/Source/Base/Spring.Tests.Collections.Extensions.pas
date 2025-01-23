@@ -707,6 +707,11 @@ type
     procedure HasExpectedResult;
   end;
 
+  TAggregateByTests = class(TEnumerableTestCase)
+  published
+    procedure HasExpectedResult;
+  end;
+
 implementation
 
 uses
@@ -5792,6 +5797,110 @@ begin
   CheckEquals(expected, TEnumerable.CountBy<string,string>(
     IEnumerable<string>(source),
     TIdentityFunction<string>.Instance,
+    TStringComparer.OrdinalIgnoreCase
+  ));
+end;
+
+{ TAggregateByTests }
+
+procedure TAggregateByTests.HasExpectedResult;
+var
+  source: IInterface;
+  expected: IInterface;
+begin
+  source := TEnumerable.Empty<Integer>;
+  expected := TEnumerable.Empty<TPair<Integer,Integer>>;
+  CheckEquals(expected, TEnumerable.AggregateBy<Integer,Integer,Integer>(
+    IEnumerable<Integer>(source),
+    TIdentityFunction<Integer>.Instance,
+    0,
+    function(const x, y: Integer): Integer begin Result := x + y end
+  ));
+
+  source := TEnumerable.Range(0, 10);
+  expected := TEnumerable.Select<Integer,TPair<Integer,Integer>>(
+    IEnumerable<Integer>(source),
+    function(const x: Integer): TPair<Integer,Integer>
+    begin
+      Result.Key := x;
+      Result.Value := x;
+    end);
+  CheckEquals(expected, TEnumerable.AggregateBy<Integer,Integer,Integer>(
+    IEnumerable<Integer>(source),
+    TIdentityFunction<Integer>.Instance,
+    0,
+    function(const x, y: Integer): Integer begin Result := x + y end
+  ));
+
+  source := TEnumerable.Range(5, 10);
+  expected := TEnumerable.Select<Boolean,TPair<Boolean,Integer>>(
+    TEnumerable.Repeated(True, 1),
+    function(const x: Boolean): TPair<Boolean,Integer>
+    begin
+      Result.Key := x;
+      Result.Value := 95;
+    end);
+  CheckEquals(expected, TEnumerable.AggregateBy<Integer,Boolean,Integer>(
+    IEnumerable<Integer>(source),
+    function(const x: Integer): Boolean begin Result := True end,
+    0,
+    function(const x, y: Integer): Integer begin Result := x + y end
+  ));
+
+  source := TEnumerable.Range(0, 20);
+  expected := TEnumerable.Select<Integer,TPair<Integer,Integer>>(
+    TEnumerable.Range(0, 5),
+    function(const x: Integer): TPair<Integer,Integer>
+    begin
+      Result.Key := x;
+      Result.Value := 30 + 4 * x;
+    end);
+  CheckEquals(expected, TEnumerable.AggregateBy<Integer,Integer,Integer>(
+    IEnumerable<Integer>(source),
+    function(const x: Integer): Integer begin Result := x mod 5 end,
+    0,
+    function(const x, y: Integer): Integer begin Result := x + y end
+  ));
+
+  source := TEnumerable.Repeated<Integer>(5, 20);
+  expected := TEnumerable.Select<Integer,TPair<Integer,Integer>>(
+    TEnumerable.Repeated<Integer>(5, 1),
+    function(const x: Integer): TPair<Integer,Integer>
+    begin
+      Result.Key := x;
+      Result.Value := 100;
+    end);
+  CheckEquals(expected, TEnumerable.AggregateBy<Integer,Integer,Integer>(
+    IEnumerable<Integer>(source),
+    TIdentityFunction<Integer>.Instance,
+    0,
+    function(const x, y: Integer): Integer begin Result := x + y end
+  ));
+
+  source := TEnumerable.From<string>(['Bob', 'bob', 'tim', 'Bob', 'Tim']);
+  expected := TEnumerable.From<TPair<string,string>>([
+    TPair<string,string>.Create('Bob', 'BobBob'),
+    TPair<string,string>.Create('bob', 'bob'),
+    TPair<string,string>.Create('tim', 'tim'),
+    TPair<string,string>.Create('Tim', 'Tim')
+  ]);
+  CheckEquals(expected, TEnumerable.AggregateBy<string,string,string>(
+    IEnumerable<string>(source),
+    TIdentityFunction<string>.Instance,
+    '',
+    function(const x, y: string): string begin Result := x + y end
+  ));
+
+  source := TEnumerable.From<string>(['Bob', 'bob', 'tim', 'Bob', 'Tim']);
+  expected := TEnumerable.From<TPair<string,string>>([
+    TPair<string,string>.Create('Bob', 'BobbobBob'),
+    TPair<string,string>.Create('tim', 'timTim')
+  ]);
+  CheckEquals(expected, TEnumerable.AggregateBy<string,string,string>(
+    IEnumerable<string>(source),
+    TIdentityFunction<string>.Instance,
+    '',
+    function(const x, y: string): string begin Result := x + y end,
     TStringComparer.OrdinalIgnoreCase
   ));
 end;
