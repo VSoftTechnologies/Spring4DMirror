@@ -39,7 +39,8 @@ uses
   Spring.Collections,
   Spring.Collections.Base,
   Spring.Collections.Lists,
-  Spring.TestUtils;
+  Spring.TestUtils,
+  Spring.Tests.Collections;
 
 type
   TThrowingEnumerable = class sealed(TEnumerableBase<Integer>, IEnumerable<Integer>)
@@ -699,6 +700,11 @@ type
   TTestMaxBy = class(TTestCase)
   published
     procedure SimpleMaxBy;
+  end;
+
+  TTestCountBy = class(TEnumerableTestCase)
+  published
+    procedure HasExpectedResult;
   end;
 
 implementation
@@ -5710,6 +5716,84 @@ begin
       Result := TComparer<Integer>.Default.Compare(key, minValue);
     end);
   CheckTrue(query.EqualsTo([2, 5, 2]));
+end;
+
+{ TTestCountBy }
+
+procedure TTestCountBy.HasExpectedResult;
+var
+  source: IInterface;
+  expected: IInterface;
+begin
+  source := TEnumerable.Empty<Integer>;
+  expected := TEnumerable.Empty<TPair<Integer,Integer>>;
+  CheckEquals(expected, TEnumerable.CountBy<Integer>(
+    IEnumerable<Integer>(source)));
+
+  source := TEnumerable.Range(0, 10);
+  expected := TEnumerable.Select<Integer,TPair<Integer,Integer>>(
+    IEnumerable<Integer>(source),
+    function(const x: Integer): TPair<Integer,Integer>
+    begin
+      Result.Key := x;
+      Result.Value := 1;
+    end);
+  CheckEquals(expected, TEnumerable.CountBy<Integer>(
+    IEnumerable<Integer>(source)));
+
+  source := TEnumerable.Range(5, 10);
+  expected := TEnumerable.Select<Boolean,TPair<Boolean,Integer>>(
+    TEnumerable.Repeated(True, 1),
+    function(const x: Boolean): TPair<Boolean,Integer>
+    begin
+      Result.Key := x;
+      Result.Value := 10;
+    end);
+  CheckEquals(expected, TEnumerable.CountBy<Integer,Boolean>(
+    IEnumerable<Integer>(source),
+    function(const x: Integer): Boolean begin Result := True end));
+
+  source := TEnumerable.Range(0, 20);
+  expected := TEnumerable.Select<Integer,TPair<Integer,Integer>>(
+    TEnumerable.Range(0, 5),
+    function(const x: Integer): TPair<Integer,Integer>
+    begin
+      Result.Key := x;
+      Result.Value := 4;
+    end);
+  CheckEquals(expected, TEnumerable.CountBy<Integer,Integer>(
+    IEnumerable<Integer>(source),
+    function(const x: Integer): Integer begin Result := x mod 5 end));
+
+  source := TEnumerable.Repeated<Integer>(5, 20);
+  expected := TEnumerable.Select<Integer,TPair<Integer,Integer>>(
+    TEnumerable.Repeated<Integer>(5, 1),
+    function(const x: Integer): TPair<Integer,Integer>
+    begin
+      Result.Key := x;
+      Result.Value := 20;
+    end);
+  CheckEquals(expected, TEnumerable.CountBy<Integer>(
+    IEnumerable<Integer>(source)));
+
+  source := TEnumerable.From<string>(['Bob', 'bob', 'tim', 'Bob', 'Tim']);
+  expected := TEnumerable.From<TPair<string,Integer>>([
+    TPair<string,Integer>.Create('Bob', 2),
+    TPair<string,Integer>.Create('bob', 1),
+    TPair<string,Integer>.Create('tim', 1),
+    TPair<string,Integer>.Create('Tim', 1)
+  ]);
+  CheckEquals(expected, TEnumerable.CountBy<string>(IEnumerable<string>(source)));
+
+  expected := TEnumerable.From<TPair<string,Integer>>([
+    TPair<string,Integer>.Create('Bob', 3),
+    TPair<string,Integer>.Create('tim', 2)
+  ]);
+  CheckEquals(expected, TEnumerable.CountBy<string,string>(
+    IEnumerable<string>(source),
+    TIdentityFunction<string>.Instance,
+    TStringComparer.OrdinalIgnoreCase
+  ));
 end;
 
 end.

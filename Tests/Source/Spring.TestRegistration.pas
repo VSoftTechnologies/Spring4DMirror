@@ -159,7 +159,9 @@ begin
 
       TMemoizeTests.Suite,
 
-      TTestChunk.Suite
+      TTestChunk.Suite,
+
+      TTestCountBy.Suite
     ]);
 
     RegisterTests('Spring.Base.Collections.Dictionaries', [

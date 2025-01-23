@@ -850,6 +850,38 @@ type
     constructor Create(const source: IEnumerable<T>; size: Integer);
   end;
 
+  TCountByIterator<T> = class(TIterator<TPair<T, Integer>>, IEnumerable<TPair<T, Integer>>)
+  private
+    fSource: IEnumerable<T>;
+    fComparer: IEqualityComparer<T>;
+    fEnumerator: IEnumerator<TPair<T, Integer>>;
+    fCountsBy: IDictionary<T, Integer>;
+  protected
+    function Clone: TIterator<TPair<T, Integer>>; override;
+    procedure Dispose; override;
+    procedure Start; override;
+    function TryMoveNext(var current: TPair<T, Integer>): Boolean; override;
+  public
+    constructor Create(const source: IEnumerable<T>; const comparer: IEqualityComparer<T>);
+  end;
+
+  TCountByIterator<T, TKey> = class(TIterator<TPair<TKey, Integer>>, IEnumerable<TPair<TKey, Integer>>)
+  private
+    fSource: IEnumerable<T>;
+    fKeySelector: Func<T, TKey>;
+    fComparer: IEqualityComparer<TKey>;
+    fEnumerator: IEnumerator<TPair<TKey, Integer>>;
+    fCountsBy: IDictionary<TKey, Integer>;
+  protected
+    function Clone: TIterator<TPair<TKey, Integer>>; override;
+    procedure Dispose; override;
+    procedure Start; override;
+    function TryMoveNext(var current: TPair<TKey, Integer>): Boolean; override;
+  public
+    constructor Create(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>; const comparer: IEqualityComparer<TKey>);
+  end;
+
   TAnonymousIterator<T> = class(TIterator<T>, IEnumerable<T>)
   private
     fCount: Func<Integer>;
@@ -1502,6 +1534,7 @@ constructor TDistinctByIterator<T, TKey>.Create(const source: IEnumerable<T>;
   const keySelector: Func<T, TKey>; const comparer: IEqualityComparer<TKey>);
 begin
   if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
 
   inherited Create(source);
   fKeySelector := keySelector;
@@ -3972,6 +4005,130 @@ begin
   end
   else
     Result := RaiseHelper.EnumFailedVersion;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TCountByIterator<T>'}
+
+constructor TCountByIterator<T>.Create(const source: IEnumerable<T>;
+  const comparer: IEqualityComparer<T>);
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+
+  fSource := source;
+  fComparer := comparer;
+end;
+
+function TCountByIterator<T>.Clone: TIterator<TPair<T, Integer>>;
+begin
+  Result := TCountByIterator<T>.Create(fSource, fComparer);
+end;
+
+procedure TCountByIterator<T>.Dispose;
+begin
+  fEnumerator := nil;
+  fCountsBy := nil;
+end;
+
+procedure TCountByIterator<T>.Start;
+var
+  enumerator: IEnumerator<T>;
+  value: T;
+  currentCount: Ref<Integer>.PT;
+begin
+  enumerator := fSource.GetEnumerator;
+  if enumerator.MoveNext then
+  begin
+    fCountsBy := TCollections.CreateDictionary<T,Integer>(fComparer);
+
+    repeat
+      value := enumerator.Current;
+
+      currentCount := fCountsBy.GetValueRefOrAddDefault(value);
+      {$Q-}
+      Inc(currentCount^);
+      {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    until not enumerator.MoveNext;
+    fEnumerator := fCountsBy.GetEnumerator;
+  end;
+end;
+
+function TCountByIterator<T>.TryMoveNext(
+  var current: TPair<T, Integer>): Boolean;
+begin
+  if Assigned(fEnumerator) and fEnumerator.MoveNext then
+  begin
+    current := fEnumerator.Current;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TCountByIterator<T, TKey>'}
+
+constructor TCountByIterator<T, TKey>.Create(const source: IEnumerable<T>;
+  const keySelector: Func<T, TKey>; const comparer: IEqualityComparer<TKey>);
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+  if not Assigned(keySelector) then RaiseHelper.ArgumentOutOfRange(ExceptionArgument.keySelector);
+
+  fSource := source;
+  fKeySelector := keySelector;
+  fComparer := comparer;
+end;
+
+function TCountByIterator<T, TKey>.Clone: TIterator<TPair<TKey, Integer>>;
+begin
+  Result := TCountByIterator<T, TKey>.Create(fSource, fKeySelector, fComparer);
+end;
+
+procedure TCountByIterator<T, TKey>.Dispose;
+begin
+  fEnumerator := nil;
+  fCountsBy := nil;
+end;
+
+procedure TCountByIterator<T, TKey>.Start;
+var
+  enumerator: IEnumerator<T>;
+  value: T;
+  key: TKey;
+  currentCount: Ref<Integer>.PT;
+begin
+  enumerator := fSource.GetEnumerator;
+  if enumerator.MoveNext then
+  begin
+    fCountsBy := TCollections.CreateDictionary<TKey,Integer>(fComparer);
+
+    repeat
+      value := enumerator.Current;
+      key := fKeySelector(value);
+
+      currentCount := fCountsBy.GetValueRefOrAddDefault(key);
+      {$Q-}
+      Inc(currentCount^);
+      {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    until not enumerator.MoveNext;
+    fEnumerator := fCountsBy.GetEnumerator;
+  end;
+end;
+
+function TCountByIterator<T, TKey>.TryMoveNext(
+  var current: TPair<TKey, Integer>): Boolean;
+begin
+  if Assigned(fEnumerator) and fEnumerator.MoveNext then
+  begin
+    current := fEnumerator.Current;
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 {$ENDREGION}

@@ -5536,6 +5536,108 @@ type
     class function Chunk<T>(const source: IEnumerable<T>; size: Integer): IEnumerable<TArray<T>>; static;
 
     /// <summary>
+    ///   Returns the count of elements in the source sequence grouped by key.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of elements of <c>source</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence that contains elements to be counted.
+    /// </param>
+    /// <returns>
+    ///   An enumerable containing the frequencies of each value occurrence in
+    ///   <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    class function CountBy<T>(const source: IEnumerable<T>): IEnumerable<TPair<T, Integer>>; overload; static;
+
+    /// <summary>
+    ///   Returns the count of elements in the source sequence grouped by key.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of elements of <c>source</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence that contains elements to be counted.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare values.
+    /// </param>
+    /// <returns>
+    ///   An enumerable containing the frequencies of each key occurrence in <c>
+    ///   source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare values.
+    /// </remarks>
+    class function CountBy<T>(const source: IEnumerable<T>;
+      const comparer: IEqualityComparer<T>): IEnumerable<TPair<T, Integer>>; overload; static;
+
+    /// <summary>
+    ///   Returns the count of elements in the source sequence grouped by key.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence that contains elements to be counted.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <returns>
+    ///   An enumerable containing the frequencies of each key occurrence in <c>
+    ///   source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    class function CountBy<T, TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>): IEnumerable<TPair<TKey, Integer>>; overload; static;
+
+    /// <summary>
+    ///   Returns the count of elements in the source sequence grouped by key.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TKey">
+    ///   The type of the key returned by <c>keySelector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence that contains elements to be counted.
+    /// </param>
+    /// <param name="keySelector">
+    ///   A function to extract the key for each element.
+    /// </param>
+    /// <param name="comparer">
+    ///   An equality comparer to compare keys.
+    /// </param>
+    /// <returns>
+    ///   An enumerable containing the frequencies of each key occurrence in <c>
+    ///   source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
+    /// </exception>
+    /// <remarks>
+    ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
+    ///   used to compare keys.
+    /// </remarks>
+    class function CountBy<T,TKey>(const source: IEnumerable<T>;
+      const keySelector: Func<T, TKey>;
+      const comparer: IEqualityComparer<TKey>): IEnumerable<TPair<TKey, Integer>>; overload; static;
+
+    /// <summary>
     ///   Returns the elements of the specified sequence or the type
     ///   parameter's default value in a singleton collection if the sequence
     ///   is empty.
@@ -5645,7 +5747,7 @@ type
     ///   A sequence that contains distinct elements from the source sequence.
     /// </returns>
     /// <exception cref="Spring|EArgumentNilException">
-    ///   <c>source</c> is <c>nil</c>.
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
     /// </exception>
     class function DistinctBy<T, TKey>(const source: IEnumerable<T>;
       const keySelector: Func<T, TKey>): IEnumerable<T>; overload; static;
@@ -5673,7 +5775,7 @@ type
     ///   A sequence that contains distinct elements from the source sequence.
     /// </returns>
     /// <exception cref="Spring|EArgumentNilException">
-    ///   <c>source</c> is <c>nil</c>.
+    ///   <c>source</c> or <c>keySelector</c> is <c>nil</c>.
     /// </exception>
     /// <remarks>
     ///   If <c>comparer</c> is <c>nil</c>, the default equality comparer is
@@ -11937,6 +12039,31 @@ class function TEnumerable.Chunk<T>(const source: IEnumerable<T>;
   size: Integer): IEnumerable<TArray<T>>;
 begin
   Result := TChunkIterator<T>.Create(source, size);
+end;
+
+class function TEnumerable.CountBy<T>(
+  const source: IEnumerable<T>): IEnumerable<TPair<T, Integer>>;
+begin
+  Result := TCountByIterator<T>.Create(source, nil);
+end;
+
+class function TEnumerable.CountBy<T>(const source: IEnumerable<T>;
+  const comparer: IEqualityComparer<T>): IEnumerable<TPair<T, Integer>>;
+begin
+  Result := TCountByIterator<T>.Create(source, comparer);
+end;
+
+class function TEnumerable.CountBy<T, TKey>(const source: IEnumerable<T>;
+  const keySelector: Func<T, TKey>): IEnumerable<TPair<TKey, Integer>>;
+begin
+  Result := TCountByIterator<T, TKey>.Create(source, keySelector, nil);
+end;
+
+class function TEnumerable.CountBy<T, TKey>(const source: IEnumerable<T>;
+  const keySelector: Func<T, TKey>;
+  const comparer: IEqualityComparer<TKey>): IEnumerable<TPair<TKey, Integer>>;
+begin
+  Result := TCountByIterator<T, TKey>.Create(source, keySelector, comparer);
 end;
 
 class function TEnumerable.DefaultIfEmpty<T>(
