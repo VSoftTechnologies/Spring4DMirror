@@ -131,8 +131,9 @@ type
   {$REGION 'Implements IDictionary<TKey, TValue>'}
     procedure AddOrSetValue(const key: TKey; const value: TValue);
     function Extract(const key: TKey): TValue; overload;
-    function GetValueOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
-    function GetValueOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey; const defaultValue: TValue; out exists: Boolean): Ref<TValue>.PT; overload;
     function GetValueOrDefault(const key: TKey): TValue; overload;
     function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
     function TryExtract(const key: TKey; var value: TValue): Boolean;
@@ -237,8 +238,9 @@ type
     {$REGION 'Implements IDictionary<TValue, TKey>'}
       procedure AddOrSetValue(const value: TValue; const key: TKey);
       function Extract(const value: TValue): TKey; overload;
-      function GetValueOrAddDefault(const value: TValue): Ref<TKey>.PT; overload;
-      function GetValueOrAddDefault(const value: TValue; const defaultKey: TKey): Ref<TKey>.PT; overload;
+      function GetValueRefOrAddDefault(const value: TValue): Ref<TKey>.PT; overload;
+      function GetValueRefOrAddDefault(const value: TValue; const defaultKey: TKey): Ref<TKey>.PT; overload;
+      function GetValueRefOrAddDefault(const value: TValue; const defaultKey: TKey; out exists: Boolean): Ref<TKey>.PT; overload;
       function GetValueOrDefault(const value: TValue): TKey; overload;
       function GetValueOrDefault(const value: TValue; const defaultKey: TKey): TKey; overload;
       function TryExtract(const value: TValue; var key: TKey): Boolean;
@@ -400,8 +402,9 @@ type
   {$REGION 'Implements IDictionary<TKey, TValue>'}
     procedure AddOrSetValue(const key: TKey; const value: TValue);
     function Extract(const key: TKey): TValue; overload;
-    function GetValueOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
-    function GetValueOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey; const defaultValue: TValue; out exists: Boolean): Ref<TValue>.PT; overload;
     function GetValueOrDefault(const key: TKey): TValue; overload;
     function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
     function TryExtract(const key: TKey; var value: TValue): Boolean;
@@ -502,8 +505,9 @@ type
   {$REGION 'Implements IDictionary<TKey, TValue>'}
     procedure AddOrSetValue(const key: TKey; const value: TValue);
     function Extract(const key: TKey): TValue; overload;
-    function GetValueOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
-    function GetValueOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey; const defaultValue: TValue; out exists: Boolean): Ref<TValue>.PT; overload;
     function GetValueOrDefault(const key: TKey): TValue; overload;
     function GetValueOrDefault(const key: TKey; const defaultValue: TValue): TValue; overload;
     function TryExtract(const key: TKey; var value: TValue): Boolean;
@@ -1005,23 +1009,34 @@ begin
     Result := Default(TValue);
 end;
 
-function TDictionary<TKey, TValue>.GetValueOrAddDefault(
+function TDictionary<TKey, TValue>.GetValueRefOrAddDefault(
   const key: TKey): Ref<TValue>.PT;
+var
+  exists: Boolean;
 begin
   if {$IFDEF DELPHIXE7_UP}GetTypeKind(TValue){$ELSE}PTypeInfo(TypeInfo(TValue)).Kind{$ENDIF} = tkMethod then
-    Result := GetValueOrAddDefault(key, PValue(@DefaultMethod)^)
+    Result := GetValueRefOrAddDefault(key, PValue(@DefaultMethod)^, exists)
   else
-    Result := GetValueOrAddDefault(key, Default(TValue));
+    Result := GetValueRefOrAddDefault(key, Default(TValue), exists);
 end;
 
-function TDictionary<TKey, TValue>.GetValueOrAddDefault(const key: TKey;
+function TDictionary<TKey, TValue>.GetValueRefOrAddDefault(const key: TKey;
   const defaultValue: TValue): Ref<TValue>.PT;
+var
+  exists: Boolean;
+begin
+  Result := GetValueRefOrAddDefault(key, defaultValue, exists);
+end;
+
+function TDictionary<TKey, TValue>.GetValueRefOrAddDefault(const key: TKey;
+  const defaultValue: TValue; out exists: Boolean): Ref<TValue>.PT;
 var
   item: PItem;
 begin
   item := IHashTable<TKey>(@fHashTable).Find(key, InsertNonExisting or MarkNonExisting);
   if item.HashCode < 0 then
   begin
+    exists := False;
     item.HashCode := item.HashCode and not RemovedFlag;
     item.Key := key;
     item.Value := defaultValue;
@@ -1032,7 +1047,9 @@ begin
       Invoke(Self, item.Key, caAdded);
     with fOnValueChanged do if CanInvoke then
       Invoke(Self, item.Value, caAdded);
-  end;
+  end
+  else
+    exists := True;
   Result := @item.Value;
 end;
 
@@ -1827,17 +1844,27 @@ begin
   TryGetValue(key, Result);
 end;
 
-function TBidiDictionary<TKey, TValue>.GetValueOrAddDefault(
+function TBidiDictionary<TKey, TValue>.GetValueRefOrAddDefault(
   const key: TKey): Ref<TValue>.PT;
+var
+  exists: Boolean;
 begin
   if {$IFDEF DELPHIXE7_UP}GetTypeKind(TValue){$ELSE}PTypeInfo(TypeInfo(TValue)).Kind{$ENDIF} = tkMethod then
-    Result := GetValueOrAddDefault(key, PValue(@DefaultMethod)^)
+    Result := GetValueRefOrAddDefault(key, PValue(@DefaultMethod)^, exists)
   else
-    Result := GetValueOrAddDefault(key, Default(TValue));
+    Result := GetValueRefOrAddDefault(key, Default(TValue), exists);
 end;
 
-function TBidiDictionary<TKey, TValue>.GetValueOrAddDefault(const key: TKey;
+function TBidiDictionary<TKey, TValue>.GetValueRefOrAddDefault(const key: TKey;
   const defaultValue: TValue): Ref<TValue>.PT;
+var
+  exists: Boolean;
+begin
+  Result := GetValueRefOrAddDefault(key, defaultValue, exists);
+end;
+
+function TBidiDictionary<TKey, TValue>.GetValueRefOrAddDefault(const key: TKey;
+  const defaultValue: TValue; out exists: Boolean): Ref<TValue>.PT;
 begin
   // TODO implement
   RaiseHelper.NotSupported;
@@ -2070,19 +2097,29 @@ begin
   TryGetValue(value, Result);
 end;
 
-function TBidiDictionary<TKey, TValue>.TInverse.GetValueOrAddDefault(
+function TBidiDictionary<TKey, TValue>.TInverse.GetValueRefOrAddDefault(
   const value: TValue): Ref<TKey>.PT;
+var
+  exists: Boolean;
 begin
   if {$IFDEF DELPHIXE7_UP}GetTypeKind(TKey){$ELSE}PTypeInfo(TypeInfo(TKey)).Kind{$ENDIF} = tkMethod then
-    Result := GetValueOrAddDefault(value, PKey(@DefaultMethod)^)
+    Result := GetValueRefOrAddDefault(value, PKey(@DefaultMethod)^, exists)
   else
-    Result := GetValueOrAddDefault(value, Default(TKey));
+    Result := GetValueRefOrAddDefault(value, Default(TKey), exists);
 end;
 
-function TBidiDictionary<TKey, TValue>.TInverse.GetValueOrAddDefault(
+function TBidiDictionary<TKey, TValue>.TInverse.GetValueRefOrAddDefault(
   const value: TValue; const defaultKey: TKey): Ref<TKey>.PT;
+var
+  exists: Boolean;
 begin
   // TODO implement
+  Result := GetValueRefOrAddDefault(value, defaultKey, exists);
+end;
+
+function TBidiDictionary<TKey, TValue>.TInverse.GetValueRefOrAddDefault(
+  const value: TValue; const defaultKey: TKey; out exists: Boolean): Ref<TKey>.PT;
+begin
   RaiseHelper.NotSupported;
   Result := nil;
 end;
@@ -2783,17 +2820,28 @@ begin
     Result := Default(TValue);
 end;
 
-function TSortedDictionary<TKey, TValue>.GetValueOrAddDefault(
+function TSortedDictionary<TKey, TValue>.GetValueRefOrAddDefault(
   const key: TKey): Ref<TValue>.PT;
+var
+  exists: Boolean;
 begin
   if {$IFDEF DELPHIXE7_UP}GetTypeKind(TValue){$ELSE}PTypeInfo(TypeInfo(TValue)).Kind{$ENDIF} = tkMethod then
-    Result := GetValueOrAddDefault(key, PValue(@DefaultMethod)^)
+    Result := GetValueRefOrAddDefault(key, PValue(@DefaultMethod)^, exists)
   else
-    Result := GetValueOrAddDefault(key, Default(TValue));
+    Result := GetValueRefOrAddDefault(key, Default(TValue), exists);
 end;
 
-function TSortedDictionary<TKey, TValue>.GetValueOrAddDefault(const key: TKey;
+function TSortedDictionary<TKey, TValue>.GetValueRefOrAddDefault(const key: TKey;
   const defaultValue: TValue): Ref<TValue>.PT;
+var
+  exists: Boolean;
+begin
+  Result := GetValueRefOrAddDefault(key, defaultValue, exists);
+end;
+
+function TSortedDictionary<TKey, TValue>.GetValueRefOrAddDefault(
+  const key: TKey; const defaultValue: TValue;
+  out exists: Boolean): Ref<TValue>.PT;
 var
   temp: Pointer;
   node: PNode;
@@ -2804,6 +2852,7 @@ begin
 
   if not Odd(IntPtr(temp)) then
   begin
+    exists := False;
     node.Value := defaultValue;
     {$Q-}
     Inc(fVersion);
@@ -2815,7 +2864,9 @@ begin
       Invoke(Self, node.Key, caAdded);
     with fOnValueChanged do if CanInvoke then
       Invoke(Self, node.Value, caAdded);
-  end;
+  end
+  else
+    exists := True;
   Result := @node.Value;
 end;
 

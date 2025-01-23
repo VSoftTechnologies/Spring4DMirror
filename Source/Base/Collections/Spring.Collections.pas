@@ -3353,7 +3353,7 @@ type
     ///   Items should not be added to or removed from the dictionary while the
     ///   reference is in use.
     /// </remarks>
-    function GetValueOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey): Ref<TValue>.PT; overload;
 
     /// <summary>
     ///   Gets a reference to a value in the dictionary, adding a new entry
@@ -3369,7 +3369,28 @@ type
     ///   Items should not be added to or removed from the dictionary while the
     ///   reference is in use.
     /// </remarks>
-    function GetValueOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+    function GetValueRefOrAddDefault(const key: TKey; const defaultValue: TValue): Ref<TValue>.PT; overload;
+
+    /// <summary>
+    ///   Gets a reference to a value in the dictionary, adding a new entry
+    ///   with a specified default value if the key does not exist.
+    /// </summary>
+    /// <param name="key">
+    ///   The key used for lookup.
+    /// </param>
+    /// <param name="exists">
+    ///   When this method returns, contains <c>true</c> if <c>key</c> already
+    ///   existed in the dictionary, and <c>false</c> if a new entry was added.
+    /// </param>
+    /// <returns>
+    ///   A reference to the value in the dictionary.
+    /// </returns>
+    /// <remarks>
+    ///   Items should not be added to or removed from the dictionary while the
+    ///   reference is in use.
+    /// </remarks>
+    function GetValueRefOrAddDefault(const key: TKey;
+      const defaultValue: TValue; out exists: Boolean): Ref<TValue>.PT; overload;
 
     /// <summary>
     ///   Gets the value for a given key if a matching key exists in the
