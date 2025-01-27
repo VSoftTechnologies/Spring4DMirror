@@ -611,21 +611,20 @@ type
 
   TArrayIterator<T> = class(TEnumerableBase<T>, IInterface,
     IEnumerable<T>, IReadOnlyCollection<T>, IReadOnlyList<T>)
-  private
+  private type
   {$REGION 'Nested Types'}
-    type
-      PEnumerator = ^TEnumerator;
-      TEnumerator = record
-        Vtable: Pointer;
-        RefCount: Integer;
-        TypeInfo: PTypeInfo;
-        Parent: TRefCountedObject;
-        fItems: TArray<T>;
-        fIndex, fCount: Integer;
-        function GetCurrent: T;
-        function MoveNext: Boolean;
-        class var Enumerator_Vtable: TEnumeratorVtable;
-      end;
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      Parent: TRefCountedObject;
+      fItems: TArray<T>;
+      fIndex, fCount: Integer;
+      function GetCurrent: T;
+      function MoveNext: Boolean;
+      class var Enumerator_Vtable: TEnumeratorVtable;
+    end;
   {$ENDREGION}
   private
     fItems: TArray<T>;
@@ -969,23 +968,22 @@ type
   end;
 
   TCircularArrayBuffer<T> = class(TEnumerableBase<T>)
-  private
+  private type
   {$REGION 'Nested Types'}
-    type
-      PEnumerator = ^TEnumerator;
-      TEnumerator = record
-        Vtable: Pointer;
-        RefCount: Integer;
-        TypeInfo: PTypeInfo;
-        fSource: TCircularArrayBuffer<T>;
-        fIndex, fCount: Integer;
-        fVersion: Integer;
-        function GetCurrent: T;
-        function MoveNext: Boolean;
-        class var Enumerator_Vtable: TEnumeratorVtable;
-      end;
-      ItemType = TTypeInfo<T>;
-      PT = ^T;
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      fSource: TCircularArrayBuffer<T>;
+      fIndex, fCount: Integer;
+      fVersion: Integer;
+      function GetCurrent: T;
+      function MoveNext: Boolean;
+      class var Enumerator_Vtable: TEnumeratorVtable;
+    end;
+    ItemType = TTypeInfo<T>;
+    PT = ^T;
   {$ENDREGION}
   strict private
     fOnChanged: TCollectionChangedEventImpl<T>;
@@ -1039,10 +1037,9 @@ type
   end;
 
   TMapBase<TKey, TValue> = class abstract(TCollectionBase<TPair<TKey, TValue>>)
-  private
-    type
-      TKeyValuePair = TPair<TKey, TValue>;
-      TKeyValuePairComparer = TPairComparer<TKey, TValue>;
+  private type
+    TKeyValuePair = TPair<TKey, TValue>;
+    TKeyValuePairComparer = TPairComparer<TKey, TValue>;
     class function RemoveCurrentFromCollection(const enumerator: IEnumerator<TKey>; const collection: IMap<TKey, TValue>): Boolean; static;
   protected
     fOnKeyChanged: TCollectionChangedEventImpl<TKey>;

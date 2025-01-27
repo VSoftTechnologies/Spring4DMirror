@@ -49,28 +49,27 @@ type
   ///   The type of elements in the list.
   /// </typeparam>
   TAbstractArrayList<T> = class(TCollectionBase<T>)
-  private
+  private type
   {$REGION 'Nested Types'}
-    type
-      PEnumerator = ^TEnumerator;
-      TEnumerator = record
-        Vtable: Pointer;
-        RefCount: Integer;
-        TypeInfo: PTypeInfo;
-        fSource: TAbstractArrayList<T>;
-        fIndex, fVersion: Integer;
-        function GetCurrent: T;
-        function MoveNext: Boolean;
-        class var Enumerator_Vtable: TEnumeratorVtable;
-      end;
-      ItemType = TTypeInfo<T>;
-      TCompareMethod = function(const left, right: T): Integer of object;
-      TEqualsMethod = function(const left, right: T): Boolean of object;
-      TActionMethod = procedure(const item: T) of object;
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      fSource: TAbstractArrayList<T>;
+      fIndex, fVersion: Integer;
+      function GetCurrent: T;
+      function MoveNext: Boolean;
+      class var Enumerator_Vtable: TEnumeratorVtable;
+    end;
+    ItemType = TTypeInfo<T>;
+    TCompareMethod = function(const left, right: T): Integer of object;
+    TEqualsMethod = function(const left, right: T): Boolean of object;
+    TActionMethod = procedure(const item: T) of object;
 
-      // internal helper type to solve compiler issue with using Slice on the
-      // overloaded AddRange method in older Delphi versions
-      ICollectionInternal = TCollectionThunks<T>.ICollectionInternal;
+    // internal helper type to solve compiler issue with using Slice on the
+    // overloaded AddRange method in older Delphi versions
+    ICollectionInternal = TCollectionThunks<T>.ICollectionInternal;
   {$ENDREGION}
     {$IFDEF DELPHIXE7_UP}
     class var DefaultComparer: Pointer;
@@ -248,20 +247,19 @@ type
 
   TCollectionList<T: TCollectionItem> = class(TCollectionBase<T>, IInterface,
     IEnumerable<T>, IReadOnlyCollection<T>, IReadOnlyList<T>, ICollection<T>, IList<T>)
-  private
+  private type
   {$REGION 'Nested Types'}
-    type
-      TEnumerator = class(TRefCountedObject, IEnumerator<T>)
-      private
-        fSource: TCollectionList<T>;
-        fIndex: Integer;
-        fVersion: Integer;
-        function GetCurrent: T;
-      public
-        constructor Create(const list: TCollectionList<T>);
-        destructor Destroy; override;
-        function MoveNext: Boolean;
-      end;
+    TEnumerator = class(TRefCountedObject, IEnumerator<T>)
+    private
+      fSource: TCollectionList<T>;
+      fIndex: Integer;
+      fVersion: Integer;
+      function GetCurrent: T;
+    public
+      constructor Create(const list: TCollectionList<T>);
+      destructor Destroy; override;
+      function MoveNext: Boolean;
+    end;
   {$ENDREGION}
   private
     fCollection: TCollection;
