@@ -158,6 +158,20 @@ type
     procedure Clear;
   end;
 
+  // this type declaration is necessary for the Index field of TIndexedItem<T>
+  // there is a compiler glitch causing weird problems if that field is of type Integer
+  // see https://embt.atlassian.net/servicedesk/customer/portal/1/RSS-3110
+  TIndex = type Integer;
+
+  TIndexedItem<T> = packed record
+    Index: TIndex;
+    Item: T;
+  end;
+
+  IEnumerableIndexed<T> = interface
+    function GetEnumerator: IEnumerator<TIndexedItem<T>>;
+  end;
+
   /// <summary>
   ///   Represents a read-only sequence of elements. Exposes the enumerator,
   ///   which supports a simple iteration over a collection of a specified
@@ -819,6 +833,25 @@ type
     ///   <c>action</c> is <c>nil</c>.
     /// </exception>
     procedure ForEach(const action: Action<T>);
+
+    /// <summary>
+    ///   Returns a sequence that incorporates the element's index into a tuple.
+    /// </summary>
+    /// <param name="start">
+    ///   The start value for the <c>Index</c>.
+    /// </param>
+    /// <returns>
+    ///   A sequence that incorporates each element index into a tuple.
+    /// </returns>
+    /// <remarks>
+    ///   The result is not of type <see
+    ///   cref="Spring.Collections|IEnumerable{T}" /> due to limitations of the
+    ///   Delphi compiler (recursive generic types). This means it does not
+    ///   support all the methods that sequences generally provide but is meant
+    ///   to be used in for-in loops. If you need the full features, please
+    ///   refer to <see cref="Spring.Collections|TEnumerable.Indexed" />.
+    /// </remarks>
+    function Indexed(start: Integer = 0): IEnumerableIndexed<T>;
 
     /// <summary>
     ///   Produces the set intersection of two sequences by using the default
@@ -6339,6 +6372,26 @@ type
       const elementSelector: Func<T, TElement>;
       const resultSelector: Func<TKey, IEnumerable<TElement>, TResult>;
       const comparer: IEqualityComparer<TKey>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
+    ///   Returns a sequence that incorporates the element's index into a tuple.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence whose elements to return.
+    /// </param>
+    /// <param name="start">
+    ///   The start value for the <c>Index</c>.
+    /// </param>
+    /// <returns>
+    ///   A sequence that incorporates each element index into a tuple.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> is <c>nil</c>.
+    /// </exception>
+    class function Indexed<T>(const source: IEnumerable<T>; start: Integer = 0): IEnumerable<TIndexedItem<T>>; static;
 
     /// <summary>
     ///   Produces the set intersection of two sequences by using the default
@@ -12453,6 +12506,12 @@ class function TEnumerable.GroupBy<T, TKey, TElement, TResult>(
 begin
   Result := TGroupedEnumerable<T, TKey, TElement, TResult>.Create(
     source, keySelector, elementSelector, resultSelector, comparer);
+end;
+
+class function TEnumerable.Indexed<T>(const source: IEnumerable<T>;
+  start: Integer): IEnumerable<TIndexedItem<T>>;
+begin
+  Result := TIndexedIterator<T>.Create(source, start);
 end;
 
 class function TEnumerable.Intersect<T>(const first,

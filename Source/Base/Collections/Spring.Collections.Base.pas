@@ -194,6 +194,7 @@ type
     procedure DefaultIfEmpty(defaultValue: Pointer; var result; typeInfo: Pointer; classType: TClass);
     procedure Distinct(comparer: Pointer; var result; classType: TClass);
     procedure Exclude(const second: IInterface; comparer: Pointer; var result; classType: TClass);
+    procedure Indexed(start: Integer; var result; vtable: PEnumeratorVtable; getCurrent: Pointer);
     procedure Intersect(const second: IInterface; comparer: Pointer; var result; classType: TClass);
     procedure Memoize(var result; classType: TClass);
     procedure Ordered(const comparer: IInterface; var result; classType: TClass);
@@ -221,7 +222,45 @@ type
     function Exactly(count: Integer): Boolean;
   end;
 
+  TEnumerableIndexed = class(TRefCountedObject, IEnumerableIndexed<Pointer>)
+  strict private type
+  {$REGION 'Nested Types'}
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      Parent: TRefCountedObject;
+      fEnumerator: IEnumerator;
+      fIndex: Integer;
+      function MoveNext: Boolean;
+    end;
+  {$ENDREGION}
+  private
+    fSource: IEnumerable;
+    fVtable: PEnumeratorVtable;
+    fGetCurrent: Pointer;
+    fStart: Integer;
+  public
+    constructor Create(start: Integer; const source: IEnumerable; vtable: PEnumeratorVtable; getCurrent: Pointer);
+    function GetEnumerator: IEnumerator<TIndexedItem<Pointer>>;
+  end;
+
   TEnumerableBase<T> = class abstract(TEnumerableBase)
+  strict private type
+  {$REGION 'Nested Types'}
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      Parent: TRefCountedObject;
+      fEnumerator: IEnumerator<T>;
+      fIndex: Integer;
+      function GetCurrent: TIndexedItem<T>;
+      class var Enumerator_Vtable: TEnumeratorVtable;
+    end;
+  {$ENDREGION}
   protected
     fComparer: IComparer<T>;
   {$REGION 'Property Accessors'}
@@ -288,6 +327,8 @@ type
     function FirstOrDefault(const predicate: Predicate<T>; const defaultValue: T): T; overload;
 
     procedure ForEach(const action: Action<T>); overload;
+
+    function Indexed(start: Integer): IEnumerableIndexed<T>;
 
     function Intersect(const second: IEnumerable<T>): IEnumerable<T>; overload;
     function Intersect(const second: IEnumerable<T>; const comparer: IEqualityComparer<T>): IEnumerable<T>; overload;
@@ -360,7 +401,8 @@ type
   end;
 
   TEnumerableWrapper = class(TRefCountedObject, IInterface, IEnumerable)
-  private type
+  strict private type
+  {$REGION 'Nested Types'}
     TEnumerator = class(TRefCountedObject, IEnumerator)
     private
       fSource: IEnumerator;
@@ -371,6 +413,7 @@ type
       constructor Create(const source: IEnumerator; elementType: PTypeInfo; getCurrent: TGetCurrent);
       function MoveNext: Boolean;
     end;
+  {$ENDREGION}
   private
     fSource: IEnumerable;
     fElementType: PTypeInfo;
@@ -628,7 +671,7 @@ type
     function MoveNextIndexed: Boolean;
 
     function ToArray: Boolean;
-  private type
+  strict private type
     TItem = packed record
     public
       HashCode: Integer;
@@ -683,7 +726,6 @@ type
 
   TIterator<T> = class abstract(TEnumerableBase<T>, IInterface, IEnumerator<T>)
   private
-    fCurrent: T;
     fThreadId: TThreadID;
     fState: Integer;
     fTryMoveNext: function (self: TObject; var current: T): Boolean;
@@ -694,6 +736,7 @@ type
       STATE_RUNNING    = 1;  // enumeration is running
     function GetCurrent: T;
   protected
+    fCurrent: T;
     function Clone: TIterator<T>; virtual; abstract;
     procedure Dispose; virtual;
     procedure Start; virtual;
@@ -722,7 +765,7 @@ type
   ///   False</c> by default.
   /// </remarks>
   TCollectionBase<T> = class abstract(TEnumerableBase<T>)
-  private type
+  strict private type
     TNotify = procedure(Self: TObject; const item: T; action: TCollectionChangedAction);
   private
     fOnChanged: TCollectionChangedEventImpl<T>;
@@ -814,7 +857,7 @@ type
 
   THashMapInnerCollection<T> = class(TEnumerableBase<T>,
     IEnumerable<T>, IReadOnlyCollection<T>)
-  private type
+  strict private type
   {$REGION 'Nested Types'}
     PT = ^T;
 
@@ -923,7 +966,7 @@ type
 
   TTreeMapInnerCollection<T> = class(TEnumerableBase<T>,
     IEnumerable<T>, IReadOnlyCollection<T>)
-  private type
+  strict private type
   {$REGION 'Nested Types'}
     PNode = ^TNode;
     TNode = packed record // same layout as TRedBlackTreeBase<TKey>.TNode
@@ -978,7 +1021,7 @@ type
   end;
 
   TCircularArrayBuffer<T> = class(TEnumerableBase<T>)
-  private type
+  strict private type
   {$REGION 'Nested Types'}
     PEnumerator = ^TEnumerator;
     TEnumerator = record
@@ -1853,6 +1896,11 @@ begin
     Result := -1;
 end;
 
+procedure TEnumerableBase.Indexed(start: Integer; var result; vtable: PEnumeratorVtable; getCurrent: Pointer);
+begin
+  IEnumerableIndexed<Pointer>(result) := TEnumerableIndexed.Create(start, IEnumerable(this), vtable, getCurrent);
+end;
+
 procedure TEnumerableBase.Intersect(const second: IInterface; comparer: Pointer; var result; classType: TClass);
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
@@ -2658,6 +2706,51 @@ end;
 {$ENDREGION}
 
 
+{$REGION 'TEnumerableIndexed'}
+
+constructor TEnumerableIndexed.Create(start: Integer; const source: IEnumerable;
+  vtable: PEnumeratorVtable; getCurrent: Pointer);
+begin
+  fStart := start;
+  fSource := source;
+  fVtable := vtable;
+  fGetCurrent := getCurrent;
+end;
+
+function TEnumerableIndexed.GetEnumerator: IEnumerator<TIndexedItem<Pointer>>;
+begin
+  _AddRef;
+  with PEnumerator(TEnumeratorBlock.Create(@Result, fVtable,
+    TypeInfo(TEnumerator), fGetCurrent, @TEnumerator.MoveNext))^ do
+  begin
+    Parent := Self;
+    {$Q-}
+    fIndex := fStart - 1;
+    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    {$IFDEF MSWINDOWS}
+    IEnumerableInternal(fSource).GetEnumerator(fEnumerator);
+    {$ELSE}
+    fEnumerator := fSource.GetEnumerator;
+    {$ENDIF}
+  end;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TEnumerableIndexed.TEnumerator'}
+
+function TEnumerableIndexed.TEnumerator.MoveNext: Boolean;
+begin
+  {$Q-}
+  Inc(fIndex);
+  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+  Result := fEnumerator.MoveNext;
+end;
+
+{$ENDREGION}
+
+
 {$REGION 'TEnumerableBase<T>'}
 
 {$IFDEF DELPHIXE7_UP}
@@ -2886,6 +2979,11 @@ end;
 function TEnumerableBase<T>.GetComparer: IComparer<T>;
 begin
   Result := fComparer;
+end;
+
+function TEnumerableBase<T>.Indexed(start: Integer): IEnumerableIndexed<T>;
+begin
+  inherited Indexed(start, Result, @TEnumerator.Enumerator_Vtable, @TEnumerator.GetCurrent);
 end;
 
 function TEnumerableBase<T>.Intersect(const second: IEnumerable<T>): IEnumerable<T>; //FI:W521
@@ -3242,6 +3340,28 @@ function TEnumerableBase<T>.Where(
   const predicate: Func<T, Integer, Boolean>): IEnumerable<T>;
 begin
   WhereIndex(PInterface(@predicate)^, Result, TEnumerableExtension<T>);
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TEnumerableBase<T>.TEnumerator'}
+
+function TEnumerableBase<T>.TEnumerator.GetCurrent: TIndexedItem<T>;
+begin
+  Result.Index := fIndex;
+  {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+  if IsManagedType(T) then
+    IEnumeratorInternal(fEnumerator).GetCurrent(Result.Item)
+  else if GetTypeKind(T) in [tkInteger, tkChar, tkWChar, tkEnumeration, tkInt64, tkClassRef, tkPointer, tkProcedure] then
+    case SizeOf(T) of
+      1: PInt8(@Result.Item)^ := IEnumerator<Int8>(fEnumerator).Current;
+      2: PInt16(@Result.Item)^ := IEnumerator<Int16>(fEnumerator).Current;
+      4: PInt32(@Result.Item)^ := IEnumerator<Int32>(fEnumerator).Current;
+      8: PInt64(@Result.Item)^ := IEnumerator<Int64>(fEnumerator).Current;
+    end
+  else{$IFEND}
+  Result.Item := fEnumerator.Current;
 end;
 
 {$ENDREGION}

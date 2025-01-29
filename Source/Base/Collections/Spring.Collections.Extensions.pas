@@ -232,6 +232,7 @@ type
   TRangeIterator = class(TEnumerableBase<Integer>,
     IEnumerable<Integer>, IReadOnlyCollection<Integer>, IReadOnlyList<Integer>)
   private type
+  {$REGION 'Nested Types'}
     PEnumerator = ^TEnumerator;
     TEnumerator = record
       Vtable: Pointer;
@@ -242,6 +243,7 @@ type
       function _Release: Integer; stdcall;
       class function Create(start, count: Integer): IEnumerator<Integer>; static;
     end;
+  {$ENDREGION}
   const
     Enumerator_Vtable: TEnumeratorVtable = (
       @NopQueryInterface,
@@ -902,6 +904,20 @@ type
       const seedSelector: Func<TKey, TAccumulate>;
       const func: Func<TAccumulate, TSource, TAccumulate>;
       const keyComparer: IEqualityComparer<TKey>);
+  end;
+
+  TIndexedIterator<T> = class(TIterator<TIndexedItem<T>>, IEnumerable<TIndexedItem<T>>)
+  private
+    fSource: IEnumerable<T>;
+    fStart: Integer;
+    fEnumerator: IEnumerator<T>;
+  protected
+    function Clone: TIterator<TIndexedItem<T>>; override;
+    procedure Dispose; override;
+    procedure Start; override;
+    function TryMoveNext(var current: TIndexedItem<T>): Boolean; override;
+  public
+    constructor Create(const source: IEnumerable<T>; start: Integer);
   end;
 
   TAnonymousIterator<T> = class(TIterator<T>, IEnumerable<T>)
@@ -4221,6 +4237,61 @@ begin
   if Assigned(fEnumerator) and fEnumerator.MoveNext then
   begin
     current := fEnumerator.Current;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TIndexedIterator<T>'}
+
+constructor TIndexedIterator<T>.Create(const source: IEnumerable<T>;
+  start: Integer);
+begin
+  if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
+
+  fSource := source;
+  fStart := start;
+end;
+
+function TIndexedIterator<T>.Clone: TIterator<TIndexedItem<T>>;
+begin
+  Result := TIndexedIterator<T>.Create(fSource, fStart);
+end;
+
+procedure TIndexedIterator<T>.Dispose;
+begin
+  fEnumerator := nil;
+end;
+
+procedure TIndexedIterator<T>.Start;
+begin
+  {$IFDEF MSWINDOWS}
+  IEnumerableInternal(fSource).GetEnumerator(fEnumerator);
+  {$ELSE}
+  fEnumerator := fSource.GetEnumerator;
+  {$ENDIF}
+  {$Q-}
+  fCurrent.Index := fStart - 1;
+  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+end;
+
+function TIndexedIterator<T>.TryMoveNext(var current: TIndexedItem<T>): Boolean;
+begin
+  if Assigned(fEnumerator) and fEnumerator.MoveNext then
+  begin
+    {$IFDEF RSP31615}
+    if IsManagedType(T) then
+      IEnumeratorInternal(fEnumerator).GetCurrent(current.Item)
+    else
+    {$ENDIF}
+    current.Item := fEnumerator.Current;
+    {$Q-}
+    Inc(current.Index);
+    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
     Result := True;
   end
   else
