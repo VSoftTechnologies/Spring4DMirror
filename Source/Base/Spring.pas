@@ -12884,7 +12884,10 @@ begin
       end;
     end;
     tkMethod:
+    begin
+      comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
       PatternDefeatingQuickSort_Method(@values[0], @values[len], IComparer<TMethodPointer>(comparer));
+    end;
     tkInterface, tkClassRef, tkPointer, tkProcedure:
       case SizeOf(T) of
         4: TSort_UInt32.PatternDefeatingQuickSort(@values[0], @values[len]);
