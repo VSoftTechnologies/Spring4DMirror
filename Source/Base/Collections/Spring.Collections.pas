@@ -215,6 +215,14 @@ type
     function ToArray: TArray<T>;
 
     /// <summary>
+    ///   Tries to extract the internal data as a span.
+    /// </summary>
+    /// <remarks>
+    ///   This method is intended for internal use only
+    /// </remarks>
+    function TryGetSpan(var span: Span<T>): Boolean;
+
+    /// <summary>
     ///   Returns the specified comparer for this instance.
     /// </summary>
     /// <returns>

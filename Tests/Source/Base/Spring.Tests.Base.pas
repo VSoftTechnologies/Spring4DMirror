@@ -45,6 +45,33 @@ uses
   Spring.Testing;
 
 type
+  TIndexOfTests = class(TTestCase)
+  private type
+    TCustomComparer = class(TInterfacedObject, IEqualityComparer<Integer>)
+    private
+      fMatchOnXIteration: Integer;
+      fIteration: Integer;
+    public
+      class function Create(matchOnXIteration: Integer): IEqualityComparer<Integer>; static;
+      function Equals(const left, right: Integer): Boolean; reintroduce;
+      function GetHashCode(const value: Integer): Integer; reintroduce;
+    end;
+  public
+    procedure TestIndexOf<TCollection>(
+      const factory: Func<IEnumerable<Integer>, TCollection>;
+      const indexOfItem: Func<TCollection, Integer, Integer>;
+      const indexOfItemIndex: Func<TCollection, Integer, Integer, Integer>;
+      const indexOfItemIndexCount: Func<TCollection, Integer, Integer, Integer, Integer>;
+      const indexOfItemIndexCountEQ: Func<TCollection, Integer, Integer, Integer, IEqualityComparer<Integer>, Integer>);
+    procedure TestLastIndexOf<TCollection>(
+      const factory: Func<IEnumerable<Integer>, TCollection>;
+      const lastIndexOfItem: Func<TCollection, Integer, Integer>;
+      const lastIndexOfItemEQ: Func<TCollection, Integer, IEqualityComparer<Integer>, Integer>;
+      const lastIndexOfItemIndex: Func<TCollection, Integer, Integer, Integer>;
+      const lastIndexOfItemIndexCount: Func<TCollection, Integer, Integer, Integer, Integer>;
+      const lastIndexOfItemIndexCountEQ: Func<TCollection, Integer, Integer, Integer, IEqualityComparer<Integer>, Integer>);
+  end;
+
   TTestNullableInteger = class(TTestCase)
   private
     fInteger: Nullable<Integer>;
@@ -620,6 +647,8 @@ type
     procedure TestBinarySearchUpperBound;
     procedure TestBinarySearchUpperBoundSubRange;
 
+    procedure TestIndexOf;
+
     procedure TestLastIndexOf;
     procedure TestLastIndexOfSubRange;
 
@@ -757,6 +786,7 @@ implementation
 uses
   DateUtils,
   FmtBcd,
+  Math,
   SqlTimSt,
   SysUtils,
   Variants,
@@ -767,6 +797,168 @@ uses
   Spring.Comparers,
   Spring.Hash,
   Spring.VirtualClass;
+
+
+{$REGION 'TIndexOfTests.TCustomComparer'}
+
+class function TIndexOfTests.TCustomComparer.Create(matchOnXIteration: Integer): IEqualityComparer<Integer>;
+var
+  instance: TCustomComparer;
+begin
+  instance := TCustomComparer(TCustomComparer.NewInstance);
+  instance.AfterConstruction;
+  instance.fMatchOnXIteration := matchOnXIteration;
+  Result := instance;
+end;
+
+function TIndexOfTests.TCustomComparer.Equals(const left, right: Integer): Boolean;
+begin
+  Inc(fIteration);
+  Result := fIteration = fMatchOnXIteration;
+end;
+
+function TIndexOfTests.TCustomComparer.GetHashCode(const value: Integer): Integer;
+begin
+  raise ENotImplementedException.NewInstance;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TIndexOfTests'}
+
+procedure TIndexOfTests.TestIndexOf<TCollection>(
+  const factory: Func<IEnumerable<Integer>, TCollection>;
+  const indexOfItem: Func<TCollection, Integer, Integer>;
+  const indexOfItemIndex: Func<TCollection, Integer, Integer, Integer>;
+  const indexOfItemIndexCount: Func<TCollection, Integer, Integer, Integer, Integer>;
+  const indexOfItemIndexCountEQ: Func<TCollection, Integer, Integer, Integer, IEqualityComparer<Integer>, Integer>);
+var
+  emptyCollection: TCollection;
+  collection1256: TCollection;
+  list: IReadOnlyList<Integer>;
+  idx, count, match, expected, actual: Integer;
+begin
+  emptyCollection := factory(TEnumerable.Empty<Integer>);
+  collection1256 := factory(TEnumerable.From<Integer>([1, 2, 5, 6]));
+
+  CheckException(EArgumentOutOfRangeException, procedure begin indexOfItemIndexCountEQ(emptyCollection, 100, 1, 1, TEqualityComparer<Integer>.Default) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin indexOfItemIndexCountEQ(emptyCollection, 100, -1, 1, TEqualityComparer<Integer>.Default) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin indexOfItemIndexCountEQ(collection1256, 100, 1, 20, TEqualityComparer<Integer>.Default) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin indexOfItemIndexCountEQ(collection1256, 100, 1, -1, TEqualityComparer<Integer>.Default) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin indexOfItemIndexCountEQ(emptyCollection, 100, 1, 1, TCustomComparer.Create(50)) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin indexOfItemIndexCountEQ(emptyCollection, 100, -1, 1, TCustomComparer.Create(50)) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin indexOfItemIndexCountEQ(collection1256, 100, 1, 20, TCustomComparer.Create(1)) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin indexOfItemIndexCountEQ(collection1256, 100, 1, -1, TCustomComparer.Create(1)) end);
+
+  CheckEquals(-1, indexOfItem(emptyCollection, 5));
+  CheckEquals(-1, indexOfItem(emptyCollection, 5));
+  CheckEquals(-1, indexOfItemIndex(emptyCollection, 5, 0));
+  CheckEquals(2, indexOfItemIndex(collection1256, 5, 1));
+  CheckEquals(-1, indexOfItemIndexCount(emptyCollection, 5, 0, 0));
+  CheckEquals(-1, indexOfItemIndexCount(collection1256, 5, 1, 1));
+  CheckEquals(2, indexOfItemIndexCount(collection1256, 5, 1, 2));
+
+  list := TCollections.CreateList<Integer>([100, 101, 102, 103, 104, 100, 101, 102, 103, 104]).AsReadOnly;
+
+  CheckEquals(-1, indexOfItem(factory(list), 6));
+  CheckEquals(2, indexOfItemIndexCountEQ(factory(list), 102, 0, 4, nil));
+
+  for idx := 0 to list.Count - 1 do
+    for count := 0 to list.Count - idx do
+      for match in list.Concat(TEnumerable.From<Integer>([99])) do
+      begin
+        expected := list.IndexOf(match, idx, count);
+        actual := indexOfItemIndexCount(factory(list), match, idx, count);
+        CheckEquals(expected, actual);
+
+        actual := indexOfItemIndexCountEQ(factory(list), match, idx, count, TCustomComparer.Create(count));
+        CheckEquals(IfThen(count > 0, idx + count - 1, -1), actual);
+
+        if count = list.Count then
+        begin
+          // Also test the IndexOf overload that takes no count parameter.
+          actual := indexOfItemIndex(factory(list), match, idx);
+          CheckEquals(expected, actual);
+
+          if idx = 0 then
+          begin
+            // Also test the IndexOf overload that takes no index parameter.
+            actual := indexOfItem(factory(list), match);
+            CheckEquals(expected, actual);
+          end;
+        end;
+      end;
+end;
+
+procedure TIndexOfTests.TestLastIndexOf<TCollection>(
+  const factory: Func<IEnumerable<Integer>, TCollection>;
+  const lastIndexOfItem: Func<TCollection, Integer, Integer>;
+  const lastIndexOfItemEQ: Func<TCollection, Integer, IEqualityComparer<Integer>, Integer>;
+  const lastIndexOfItemIndex: Func<TCollection, Integer, Integer, Integer>;
+  const lastIndexOfItemIndexCount: Func<TCollection, Integer, Integer, Integer, Integer>;
+  const lastIndexOfItemIndexCountEQ: Func<TCollection, Integer, Integer, Integer, IEqualityComparer<Integer>, Integer>);
+var
+  emptyCollection: TCollection;
+  collection1256: TCollection;
+  list: IList<Integer>;//IReadOnlyList<Integer>;
+  idx, count, match, expected, actual: Integer;
+begin
+  emptyCollection := factory(TEnumerable.Empty<Integer>);
+  collection1256 := factory(TEnumerable.From<Integer>([1, 2, 5, 6]));
+
+  CheckException(EArgumentOutOfRangeException, procedure begin lastIndexOfItemIndexCountEQ(emptyCollection, 100, 1, 1, TEqualityComparer<Integer>.Default) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin lastIndexOfItemIndexCountEQ(emptyCollection, 100, -1, 1, TEqualityComparer<Integer>.Default) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin lastIndexOfItemIndexCountEQ(collection1256, 100, 1, 20, TEqualityComparer<Integer>.Default) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin lastIndexOfItemIndexCountEQ(collection1256, 100, 1, -1, TEqualityComparer<Integer>.Default) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin lastIndexOfItemIndexCountEQ(emptyCollection, 100, 1, 1, TCustomComparer.Create(50)) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin lastIndexOfItemIndexCountEQ(emptyCollection, 100, -1, 1, TCustomComparer.Create(50)) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin lastIndexOfItemIndexCountEQ(collection1256, 100, 1, 20, TCustomComparer.Create(1)) end);
+  CheckException(EArgumentOutOfRangeException, procedure begin lastIndexOfItemIndexCountEQ(collection1256, 100, 1, -1, TCustomComparer.Create(1)) end);
+
+  CheckEquals(-1, lastIndexOfItem(emptyCollection, 5));
+  CheckEquals(-1, lastIndexOfItemEQ(emptyCollection, 5, TEqualityComparer<Integer>.Default));
+  CheckEquals(-1, lastIndexOfItemIndex(emptyCollection, 5, 0));
+  CheckEquals(-1, lastIndexOfItemIndexCount(emptyCollection, 5, 0, 0));
+
+  list := TCollections.CreateList<Integer>([100, 101, 102, 103, 104, 100, 101, 102, 103, 104]);
+
+  CheckEquals(-1, lastIndexOfItem(factory(list), 6));
+  CheckEquals(2, lastIndexOfItemIndexCountEQ(factory(list), 102, 6, 5, nil));
+
+  for idx := 0 to list.Count - 1 do
+    for count := 0 to idx + 1 do
+      for match in list.Concat(TEnumerable.From<Integer>([99])) do
+      begin
+        expected := list.LastIndexOf(match, idx, count);
+        actual := lastIndexOfItemIndexCount(factory(list), match, idx, count);
+        CheckEquals(expected, actual);
+
+        expected := list.LastIndexOf(match);
+        actual := lastIndexOfItemEQ(factory(list), match, TEqualityComparer<Integer>.Default);
+        CheckEquals(expected, actual);
+
+        actual := lastIndexOfItemIndexCountEQ(factory(list), match, idx, count, TCustomComparer.Create(count));
+        CheckEquals(IfThen(count > 0, idx - count + 1, -1), actual);
+
+        if count = list.Count then
+        begin
+          // Also test the LastIndexOf overload that takes no count parameter.
+          actual := lastIndexOfItemIndex(factory(list), match, idx);
+          CheckEquals(expected, actual);
+
+          if idx = list.Count - 1 then
+          begin
+            // Also test the LastIndexOf overload that takes no index parameter.
+            actual := lastIndexOfItem(factory(list), match);
+            CheckEquals(expected, actual);
+          end;
+        end;
+      end;
+end;
+
+
+{$ENDREGION}
 
 
 {$REGION 'TTestNullableInteger'}
@@ -3921,12 +4113,58 @@ begin
   CheckEquals(9, index);
 end;
 
-procedure TArrayTest.TestLastIndexOf;
-var
-  index: Integer;
+procedure TArrayTest.TestIndexOf;
 begin
-  index := TArray.LastIndexOf<Integer>(TestData, 5);
-  CheckEquals(6, index);
+  TIndexOfTests(Self).TestIndexOf<TArray<Integer>>(
+    function(const seq: IEnumerable<Integer>): TArray<Integer>
+    begin
+      Result := seq.ToArray;
+    end,
+    function(const b: TArray<Integer>; const v: Integer): Integer
+    begin
+      Result := TArray.IndexOf<Integer>(b, v);
+    end,
+    function(const b: TArray<Integer>; const v, i: Integer): Integer
+    begin
+      Result := TArray.IndexOf<Integer>(b, v, i);
+    end,
+    function(const b: TArray<Integer>; const v, i, c: Integer): Integer
+    begin
+      Result := TArray.IndexOf<Integer>(b, v, i, c);
+    end,
+    function(const b: TArray<Integer>; const v, i, c: Integer; const eq: IEqualityComparer<Integer>): Integer
+    begin
+      Result := TArray.IndexOf<Integer>(b, v, i, c, eq);
+    end);
+end;
+
+procedure TArrayTest.TestLastIndexOf;
+begin
+  TIndexOfTests(Self).TestLastIndexOf<TArray<Integer>>(
+    function(const seq: IEnumerable<Integer>): TArray<Integer>
+    begin
+      Result := seq.ToArray;
+    end,
+    function(const b: TArray<Integer>; const v: Integer): Integer
+    begin
+      Result := TArray.LastIndexOf<Integer>(b, v);
+    end,
+    function(const b: TArray<Integer>; const v: Integer; const eq: IEqualityComparer<Integer>): Integer
+    begin
+      Result := TArray.LastIndexOf<Integer>(b, v, High(b), Length(b), eq);
+    end,
+    function(const b: TArray<Integer>; const v, i: Integer): Integer
+    begin
+      Result := TArray.LastIndexOf<Integer>(b, v, i);
+    end,
+    function(const b: TArray<Integer>; const v, i, c: Integer): Integer
+    begin
+      Result := TArray.LastIndexOf<Integer>(b, v, i, c);
+    end,
+    function(const b: TArray<Integer>; const v, i, c: Integer; const eq: IEqualityComparer<Integer>): Integer
+    begin
+      Result := TArray.LastIndexOf<Integer>(b, v, i, c, eq);
+    end);
 end;
 
 procedure TArrayTest.TestLastIndexOfSubRange;
@@ -4581,7 +4819,7 @@ procedure TTestBaseRoutines.TestLog2;
     i: NativeUInt;
   begin
     for i := Low to High do
-      CheckEquals(Log, Log2(i), Format('Log2(%u) did not return %u', [i, Log]));
+      CheckEquals(Log, Spring.Log2(i), Format('Log2(%u) did not return %u', [i, Log]));
   end;
 
 const

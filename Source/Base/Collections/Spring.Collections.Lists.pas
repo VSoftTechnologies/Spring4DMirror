@@ -86,6 +86,8 @@ type
     function InsertInternal(index: Integer; const item: T): Integer;
     procedure SetItemInternal(index: Integer; const value: T);
     procedure DoNotifyExtracted(count: Integer);
+    function IndexOfWithComparer(const item: T; index, count: Integer): Integer;
+    function LastIndexOfWithComparer(const item: T; index, count: Integer): Integer;
   protected
   {$REGION 'Property Accessors'}
     function GetCapacity: Integer; inline;
@@ -106,6 +108,7 @@ type
     function TryGetLast(var value: T): Boolean; overload;
     function TryGetLast(var value: T; const predicate: Predicate<T>): Boolean; overload;
     function TryGetSingle(var value: T): Boolean; overload;
+    function TryGetSpan(var span: Span<T>): Boolean;
     function AsSpan: Span<T>;
 
     property Capacity: Integer read GetCapacity write SetCapacity;
@@ -476,7 +479,7 @@ end;
 
 function TAbstractArrayList<T>.AsSpan: Span<T>;
 begin
-  Result.Init(Pointer(fItems), Count);
+  Result.Init(fItems, Count);
 end;
 
 function TAbstractArrayList<T>.Add(const item: T): Integer;
@@ -562,89 +565,110 @@ end;
 
 function TAbstractArrayList<T>.IndexOf(const item: T; index, count: Integer): Integer;
 var
-  listCount, i: Integer;
-{$IFDEF DELPHIXE7_UP}
-  i8: Int8;
-  i16: Int32;
-  i32: Int32;
-  i64: Int64;
-{$ENDIF}
-  obj: TObject;
-  items: Pointer;
-  compare: TCompareMethod;
+  listCount: Integer;
 begin
   listCount := Self.Count;
-  if Cardinal(listCount) >= Cardinal(index) then
-    if (count >= 0) and (listCount - count >= index) then
-      if CanInlineEquals then
-      begin
-        items := fItems;
-        Result := index;
-        {$POINTERMATH ON}
-        {$IFDEF DELPHIXE7_UP}
-        case GetTypeKind(T) of
-          tkClass, tkUString:;
-        else
-          case SizeOf(T) of
-            1: i8 := Int8((@item)^);
-            2: i16 := Int16((@item)^);
-            4: i32 := Int32((@item)^);
-            8: i64 := Int64((@item)^);
-          end;
-          case SizeOf(T) of
-            1: Spring.__SuppressWarning(i8);
-            2: Spring.__SuppressWarning(i16);
-            4: Spring.__SuppressWarning(i32);
-            8: Spring.__SuppressWarning(i64);
-          end;
-        end;
-        for i := 1 to count do //FI:W528
-        begin
-          case GetTypeKind(T) of
-            tkClass:
-            begin
-              obj := PObject(items)[Result];
-              if (obj = PObject(@item)^) or (Assigned(obj) and obj.Equals(PObject(@item)^)) then Exit;
-            end;
-            tkUString: if PString(items)[Result] = PString(@item)^ then Exit;
-          else
-            case SizeOf(T) of
-              1: if PInt8(items)[Result] = i8 then Exit;
-              2: if PInt16(items)[Result] = i16 then Exit;
-              4: if PInt32(items)[Result] = i32 then Exit;
-              8: if PInt64(items)[Result] = i64 then Exit;
-            end;
-          end;
-          Inc(Result);
-        end;
-        {$ELSE}
-        for i := 1 to count do
-        begin
-          obj := PObject(items)[Result];
-          if (obj = PObject(@item)^) or (Assigned(obj) and obj.Equals(PObject(@item)^)) then Exit;
-          Inc(Result);
-        end;
-        {$ENDIF}
-        {$POINTERMATH OFF}
-      end
-      else
-      begin
-        TMethod(compare).Data := Pointer(fComparer);
-        TMethod(compare).Code := PPVTable(fComparer)^[3];
-        items := fItems;
-        i := index + count;
-        repeat
-          if index = i then Break;
-          if compare(TArray<T>(items)[index], item) <> 0 then
-            Inc(index)
-          else
-            Exit(index);
-        until False;
-      end
-    else
-      RaiseHelper.ArgumentOutOfRange_Count
+
+  if Cardinal(index) > Cardinal(listCount) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Index);
+  if (count < 0) or (index > listCount - count) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Count);
+
+  if CanInlineEquals then
+    Result := TArray.IndexOf<T>(Pointer<T>.Idx(fItems), item, index, count)
   else
-    RaiseHelper.ArgumentOutOfRange_Index;
+    Result := IndexOfWithComparer(item, index, count);
+end;
+
+function TAbstractArrayList<T>.IndexOfWithComparer(const item: T; index, count: Integer): Integer;
+var
+  compare: TCompareMethod;
+  current: ^T;
+  hi: Integer;
+begin
+  if count > 0 then
+  begin
+    TMethod(compare).Data := Pointer(fComparer);
+    TMethod(compare).Code := PPVTable(fComparer)^[3];
+    current := @fItems[index];
+
+    Result := index;
+    hi := index + count;
+    repeat
+      if compare(current^, item) = 0 then Exit;
+      Inc(current);
+      Inc(Result);
+    until Result = hi;
+  end;
+  Result := -1;
+end;
+
+function TAbstractArrayList<T>.LastIndexOf(const item: T): Integer;
+var
+  listCount: Integer;
+begin
+  listCount := Count;
+  if listCount > 0 then
+    Result := LastIndexOf(item, listCount - 1, listCount)
+  else
+    Result := -1;
+end;
+
+function TAbstractArrayList<T>.LastIndexOf(const item: T; index: Integer): Integer;
+var
+  listCount: Integer;
+begin
+  listCount := Count;
+  if Cardinal(index) < Cardinal(listCount) then
+    Result := LastIndexOf(item, index, index + 1)
+  else
+    Result := RaiseHelper.ArgumentOutOfRange_Index;
+end;
+
+function TAbstractArrayList<T>.LastIndexOf(const item: T; index, count: Integer): Integer;
+var
+  listCount: Integer;
+begin
+  listCount := Self.Count;
+
+  if listCount = 0 then
+    if (index <> - 1) and (index <> 0) then
+      Exit(RaiseHelper.ArgumentOutOfRange_Index)
+    else if count <> 0 then
+      Exit(RaiseHelper.ArgumentOutOfRange_Count)
+    else
+      Exit(-1);
+  if Cardinal(index) >= Cardinal(listCount) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Index);
+  if Cardinal(count) > Cardinal(index + 1) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Count);
+
+  if CanInlineEquals then
+    Result := TArray.LastIndexOf<T>(Pointer<T>.Idx(fItems), item, index, count)
+  else
+    Result := LastIndexOfWithComparer(item, index, count);
+end;
+
+function TAbstractArrayList<T>.LastIndexOfWithComparer(const item: T; index, count: Integer): Integer;
+var
+  compare: TCompareMethod;
+  current: ^T;
+  lo: NativeInt;
+begin
+  if count > 0 then
+  begin
+    TMethod(compare).Data := Pointer(fComparer);
+    TMethod(compare).Code := PPVTable(fComparer)^[3];
+    current := @fItems[index];
+
+    Result := index;
+    lo := index - count;
+    repeat
+      if compare(current^, item) = 0 then Exit;
+      Dec(current);
+      Dec(Result);
+    until Result = lo;
+  end;
   Result := -1;
 end;
 
@@ -854,28 +878,6 @@ begin
   end;
 end;
 
-function TAbstractArrayList<T>.LastIndexOf(const item: T): Integer;
-var
-  listCount: Integer;
-begin
-  listCount := Count;
-  if listCount > 0 then
-    Result := LastIndexOf(item, listCount - 1, listCount)
-  else
-    Result := -1;
-end;
-
-function TAbstractArrayList<T>.LastIndexOf(const item: T; index: Integer): Integer;
-var
-  listCount: Integer;
-begin
-  listCount := Count;
-  if Cardinal(index) < Cardinal(listCount) then
-    Result := LastIndexOf(item, index, index + 1)
-  else
-    Result := RaiseHelper.ArgumentOutOfRange_Index;
-end;
-
 function TAbstractArrayList<T>.First: T;
 begin
   if Count > 0 then
@@ -917,95 +919,6 @@ begin
     RaiseHelper.NoElements;
     __SuppressWarning(Result);
   end;
-end;
-
-function TAbstractArrayList<T>.LastIndexOf(const item: T; index, count: Integer): Integer;
-var
-  listCount, i: Integer;
-{$IFDEF DELPHIXE7_UP}
-  i8: Int8;
-  i16: Int32;
-  i32: Int32;
-  i64: Int64;
-{$ENDIF}
-  obj: TObject;
-  items: Pointer;
-  compare: TCompareMethod;
-begin
-  listCount := Self.Count;
-  if listCount > 0 then
-    if Cardinal(index) < Cardinal(listCount) then
-      if Cardinal(count) <= Cardinal(index + 1) then
-        if CanInlineEquals then
-        begin
-          items := fItems;
-          Result := index;
-          {$POINTERMATH ON}
-          {$IFDEF DELPHIXE7_UP}
-          case GetTypeKind(T) of
-            tkClass, tkUString:;
-          else
-            case SizeOf(T) of
-              1: i8 := Int8((@item)^);
-              2: i16 := Int16((@item)^);
-              4: i32 := Int32((@item)^);
-              8: i64 := Int64((@item)^);
-            end;
-            case SizeOf(T) of
-              1: Spring.__SuppressWarning(i8);
-              2: Spring.__SuppressWarning(i16);
-              4: Spring.__SuppressWarning(i32);
-              8: Spring.__SuppressWarning(i64);
-            end;
-          end;
-          for i := 1 to count do //FI:W528
-          begin
-            case GetTypeKind(T) of
-              tkClass:
-              begin
-                obj := PObject(items)[Result];
-                if (obj = PObject(@item)^) or (Assigned(obj) and obj.Equals(PObject(@item)^)) then Exit;
-              end;
-              tkUString: if PString(items)[Result] = PString(@item)^ then Exit;
-            else
-              case SizeOf(T) of
-                1: if PInt8(items)[Result] = i8 then Exit;
-                2: if PInt16(items)[Result] = i16 then Exit;
-                4: if PInt32(items)[Result] = i32 then Exit;
-                8: if PInt64(items)[Result] = i64 then Exit;
-              end;
-            end;
-            Dec(Result);
-          end;
-          {$ELSE}
-          for i := 1 to count do
-          begin
-            obj := PObject(items)[Result];
-            if (obj = PObject(@item)^) or (Assigned(obj) and obj.Equals(PObject(@item)^)) then Exit;
-            Dec(Result);
-          end;
-          {$ENDIF}
-          {$POINTERMATH OFF}
-        end
-        else
-        begin
-          TMethod(compare).Data := Pointer(fComparer);
-          TMethod(compare).Code := PPVTable(fComparer)^[3];
-          items := fItems;
-          i := index - count;
-          repeat
-            if index = i then Break;
-            if compare(TArray<T>(items)[index], item) <> 0 then
-              Dec(index)
-            else
-              Exit(index);
-          until False;
-        end
-      else
-        RaiseHelper.ArgumentOutOfRange_Count
-    else
-      RaiseHelper.ArgumentOutOfRange_Index;
-  Result := -1;
 end;
 
 procedure TAbstractArrayList<T>.DeleteInternal(index: Integer;
@@ -1280,88 +1193,31 @@ end;
 procedure TAbstractArrayList<T>.Sort(const comparer: IComparer<T>; index, count: Integer);
 var
   listCount: Integer;
-  hi: Cardinal;
-  compare: TMethod;
 begin
   listCount := Self.Count;
-  if Cardinal(index) <= Cardinal(listCount) then
-    {$Q-}
-    if (count >= 0) and (index <= listCount - count) then
-    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-    begin
-      if count < 2 then
-        Exit;
 
-      {$Q-}
-      Inc(fVersion);
-      {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-      {$IFDEF DELPHIXE7_UP}
-      if GetTypeKind(T) = tkClass then
-        TTimSort.Sort(fItems, IComparer<Pointer>(comparer), index, count)
-      else
-      {$ENDIF}
-      begin
-        {$R-}
-        hi := Cardinal(index) + Cardinal(count);
-        {$IFDEF DELPHIXE7_UP}
-        case GetTypeKind(T) of
-          tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkLString, tkWString,
-          tkInterface, tkInt64, tkDynArray, tkUString, tkClassRef, tkPointer, tkProcedure:
-            case SizeOf(T) of
-              1: TArray.PatternDefeatingQuickSort_Int8(@fItems[index], @fItems[hi], IComparer<Int8>(comparer));
-              2: TArray.PatternDefeatingQuickSort_Int16(@fItems[index], @fItems[hi], IComparer<Int16>(comparer));
-              4: TArray.PatternDefeatingQuickSort_Int32(@fItems[index], @fItems[hi], IComparer<Int32>(comparer));
-              8: TArray.PatternDefeatingQuickSort_Int64(@fItems[index], @fItems[hi], IComparer<Int64>(comparer));
-            end;
-          tkFloat:
-            case SizeOf(T) of
-              4: TArray.PatternDefeatingQuickSort_Single(@fItems[index], @fItems[hi], IComparer<System.Single>(comparer));
-              10,16: TArray.PatternDefeatingQuickSort_Extended(@fItems[index], @fItems[hi], IComparer<Extended>(comparer));
-            else
-              if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
-                TArray.PatternDefeatingQuickSort_Double(@fItems[index], @fItems[hi], IComparer<Double>(comparer))
-              else
-                TArray.PatternDefeatingQuickSort_Int64(@fItems[index], @fItems[hi], IComparer<Int64>(comparer));
-            end;
-          tkString:
-          begin
-            compare.Data := Pointer(comparer);
-            compare.Code := PPVTable(comparer)^[3];
-            TSort_Ref.PatternDefeatingQuickSort(@fItems[index], @fItems[hi], SizeOf(T), TSort_Ref.TCompareMethod(compare));
-          end;
-          tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
-            if not System.HasWeakRef(T) then
-              case SizeOf(T) of
-                1: TArray.PatternDefeatingQuickSort_Int8(@fItems[index], @fItems[hi], IComparer<Int8>(comparer));
-                2: TArray.PatternDefeatingQuickSort_Int16(@fItems[index], @fItems[hi], IComparer<Int16>(comparer));
-                3: TArray.PatternDefeatingQuickSort_Int24(@fItems[index], @fItems[hi], IComparer<Int24>(comparer));
-                4: TArray.PatternDefeatingQuickSort_Int32(@fItems[index], @fItems[hi], IComparer<Int32>(comparer));
-              {$IFDEF PASS_64BIT_VALUE_REGISTER}
-                8: TArray.PatternDefeatingQuickSort_Int64(@fItems[index], @fItems[hi], IComparer<Int64>(comparer));
-              {$ENDIF}
-              else
-                compare.Data := Pointer(comparer);
-                compare.Code := PPVTable(comparer)^[3];
-                TSort_Ref.PatternDefeatingQuickSort(@fItems[index], @fItems[hi], SizeOf(T), TSort_Ref.TCompareMethod(compare));
-              end
-            else
-              TSort.PatternDefeatingQuickSort<T>(@fItems[index], @fItems[hi], comparer);
-          tkMethod:
-            TArray.PatternDefeatingQuickSort_Method(@fItems[index], @fItems[hi], IComparer<TMethodPointer>(comparer));
-        else{$ELSE}begin{$ENDIF}
-          compare.Data := Pointer(comparer);
-          compare.Code := PPVTable(comparer)^[3];
-          TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@fItems[index]), TSort.Pointer<T>.Idx(@fItems[hi]), TCompareMethod<T>(compare));
-        end;
-        {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
-      end;
-
-      Reset;
-    end
-    else
-      RaiseHelper.ArgumentOutOfRange_Count
+  if Cardinal(index) > Cardinal(listCount) then
+    RaiseHelper.ArgumentOutOfRange_Index
+  else if (count < 0) or (index > listCount - count) then
+    RaiseHelper.ArgumentOutOfRange_Count
   else
-    RaiseHelper.ArgumentOutOfRange_Index;
+  begin
+    {$Q-}
+    Inc(fVersion);
+    {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+    {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(T) = tkClass then
+      TTimSort.Sort(fItems, IComparer<Pointer>(comparer), index, count)
+    else
+      {$R-}
+      TArray.Sort<T>(Slice(TSlice<T>((@fItems[index])^), count), comparer);
+      {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+    {$ELSE}
+    TArray.Sort<T>(fItems, comparer, index, count);
+    {$ENDIF}
+
+    Reset;
+  end;
 end;
 
 procedure TAbstractArrayList<T>.Move(currentIndex, newIndex: Integer);
@@ -1427,7 +1283,7 @@ begin
       DoNotifyExtracted(Result);
     // hardcast to solve compiler glitch in older Delphi versions due to AddRange overload
     {$R-}
-    ICollectionInternal(collection).AddRange(Slice(TSlice<T>((@fItems[0])^), Result));
+    ICollectionInternal(collection).AddRange(Slice(TSlice<T>(Pointer(fItems)^), Result));
     {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
     if ItemType.IsManaged then
       System.Finalize(fItems[0], Result);
@@ -1446,7 +1302,7 @@ begin
   Result := DeleteAllInternal(predicate, caExtracted, @values);
   // hardcast to solve compiler glitch in older Delphi versions due to AddRange overload
   {$R-}
-  ICollectionInternal(collection).AddRange(Slice(TSlice<T>((@values[0])^), Result));
+  ICollectionInternal(collection).AddRange(Slice(TSlice<T>(Pointer(values)^), Result));
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
@@ -1668,22 +1524,13 @@ end;
 function TAbstractArrayList<T>.Contains(const value: T;
   const comparer: IEqualityComparer<T>): Boolean;
 var
-  i: Integer;
-  equals: TEqualsMethod;
-  items: Pointer;
+  index: NativeInt;
 begin
   if comparer = nil then
-    Result := IndexOf(value, 0, Count) >= 0
+    index := IndexOf(value)
   else
-  begin
-    TMethod(equals).Data := Pointer(comparer);
-    TMethod(equals).Code := PPVTable(comparer)^[3];
-    items := fItems;
-    for i := 1 to Count do
-      if equals(TArray<T>(items)[i - 1], value) then
-        Exit(True);
-    Result := False;
-  end;
+    index := TArray.IndexOf<T>(Pointer<T>.Idx(fItems), value, 0, Count, comparer);
+  Result := index >= 0;
 end;
 
 function TAbstractArrayList<T>.CopyTo(var values: TArray<T>; index: Integer): Integer;
@@ -1824,6 +1671,12 @@ begin
   end;
   value := Default(T);
   Result := False;
+end;
+
+function TAbstractArrayList<T>.TryGetSpan(var span: Span<T>): Boolean;
+begin
+  span.Init(fItems, Count);
+  Result := True;
 end;
 
 {$ENDREGION}

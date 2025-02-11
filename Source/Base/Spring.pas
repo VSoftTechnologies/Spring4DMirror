@@ -1012,6 +1012,12 @@ type
   Func<T1, T2, T3, T4, TResult> = reference to function(const arg1: T1; const arg2: T2; const arg3: T3; const arg4: T4): TResult;
 
   /// <summary>
+  ///   Encapsulates a method that has five parameters and returns a value of
+  ///   the type specified by the <i>TResult</i> parameter.
+  /// </summary>
+  Func<T1, T2, T3, T4, T5, TResult> = reference to function(const arg1: T1; const arg2: T2; const arg3: T3; const arg4: T4; const arg5: T5): TResult;
+
+  /// <summary>
   ///   Represents the method that defines a set of criteria and determines
   ///   whether the specified object meets those criteria.
   /// </summary>
@@ -2656,6 +2662,7 @@ type
   TArray = class
   private public type
     TCompareMethodRef = function(const left, right): Integer of object;
+    TEqualsMethod<T> = function(const left, right: T): Boolean of object;
     TQuickSortPartitionHelper<T> = record
       compare: TCompareMethod<T>;
       pivotIndex: NativeInt;
@@ -2750,6 +2757,26 @@ type
     class procedure PatternDefeatingQuickSort_Extended(lo, hi: Pointer; const comparer: IComparer<Extended>); static;
     class procedure PatternDefeatingQuickSort_Method(lo, hi: Pointer; const comparer: IComparer<TMethodPointer>); static;
     {$ENDIF}
+
+    class function IndexOf_Int8(lo: PInt8; const item: Int8; index, count: NativeInt): NativeInt; static; inline;
+    class function IndexOf_Int16(lo: PInt16; const item: Int16; index, count: NativeInt): NativeInt; static; inline;
+    class function IndexOf_Int32(lo: PInt32; const item: Int32; index, count: NativeInt): NativeInt; static; inline;
+    class function IndexOf_Int64(lo: PInt64; const item: Int64; index, count: NativeInt): NativeInt; static; inline;
+    class function IndexOf_Single(lo: PSingle; const item: Single; index, count: NativeInt): NativeInt; static;
+    class function IndexOf_Double(lo: PDouble; const item: Double; index, count: NativeInt): NativeInt; static;
+    class function IndexOf_Extended(lo: PExtended; const item: Extended; index, count: NativeInt): NativeInt; static;
+    class function IndexOf_Object(lo: PObject; const item: TObject; index, count: NativeInt): NativeInt; static;
+    class function IndexOf_UString(lo: PUnicodeString; const item: string; index, count: NativeInt): NativeInt; static;
+
+    class function LastIndexOf_Int8(lo: PInt8; const item: Int8; index, count: NativeInt): NativeInt; static; inline;
+    class function LastIndexOf_Int16(lo: PInt16; const item: Int16; index, count: NativeInt): NativeInt; static; inline;
+    class function LastIndexOf_Int32(lo: PInt32; const item: Int32; index, count: NativeInt): NativeInt; static; inline;
+    class function LastIndexOf_Int64(lo: PInt64; const item: Int64; index, count: NativeInt): NativeInt; static; inline;
+    class function LastIndexOf_Single(lo: PSingle; const item: Single; index, count: NativeInt): NativeInt; static;
+    class function LastIndexOf_Double(lo: PDouble; const item: Double; index, count: NativeInt): NativeInt; static;
+    class function LastIndexOf_Extended(lo: PExtended; const item: Extended; index, count: NativeInt): NativeInt; static;
+    class function LastIndexOf_Object(lo: PObject; const item: TObject; index, count: NativeInt): NativeInt; static;
+    class function LastIndexOf_UString(lo: PUnicodeString; const item: string; index, count: NativeInt): NativeInt; static;
   public
     class procedure IntroSort<T>(const values: array of T); overload; static;
     class procedure IntroSort<T>(const values: array of T; const comparer: IComparer<T>); overload; static;
@@ -2947,7 +2974,15 @@ type
     ///   occurrence within the entire array.
     /// </summary>
     class function IndexOf<T>(const values: array of T;
-      const item: T): Integer; overload; static;
+      const item: T): NativeInt; overload; static;
+
+    /// <summary>
+    ///   Searches for the specified element and returns the index of the first
+    ///   occurrence within the entire array using the specified equality
+    ///   comparer.
+    /// </summary>
+    class function IndexOf<T>(const values: array of T; const item: T;
+      const comparer: IEqualityComparer<T>): NativeInt; overload; static;
 
     /// <summary>
     ///   Searches for the specified element and returns the index of the first
@@ -2955,7 +2990,7 @@ type
     ///   from the specified index to the last element.
     /// </summary>
     class function IndexOf<T>(const values: array of T; const item: T;
-      index: Integer): Integer; overload; static;
+      index: NativeInt): NativeInt; overload; static;
 
     /// <summary>
     ///   Searches for the specified element and returns the index of the first
@@ -2963,7 +2998,15 @@ type
     ///   the specified index and contains the specified number of elements.
     /// </summary>
     class function IndexOf<T>(const values: array of T; const item: T;
-      index, count: Integer): Integer; overload; static;
+      index, count: NativeInt): NativeInt; overload; static;
+
+    /// <summary>
+    ///   Searches for the specified element and returns the index of the first
+    ///   occurrence within the range of elements in the array that starts at
+    ///   the specified index and contains the specified number of elements.
+    /// </summary>
+    class function IndexOf<T>(const values: Pointer<T>.Idx; const item: T;
+      index, count: NativeInt): NativeInt; overload; static;
 
     /// <summary>
     ///   Searches for the specified element and returns the index of the first
@@ -2972,15 +3015,33 @@ type
     ///   using the specified equality comparer.
     /// </summary>
     class function IndexOf<T>(const values: array of T; const item: T;
-      index, count: Integer;
-      const comparer: IEqualityComparer<T>): Integer; overload; static;
+      index, count: NativeInt;
+      const comparer: IEqualityComparer<T>): NativeInt; overload; static;
+
+    /// <summary>
+    ///   Searches for the specified element and returns the index of the first
+    ///   occurrence within the range of elements in the array that starts at
+    ///   the specified index and contains the specified number of elements
+    ///   using the specified equality comparer.
+    /// </summary>
+    class function IndexOf<T>(const values: Pointer<T>.Idx; const item: T;
+      index, count: NativeInt;
+      const comparer: IEqualityComparer<T>): NativeInt; overload; static;
 
     /// <summary>
     ///   Searches for the specified element and returns the index of the last
     ///   occurrence within the entire array.
     /// </summary>
     class function LastIndexOf<T>(const values: array of T;
-      const item: T): Integer; overload; static;
+      const item: T): NativeInt; overload; static;
+
+    /// <summary>
+    ///   Searches for the specified element and returns the index of the last
+    ///   occurrence within the entire array using the specified equality
+    ///   comparer.
+    /// </summary>
+    class function LastIndexOf<T>(const values: array of T; const item: T;
+      const comparer: IEqualityComparer<T>): NativeInt; overload; static;
 
     /// <summary>
     ///   Searches for the specified element and returns the index of the last
@@ -2988,7 +3049,7 @@ type
     ///   from the specified index to the last element.
     /// </summary>
     class function LastIndexOf<T>(const values: array of T; const item: T;
-      index: Integer): Integer; overload; static;
+      index: NativeInt): NativeInt; overload; static;
 
     /// <summary>
     ///   Searches for the specified element and returns the index of the last
@@ -2996,7 +3057,15 @@ type
     ///   the specified index and contains the specified number of elements.
     /// </summary>
     class function LastIndexOf<T>(const values: array of T; const item: T;
-      index, count: Integer): Integer; overload; static;
+      index, count: NativeInt): NativeInt; overload; static;
+
+    /// <summary>
+    ///   Searches for the specified element and returns the index of the last
+    ///   occurrence within the range of elements in the array that starts at
+    ///   the specified index and contains the specified number of elements.
+    /// </summary>
+    class function LastIndexOf<T>(const values: Pointer<T>.Idx; const item: T;
+      index, count: NativeInt): NativeInt; overload; static;
 
     /// <summary>
     ///   Searches for the specified element and returns the index of the last
@@ -3005,8 +3074,18 @@ type
     ///   using the specified equality comparer.
     /// </summary>
     class function LastIndexOf<T>(const values: array of T; const item: T;
-      index, count: Integer;
-      const comparer: IEqualityComparer<T>): Integer; overload; static;
+      index, count: NativeInt;
+      const comparer: IEqualityComparer<T>): NativeInt; overload; static;
+
+    /// <summary>
+    ///   Searches for the specified element and returns the index of the last
+    ///   occurrence within the range of elements in the array that starts at
+    ///   the specified index and contains the specified number of elements
+    ///   using the specified equality comparer.
+    /// </summary>
+    class function LastIndexOf<T>(const values: Pointer<T>.Idx; const item: T;
+      index, count: NativeInt;
+      const comparer: IEqualityComparer<T>): NativeInt; overload; static;
 
     /// <summary>
     ///   Swaps the values of the specified variables.
@@ -11497,17 +11576,14 @@ begin
     end;
 end;
 
-class function TArray.Contains<T>(const values: array of T;
-  const item: T): Boolean;
+class function TArray.Contains<T>(const values: array of T; const item: T): Boolean;
 var
-  comparer: Pointer;
-  i: Integer;
+  index: NativeInt;
 begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-  for i := Low(Values) to High(Values) do
-    if IEqualityComparer<T>(comparer).Equals(values[i], item) then
-      Exit(True);
-  Result := False;
+  {$R-}
+  index := IndexOf<T>(Pointer<T>.Idx(@values[0]), item, 0, Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  Result := index >= 0;
 end;
 
 class function TArray.Copy<T>(const values: array of T): TArray<T>;
@@ -11558,89 +11634,569 @@ begin
     action(values[i]);
 end;
 
-class function TArray.IndexOf<T>(const values: array of T; const item: T): Integer;
+class function TArray.IndexOf_Int8(lo: PInt8; const item: Int8;
+  index, count: NativeInt): NativeInt;
 var
-  comparer: Pointer;
+  i: NativeInt;
 begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-  Result := IndexOf<T>(values, item, 0, Length(values), IEqualityComparer<T>(comparer));
-end;
-
-class function TArray.IndexOf<T>(const values: array of T; const item: T;
-  index: Integer): Integer;
-var
-  comparer: Pointer;
-begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-  Result := IndexOf<T>(values, item, index, Length(values) - index, IEqualityComparer<T>(comparer));
-end;
-
-class function TArray.IndexOf<T>(const values: array of T; const item: T;
-  index, count: Integer): Integer;
-var
-  comparer: Pointer;
-begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-  Result := IndexOf<T>(values, item, index, count, IEqualityComparer<T>(comparer));
-end;
-
-class function TArray.IndexOf<T>(const values: array of T; const item: T;
-  index, count: Integer; const comparer: IEqualityComparer<T>): Integer;
-var
-  i: Integer;
-begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckNotNull(Assigned(comparer), 'comparer');
-  Guard.CheckRange((index >= 0) and (index <= Length(values)), 'index');
-  Guard.CheckRange((count >= 0) and (count <= Length(values) - index), 'count');
-{$ENDIF}
-
-  for i := index to index + count - 1 do
-    if comparer.Equals(values[i], item) then
-      Exit(i);
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Inc(Result);
+  end;
   Result := -1;
 end;
 
-class function TArray.LastIndexOf<T>(const values: array of T;
-  const item: T): Integer;
+class function TArray.IndexOf_Int16(lo: PInt16; const item: Int16;
+  index, count: NativeInt): NativeInt;
 var
-  comparer: Pointer;
+  i: NativeInt;
 begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-  Result := LastIndexOf<T>(values, item, High(values), Length(values), IEqualityComparer<T>(comparer));
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Inc(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.IndexOf_Int32(lo: PInt32; const item: Int32;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Inc(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.IndexOf_Int64(lo: PInt64; const item: Int64;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Inc(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.IndexOf_Single(lo: PSingle; const item: Single;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Inc(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.IndexOf_Double(lo: PDouble; const item: Double;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Inc(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.IndexOf_Extended(lo: PExtended; const item: Extended;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Inc(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.IndexOf_Object(lo: PObject; const item: TObject;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+  obj: TObject;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    obj := lo[Result];
+    {$POINTERMATH OFF}
+    if (obj = item) or (Assigned(obj) and obj.Equals(item)) then Exit;
+    Inc(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.IndexOf_UString(lo: PUnicodeString; const item: string;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Inc(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.IndexOf<T>(const values: array of T; const item: T): NativeInt;
+begin
+  {$R-}
+  Result := IndexOf<T>(Pointer<T>.Idx(@values[0]), item, 0, Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class function TArray.IndexOf<T>(const values: array of T; const item: T;
+  const comparer: IEqualityComparer<T>): NativeInt;
+begin
+  {$R-}
+  Result := IndexOf<T>(Pointer<T>.Idx(@values[0]), item, 0, Length(values), comparer);
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class function TArray.IndexOf<T>(const values: array of T; const item: T; index: NativeInt): NativeInt;
+begin
+  {$R-}
+  Result := IndexOf<T>(Pointer<T>.Idx(@values[0]), item, index, Length(values) - index, nil);
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class function TArray.IndexOf<T>(const values: array of T; const item: T;
+  index, count: NativeInt): NativeInt;
+var
+  len: NativeInt;
+begin
+  len := Length(values);
+  if NativeUInt(index) > NativeUInt(len) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Index);
+  if NativeUInt(count) > NativeUInt(len - index) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Count);
+
+  {$R-}
+  Result := IndexOf<T>(Pointer<T>.Idx(@values[0]), item, index, count);
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class function TArray.IndexOf<T>(const values: Pointer<T>.Idx; const item: T;
+  index, count: NativeInt): NativeInt;
+begin
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkInteger, tkChar, tkEnumeration, tkWChar, tkInterface, tkInt64, tkClassRef, tkPointer, tkProcedure:
+      case SizeOf(T) of
+        1: Result := IndexOf_Int8(Pointer(values), PInt8(@item)^, index, count);
+        2: Result := IndexOf_Int16(Pointer(values), PInt16(@item)^, index, count);
+        4: Result := IndexOf_Int32(Pointer(values), PInt32(@item)^, index, count);
+        8: Result := IndexOf_Int64(Pointer(values), PInt64(@item)^, index, count);
+      else
+        __SuppressWarning(Result);
+      end;
+    tkFloat:
+      case SizeOf(T) of
+        // ftSingle
+        4: Result := IndexOf_Single(Pointer(values), PSingle(@item)^, index, count);
+        // ftDouble, ftCurrency, ftComp
+        8:
+          if TypeInfo(T) = TypeInfo(Double) then
+            Result := IndexOf_Double(Pointer(values), PDouble(@item)^, index, count)
+          else if TypeInfo(T) = TypeInfo(Currency) then
+            Result := IndexOf_Int64(Pointer(values), PInt64(@item)^, index, count)
+          else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+            Result := IndexOf_Double(Pointer(values), PDouble(@item)^, index, count)
+          else
+            Result := IndexOf_Int64(Pointer(values), PInt64(@item)^, index, count);
+        // ftExtended
+        10, 16: Result := IndexOf_Extended(Pointer(values), PExtended(@item)^, index, count);
+      else
+        __SuppressWarning(Result);
+      end;
+    tkClass:
+      Result := IndexOf_Object(Pointer(values), PObject(@item)^, index, count);
+    tkUString:
+      Result := IndexOf_UString(Pointer(values), PUnicodeString(@item)^, index, count);
+  else{$ELSE}begin{$ENDIF}
+    Result := IndexOf<T>(values, item, index, count, nil);
+  end;
+end;
+
+class function TArray.IndexOf<T>(const values: array of T; const item: T;
+  index, count: NativeInt; const comparer: IEqualityComparer<T>): NativeInt;
+var
+  len: NativeInt;
+begin
+  len := Length(values);
+  if NativeUInt(index) > NativeUInt(len) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Index);
+  if NativeUInt(count) > NativeUInt(len - index) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Count);
+
+  {$R-}
+  Result := IndexOf<T>(Pointer<T>.Idx(@values[0]), item, index, count, comparer);
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class function TArray.IndexOf<T>(const values: Pointer<T>.Idx; const item: T;
+  index, count: NativeInt; const comparer: IEqualityComparer<T>): NativeInt;
+var
+  comparerPtr: Pointer;
+  equals: TEqualsMethod<T>;
+  current: ^T;
+  hi: NativeInt;
+begin
+  if count > 0 then
+  begin
+    comparerPtr := Pointer(comparer);
+    if not Assigned(comparerPtr) then
+      comparerPtr := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
+    TMethod(equals).Data := comparerPtr;
+    TMethod(equals).Code := PPVTable(comparerPtr)^[3];
+    {$R-}
+    current := @values[index];
+    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+
+    Result := index;
+    hi := index + count;
+    repeat
+      if equals(current^, item) then Exit;
+      Inc(current);
+      Inc(Result);
+    until Result = hi;
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_Int8(lo: PInt8; const item: Int8;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_Int16(lo: PInt16; const item: Int16;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_Int32(lo: PInt32; const item: Int32;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_Int64(lo: PInt64; const item: Int64;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_Single(lo: PSingle; const item: Single;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_Double(lo: PDouble; const item: Double;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_Extended(lo: PExtended; const item: Extended;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_Object(lo: PObject; const item: TObject;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+  obj: TObject;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    obj := lo[Result];
+    {$POINTERMATH OFF}
+    if (obj = item) or (Assigned(obj) and obj.Equals(item)) then Exit;
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf_UString(lo: PUnicodeString; const item: string;
+  index, count: NativeInt): NativeInt;
+var
+  i: NativeInt;
+begin
+  Result := index;
+  for i := 1 to count do
+  begin
+    {$POINTERMATH ON}
+    if lo[Result] = item then Exit;
+    {$POINTERMATH OFF}
+    Dec(Result);
+  end;
+  Result := -1;
+end;
+
+class function TArray.LastIndexOf<T>(const values: array of T; const item: T): NativeInt;
+begin
+  {$R-}
+  Result := LastIndexOf<T>(Pointer<T>.Idx(@values[0]), item, High(values), Length(values));
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
 class function TArray.LastIndexOf<T>(const values: array of T; const item: T;
-  index: Integer): Integer;
-var
-  comparer: Pointer;
+  const comparer: IEqualityComparer<T>): NativeInt;
 begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-  Result := LastIndexOf<T>(values, item, index, Length(values) - index, IEqualityComparer<T>(comparer));
+  {$R-}
+  Result := LastIndexOf<T>(Pointer<T>.Idx(@values[0]), item, High(values), Length(values), comparer);
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class function TArray.LastIndexOf<T>(const values: array of T; const item: T; index: NativeInt): NativeInt;
+var
+  count: NativeInt;
+begin
+  count := Length(values);
+  if count > 0 then
+    count := index + 1;
+  {$R-}
+  Result := LastIndexOf<T>(Pointer<T>.Idx(@values[0]), item, index, count, nil);
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
 class function TArray.LastIndexOf<T>(const values: array of T; const item: T;
-  index, count: Integer): Integer;
+  index, count: NativeInt): NativeInt;
 var
-  comparer: Pointer;
+  len: NativeInt;
 begin
-  comparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-  Result := LastIndexOf<T>(values, item, index, count, IEqualityComparer<T>(comparer));
+  len := Length(values);
+  if len = 0 then
+    if (index <> -1) and (index <> 0) then
+      Exit(RaiseHelper.ArgumentOutOfRange_Index)
+    else if count <> 0 then
+      Exit(RaiseHelper.ArgumentOutOfRange_Count)
+    else
+      Exit(-1);
+
+  if NativeUInt(index) >= NativeUInt(len) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Index);
+  if NativeUInt(count) > NativeUInt(index + 1) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Count);
+
+  {$R-}
+  Result := LastIndexOf<T>(Pointer<T>.Idx(@values[0]), item, index, count);
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class function TArray.LastIndexOf<T>(const values: Pointer<T>.Idx; const item: T;
+  index, count: NativeInt): NativeInt;
+begin
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkInteger, tkChar, tkEnumeration, tkWChar, tkInterface, tkInt64, tkClassRef, tkPointer, tkProcedure:
+      case SizeOf(T) of
+        1: Result := LastIndexOf_Int8(Pointer(values), PInt8(@item)^, index, count);
+        2: Result := LastIndexOf_Int16(Pointer(values), PInt16(@item)^, index, count);
+        4: Result := LastIndexOf_Int32(Pointer(values), PInt32(@item)^, index, count);
+        8: Result := LastIndexOf_Int64(Pointer(values), PInt64(@item)^, index, count);
+      else
+        __SuppressWarning(Result);
+      end;
+    tkFloat:
+      case SizeOf(T) of
+        // ftSingle
+        4: Result := LastIndexOf_Single(Pointer(values), PSingle(@item)^, index, count);
+        // ftDouble, ftCurrency, ftComp
+        8:
+          if TypeInfo(T) = TypeInfo(Double) then
+            Result := LastIndexOf_Double(Pointer(values), PDouble(@item)^, index, count)
+          else if TypeInfo(T) = TypeInfo(Currency) then
+            Result := LastIndexOf_Int64(Pointer(values), PInt64(@item)^, index, count)
+          else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+            Result := LastIndexOf_Double(Pointer(values), PDouble(@item)^, index, count)
+          else
+            Result := LastIndexOf_Int64(Pointer(values), PInt64(@item)^, index, count);
+        // ftExtended
+        10, 16: Result := LastIndexOf_Extended(Pointer(values), PExtended(@item)^, index, count);
+      else
+        __SuppressWarning(Result);
+      end;
+    tkClass:
+      Result := LastIndexOf_Object(Pointer(values), PObject(@item)^, index, count);
+    tkUString:
+      Result := LastIndexOf_UString(Pointer(values), PUnicodeString(@item)^, index, count);
+  else{$ELSE}begin{$ENDIF}
+    Result := LastIndexOf<T>(values, item, index, count, nil);
+  end;
 end;
 
 class function TArray.LastIndexOf<T>(const values: array of T; const item: T;
-  index, count: Integer; const comparer: IEqualityComparer<T>): Integer;
+  index, count: NativeInt; const comparer: IEqualityComparer<T>): NativeInt;
 var
-  i: Integer;
+  len: NativeInt;
 begin
-{$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckRange((index >= 0) and (index <= Length(values)), 'index');
-  Guard.CheckRange((count >= 0) and (count <= index + 1), 'count');
-{$ENDIF}
+  len := Length(values);
+  if len = 0 then
+  begin
+    if (index <> -1) and (index <> 0) then
+      Exit(RaiseHelper.ArgumentOutOfRange_Index);
+    if count <> 0 then
+      Exit(RaiseHelper.ArgumentOutOfRange_Count);
+    Exit(-1);
+  end;
 
-  for i := index downto index - count do
-    if comparer.Equals(values[i], item) then
-      Exit(i);
+  if NativeUInt(index) >= NativeUInt(len) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Index);
+  if (count < 0) or (index - count + 1 < 0) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Count);
+
+  {$R-}
+  Result := LastIndexOf<T>(Pointer<T>.Idx(@values[0]), item, index, count, comparer);
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class function TArray.LastIndexOf<T>(const values: Pointer<T>.Idx; const item: T;
+  index, count: NativeInt; const comparer: IEqualityComparer<T>): NativeInt;
+var
+  comparerPtr: Pointer;
+  equals: TEqualsMethod<T>;
+  current: ^T;
+  lo: NativeInt;
+begin
+  if count > 0 then
+  begin
+    comparerPtr := Pointer(comparer);
+    if not Assigned(comparerPtr) then
+      comparerPtr := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
+    TMethod(equals).Data := comparerPtr;
+    TMethod(equals).Code := PPVTable(comparerPtr)^[3];
+    {$R-}
+    current := @values[index];
+    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+
+    Result := index;
+    lo := index - count;
+    repeat
+      if equals(current^, item) then Exit;
+      Dec(current);
+      Dec(Result);
+    until Result = lo;
+  end;
   Result := -1;
 end;
 
@@ -14624,7 +15180,9 @@ begin
         if PUnicodeString(@fData[i])^ <> PUnicodeString(@items[i])^ then
           Exit(False);
   else
+    {$R-}
     span.Init(@items[0], System.Length(items));
+    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
     Result := InternalEquals(span);
   end;
 end;

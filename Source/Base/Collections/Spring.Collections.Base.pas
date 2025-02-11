@@ -37,7 +37,8 @@ uses
   Spring.Collections.Events,
   Spring.Collections.Trees,
   Spring.Events.Base,
-  Spring.HashTable;
+  Spring.HashTable,
+  Spring.Span;
 
 {$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
@@ -235,6 +236,7 @@ type
     function TryGetLast(var value: T; const predicate: Predicate<T>): Boolean; overload;
     function TryGetSingle(var value: T): Boolean; overload;
     function TryGetSingle(var value: T; const predicate: Predicate<T>): Boolean; overload;
+    function TryGetSpan(var span: Span<T>): Boolean;
 
     {$IFDEF DELPHIXE7_UP}
     class procedure __SuppressWarning(var value); static; inline;
@@ -459,6 +461,7 @@ type
     function GetNonEnumeratedCount: Integer;
     procedure GetEnumerator(var result; var enumeratorVTables: TExtensionEnumeratorVtables;
       typeInfo, getCurrent: Pointer);
+    function TryGetSpan(var span: Span<Pointer>): Boolean;
     procedure MemoizeToArray(var values: Pointer; typeInfo: PTypeInfo);
     procedure PartitionToArray(var values: Pointer; typeInfo: PTypeInfo; getCurrent: TGetCurrent);
     procedure RepeatedToArray(var values: Pointer; typeInfo: PTypeInfo);
@@ -520,6 +523,7 @@ type
   {$ENDREGION}
   public
     function Any: Boolean; overload;
+    function Contains(const value: T): Boolean; overload;
     function GetEnumerator: IEnumerator<T>;
     function Skip(count: Integer): IEnumerable<T>;
     function Take(count: Integer): IEnumerable<T>;
@@ -527,6 +531,7 @@ type
     function TryGetElementAt(var value: T; index: Integer): Boolean;
     function TryGetFirst(var value: T): Boolean; overload;
     function TryGetLast(var value: T): Boolean; overload;
+    function TryGetSpan(var span: Span<T>): Boolean;
   end;
 
   PIteratorBlock = ^TIteratorBlock;
@@ -1601,11 +1606,40 @@ function TEnumerableBase.Contains(const value; comparer: Pointer;
   equals: TEqualsValue): Boolean;
 var
   enumerator: IEnumerator;
+  obj: TObject;
 begin
-  if not Assigned(comparer) then
-    comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
-
   enumerator := IEnumerable(this).GetEnumerator;
+
+  if not Assigned(comparer) then
+    case fElementType.Kind of
+      tkInteger, tkChar, tkEnumeration, tkWChar, tkInterface, tkInt64, tkClassRef, tkPointer, tkProcedure:
+      begin
+        case GetTypeSize(fElementType) of
+          1: while enumerator.MoveNext do if IEnumerator<Int8>(enumerator).Current = Int8(value) then Exit(True);
+          2: while enumerator.MoveNext do if IEnumerator<Int16>(enumerator).Current = Int16(value) then Exit(True);
+          4: while enumerator.MoveNext do if IEnumerator<Int32>(enumerator).Current = Int32(value) then Exit(True);
+          8: while enumerator.MoveNext do if IEnumerator<Int64>(enumerator).Current = Int64(value) then Exit(True);
+        end;
+        Exit(False);
+      end;
+      tkClass:
+      begin
+        while enumerator.MoveNext do
+        begin
+          obj := IEnumerator<TObject>(enumerator).Current;
+          if (obj = TObject(value)) or (Assigned(obj) and obj.Equals(TObject(value))) then Exit(True);
+        end;
+        Exit(False);
+      end;
+      tkUString:
+      begin
+        while enumerator.MoveNext do if IEnumerator<string>(enumerator).Current = string(value) then Exit(True);
+        Exit(False);
+      end
+    else
+      comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
+    end;
+
   while enumerator.MoveNext do
     if equals(enumerator, IInterface(comparer), value) then
       Exit(True);
@@ -3181,6 +3215,11 @@ function TEnumerableBase<T>.TryGetSingle(var value: T;
   const predicate: Predicate<T>): Boolean;
 begin
   Result := TryGetSingle(value, PInterface(@predicate)^, TCollectionThunks<T>.GetCurrentWithPredicate, TCollectionThunks<T>.GetDefault) = 1;
+end;
+
+function TEnumerableBase<T>.TryGetSpan(var span: Span<T>): Boolean;
+begin
+  Result := False;
 end;
 
 function TEnumerableBase<T>.Union(const second: IEnumerable<T>): IEnumerable<T>; //FI:W521
@@ -6426,6 +6465,32 @@ begin
   Result := False;
 end;
 
+function TEnumerableExtension.TryGetSpan(var span: Span<Pointer>): Boolean;
+var
+  index, count: NativeInt;
+begin
+  case fKind of
+    TExtensionKind.Items:
+    begin
+      span.Init(fItems, fCount);
+      Exit(True);
+    end;
+    TExtensionKind.Partition:
+    begin
+      if IEnumerable<Pointer>(fSource).TryGetSpan(span) then
+      begin
+        index := fIndex;
+        count := span.Length - index;
+        if NativeUInt(fCount) < NativeUInt(count) then
+          count := fCount;
+        span.Init(span[index], count);
+        Exit(True);
+      end;
+    end
+  end;
+  Result := False;
+end;
+
 {$ENDREGION}
 
 
@@ -6463,19 +6528,93 @@ begin
     TCollectionThunks<T>.Assign, SizeOf(T));
 end;
 
+function TEnumerableExtension<T>.Contains(const value: T): Boolean;
+var
+  items: Pointer<T>.Idx;
+  span: Span<T>;
+  count, index, foundIndex: Integer;
+  comparer: Pointer;
+begin
+  case fKind of
+    TExtensionKind.Empty: Exit(False);
+    TExtensionKind.Repeated,
+    TExtensionKind.Items,
+    TExtensionKind.Partition:
+    repeat
+      if not Assigned(fSource) then
+      begin
+        items := Pointer<T>.Idx(fItems);
+        count := fCount;
+        if fKind = TExtensionKind.Repeated then
+          count := 1;
+        index := 0;
+      end
+      else if fSource.TryGetSpan(span) then
+      begin
+        items := Pointer<T>.Idx(span.Data);
+        count := span.Length;
+        index := fIndex;
+        Dec(count, index);
+        // after getting the count from the list and
+        // calculating the remaining range we can possibly already exit
+        if count < 0 then
+          count := 0
+        // limit the range for the IndexOf call
+        else if count > fCount then
+          count := fCount;
+      end else Break; // if TryGetSpan returned False this will lead to inherited
+      foundIndex := TArray.IndexOf<T>(items, value, index, count);
+      Exit(foundIndex >= 0);
+    until True;
+    TExtensionKind.DefaultIfEmpty,
+    TExtensionKind.Distinct,
+    TExtensionKind.Union,
+    TExtensionKind.Concat,
+    TExtensionKind.Ordered,
+    TExtensionKind.Reversed,
+    TExtensionKind.Shuffled:
+    repeat
+      comparer := _LookupVtableInfo(giEqualityComparer, fElementType, SizeOf(T));
+      case fKind of
+        TExtensionKind.Distinct,
+        TExtensionKind.Union:
+          // if the used comparer is not the default one we cannot directly call fSource.Contains
+          if Pointer(fPredicate) <> comparer then Break;
+      end;
+
+      Result := fSource.Contains(value);
+      if Result then Exit;
+
+      case fKind of
+        TExtensionKind.DefaultIfEmpty:
+        begin
+          Result := fSource.IsEmpty;
+          if Result then
+            Result := IEqualityComparer<T>(comparer).Equals(value, fItems[0]);
+        end;
+        TExtensionKind.Union,
+        TExtensionKind.Concat:
+          Result := IEnumerable<T>(fPredicate).Contains(value);
+      end;
+      Exit;
+    until True;
+  end;
+  Result := inherited Contains(value);
+end;
+
 function TEnumerableExtension<T>.CopyTo(var values: TArray<T>; index: Integer): Integer;
 begin
-  if fKind = TExtensionKind.Items then
-  begin
-    Result := fCount;
-    if Result > 0 then
-      if TType.IsManaged<T> then
-        MoveManaged(@fItems[0], @values[index], TypeInfo(T), Result)
-      else
-        System.Move(fItems[0], values[index], SizeOf(T) * Result);
-  end
+  case fKind of
+    TExtensionKind.Items:
+    begin
+      Result := fCount;
+      if Result > 0 then
+        if TType.IsManaged<T> then
+          MoveManaged(@fItems[0], @values[index], TypeInfo(T), Result)
+        else
+          System.Move(fItems[0], values[index], SizeOf(T) * Result);
+    end;
   else
-  begin
     RaiseHelper.NotSupported;
     Result := 0;
   end;
@@ -6531,14 +6670,34 @@ begin
 end;
 
 function TEnumerableExtension<T>.IndexOf(const item: T; index, count: Integer): Integer;
+var
+  itemCount: Integer;
+  offset: Integer;
 begin
-  // TODO: optimize - combine all IndexOf calls
-  {$IFDEF DELPHIXE7_UP}
-  Result := TArray.IndexOf<T>(Slice(TSlice<T>(Pointer(fItems)^), fCount), T(item), index, count);
-  {$ELSE}
-  // glitch in compiler with passing slice to overload, gives bogus E2193
-  Result := TArray.IndexOf<T>(fItems, item, index, count);
-  {$ENDIF}
+  itemCount := fCount;
+
+  if Cardinal(index) > Cardinal(itemCount) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Index);
+  if (count < 0) or (index > itemCount - count) then
+    Exit(RaiseHelper.ArgumentOutOfRange_Count);
+
+  case fKind of
+    TExtensionKind.Repeated:
+    begin
+      offset := 0;
+      count := 1;
+    end;
+    TExtensionKind.Items:
+      offset := index;
+  else
+    Exit(-1);
+  end;
+  Result := TArray.IndexOf<T>(Pointer<T>.Idx(fItems), item, offset, count);
+  // in case of TExtensionKind.Repeated we only checked that one item
+  // but index could have been > 0 which is why we adjust
+  // for TExtensionKind.Items when Result = 0 then also index was 0
+  if Result = 0 then
+    Result := index;
 end;
 
 function TEnumerableExtension<T>.Skip(count: Integer): IEnumerable<T>;
@@ -6590,6 +6749,11 @@ begin
   Result := TEnumerableExtension(Self).TryGetLast(value,
     TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault,
     TCollectionThunks<T>.Assign, SizeOf(T));
+end;
+
+function TEnumerableExtension<T>.TryGetSpan(var span: Span<T>): Boolean;
+begin
+  Result := TEnumerableExtension(Self).TryGetSpan(Span<Pointer>(span));
 end;
 
 {$ENDREGION}
