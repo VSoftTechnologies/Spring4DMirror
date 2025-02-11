@@ -103,7 +103,7 @@ type
     function TryGetElementAt(var item: T; index: Integer): Boolean;
     property Capacity: Integer read GetCapacity;
   public
-    constructor Create(capacity: Integer; const comparer: IEqualityComparer<T>);
+    constructor Create(elementType: PTypeInfo; capacity: Integer; const comparer: IEqualityComparer<T>);
     procedure AfterConstruction; override;
     procedure BeforeDestruction; override;
 
@@ -185,17 +185,6 @@ type
   {$REGION 'Implements ISet<T>'}
     procedure TrimExcess;
   {$ENDREGION}
-  end;
-
-  TFoldedHashSet<T> = class(THashSet<T>)
-  private
-    fElementType: PTypeInfo;
-  protected
-    function GetElementType: PTypeInfo; override;
-  public
-    constructor Create(elementType: PTypeInfo;
-      capacity: Integer;
-      const comparer: IEqualityComparer<T>);
   end;
 
 implementation
@@ -366,21 +355,19 @@ end;
 
 {$REGION 'THashSet<T>'}
 
-constructor THashSet<T>.Create(capacity: Integer; const comparer: IEqualityComparer<T>);
+constructor THashSet<T>.Create(elementType: PTypeInfo; capacity: Integer; const comparer: IEqualityComparer<T>);
 begin
+  fElementType := elementType;
   fHashTable.Comparer := comparer;
   fHashTable.ItemsInfo := TypeInfo(TItems);
   SetCapacity(capacity);
 end;
 
 procedure THashSet<T>.AfterConstruction;
-var
-  elementType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
-  elementType := GetElementType;
-  fHashTable.Initialize(TComparerThunks<T>.Equals, TComparerThunks<T>.GetHashCode, elementType);
+  fHashTable.Initialize(TComparerThunks<T>.Equals, TComparerThunks<T>.GetHashCode, fElementType);
   {$IFDEF DELPHIXE7_UP}
   if fHashTable.DefaultComparer then
     fHashTable.Find := @THashTable<T>.FindWithoutComparer
@@ -397,7 +384,7 @@ end;
 
 function THashSet<T>.CreateSet: ISet<T>;
 begin
-  Result := THashSet<T>.Create(0, IEqualityComparer<T>(fHashTable.Comparer));
+  Result := THashSet<T>.Create(fElementType, 0, IEqualityComparer<T>(fHashTable.Comparer));
 end;
 
 procedure THashSet<T>.SetCapacity(value: Integer);
@@ -803,25 +790,6 @@ end;
 procedure TSortedSet<T>.TrimExcess;
 begin
   fTree.TrimExcess;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedHashSet<T>'}
-
-constructor TFoldedHashSet<T>.Create(elementType: PTypeInfo; capacity: Integer;
-  const comparer: IEqualityComparer<T>);
-begin
-  fHashTable.Comparer := comparer;
-  fHashTable.ItemsInfo := TypeInfo(TItems);
-  SetCapacity(capacity);
-  fElementType := elementType;
-end;
-
-function TFoldedHashSet<T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
 end;
 
 {$ENDREGION}

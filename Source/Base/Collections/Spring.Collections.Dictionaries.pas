@@ -97,7 +97,7 @@ type
     function TryInsert(const key: TKey; const value: TValue; behavior: Byte): Boolean;
     function DoRemove(const entry: THashTableEntry; action: TCollectionChangedAction): Boolean;
   public
-    constructor Create(capacity: Integer;
+    constructor Create(elementType: PTypeInfo; capacity: Integer;
       const keyComparer: IEqualityComparer<TKey>;
       const valueComparer: IEqualityComparer<TValue>;
       ownerships: TDictionaryOwnerships);
@@ -368,7 +368,7 @@ type
     procedure ValueChanged(const item: TValue; action: TCollectionChangedAction);
     property Capacity: Integer read GetCapacity;
   public
-    constructor Create(capacity: Integer;
+    constructor Create(elementType: PTypeInfo; capacity: Integer;
       const keyComparer: IEqualityComparer<TKey>;
       const valueComparer: IEqualityComparer<TValue>;
       ownerships: TDictionaryOwnerships);
@@ -521,40 +521,6 @@ type
 
   end;
 
-  TFoldedDictionary<TKey, TValue> = class(TDictionary<TKey, TValue>)
-  private
-    fElementType: PTypeInfo;
-    fKeyType: PTypeInfo;
-    fValueType: PTypeInfo;
-  protected
-    function GetElementType: PTypeInfo; override;
-    function GetKeyType: PTypeInfo; override;
-    function GetValueType: PTypeInfo; override;
-  public
-    constructor Create(keyType, valueType, elementType: PTypeInfo;
-      capacity: Integer;
-      const keyComparer: IEqualityComparer<TKey>;
-      const valueComparer: IEqualityComparer<TValue>;
-      ownerships: TDictionaryOwnerships);
-  end;
-
-  TFoldedBidiDictionary<TKey, TValue> = class(TBidiDictionary<TKey, TValue>)
-  private
-    fElementType: PTypeInfo;
-    fKeyType: PTypeInfo;
-    fValueType: PTypeInfo;
-  protected
-    function GetElementType: PTypeInfo; override;
-    function GetKeyType: PTypeInfo; override;
-    function GetValueType: PTypeInfo; override;
-  public
-    constructor Create(keyType, valueType, elementType: PTypeInfo;
-      capacity: Integer;
-      const keyComparer: IEqualityComparer<TKey>;
-      const valueComparer: IEqualityComparer<TValue>;
-      ownerships: TDictionaryOwnerships);
-  end;
-
 procedure ValidateParams(keyType, valueType: PTypeInfo; capacity: Integer; ownerships: TDictionaryOwnerships);
 
 implementation
@@ -582,11 +548,12 @@ end;
 
 {$REGION 'TDictionary<TKey, TValue>'}
 
-constructor TDictionary<TKey, TValue>.Create(capacity: Integer;
-  const keyComparer: IEqualityComparer<TKey>;
+constructor TDictionary<TKey, TValue>.Create(elementType: PTypeInfo;
+  capacity: Integer; const keyComparer: IEqualityComparer<TKey>;
   const valueComparer: IEqualityComparer<TValue>;
   ownerships: TDictionaryOwnerships);
 begin
+  fElementType := elementType;
   ValidateParams(TypeInfo(TKey), TypeInfo(TValue), capacity, ownerships);
 
   fHashTable.Comparer := keyComparer;
@@ -1132,11 +1099,12 @@ end;
 
 {$REGION 'TBidiDictionary<TKey, TValue>'}
 
-constructor TBidiDictionary<TKey, TValue>.Create(capacity: Integer;
-  const keyComparer: IEqualityComparer<TKey>;
+constructor TBidiDictionary<TKey, TValue>.Create(elementType: PTypeInfo;
+  capacity: Integer; const keyComparer: IEqualityComparer<TKey>;
   const valueComparer: IEqualityComparer<TValue>;
   ownerships: TDictionaryOwnerships);
 begin
+  fElementType := elementType;
   ValidateParams(TypeInfo(TKey), TypeInfo(TValue), capacity, ownerships);
 
   fOwnerships := ownerships;
@@ -2382,6 +2350,7 @@ end;
 constructor TBidiDictionary<TKey, TValue>.TKeyCollection.Create(
   const source: TBidiDictionary<TKey, TValue>);
 begin
+  fElementType := source.GetKeyType;
   fSource := source;
 end;
 
@@ -2465,6 +2434,7 @@ end;
 constructor TBidiDictionary<TKey, TValue>.TValueCollection.Create(
   const source: TBidiDictionary<TKey, TValue>);
 begin
+  fElementType := source.GetValueType;
   fSource := source;
 end;
 
@@ -3084,85 +3054,6 @@ begin
   item := fItem;
   Result.Key := item.Key;
   Result.Value := item.Value;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedDictionary<TKey, TValue>'}
-
-constructor TFoldedDictionary<TKey, TValue>.Create(keyType,
-  valueType, elementType: PTypeInfo; capacity: Integer;
-  const keyComparer: IEqualityComparer<TKey>;
-  const valueComparer: IEqualityComparer<TValue>;
-  ownerships: TDictionaryOwnerships);
-begin
-  ValidateParams(keyType, valueType, capacity, ownerships);
-
-  fHashTable.Comparer := keyComparer;
-  fHashTable.Ownerships := ownerships;
-  fValueComparer := valueComparer;
-
-  fHashTable.ItemsInfo := TypeInfo(TItems);
-  fHashTable.Capacity := capacity;
-
-  fElementType := elementType;
-  fKeyType := keyType;
-  fValueType := valueType;
-end;
-
-function TFoldedDictionary<TKey, TValue>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
-end;
-
-function TFoldedDictionary<TKey, TValue>.GetKeyType: PTypeInfo;
-begin
-  Result := fKeyType;
-end;
-
-function TFoldedDictionary<TKey, TValue>.GetValueType: PTypeInfo;
-begin
-  Result := fValueType;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedBidiDictionary<TKey, TValue>'}
-
-constructor TFoldedBidiDictionary<TKey, TValue>.Create(keyType, valueType,
-  elementType: PTypeInfo; capacity: Integer;
-  const keyComparer: IEqualityComparer<TKey>;
-  const valueComparer: IEqualityComparer<TValue>;
-  ownerships: TDictionaryOwnerships);
-begin
-  ValidateParams(TypeInfo(TKey), TypeInfo(TValue), capacity, ownerships);
-
-  fOwnerships := ownerships;
-  fKeyComparer := keyComparer;
-  fValueComparer := valueComparer;
-
-  SetCapacity(capacity);
-
-  fElementType := elementType;
-  fKeyType := keyType;
-  fValueType := valueType;
-end;
-
-function TFoldedBidiDictionary<TKey, TValue>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
-end;
-
-function TFoldedBidiDictionary<TKey, TValue>.GetKeyType: PTypeInfo;
-begin
-  Result := fKeyType;
-end;
-
-function TFoldedBidiDictionary<TKey, TValue>.GetValueType: PTypeInfo;
-begin
-  Result := fValueType;
 end;
 
 {$ENDREGION}

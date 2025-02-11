@@ -71,9 +71,6 @@ type
     // overloaded AddRange method in older Delphi versions
     ICollectionInternal = TCollectionThunks<T>.ICollectionInternal;
   {$ENDREGION}
-    {$IFDEF DELPHIXE7_UP}
-    class var DefaultComparer: Pointer;
-    {$ENDIF}
   private
     fItems: TArray<T>;
     fCapacity: Integer;
@@ -116,8 +113,8 @@ type
     property Items[index: Integer]: T read GetItem write SetItem; default;
     property OwnsObjects: Boolean read GetOwnsObjects;
   public
-    constructor Create(const comparer: IComparer<T>); overload;
-    procedure AfterConstruction; override;
+    constructor Create(elementType: PTypeInfo;
+      const comparer: IComparer<T>; ownsObjects: Boolean = False); overload;
     procedure BeforeDestruction; override;
 
   {$REGION 'Implements IInterface'}
@@ -279,7 +276,7 @@ type
     function AsReadOnly: IReadOnlyList<T>;
     function AsSpan: Span<T>;
   protected
-    function GetElementType: PTypeInfo; override;
+    function GetElementType: PTypeInfo;
   public
     constructor Create(const collection: TCollection);
 
@@ -363,29 +360,7 @@ type
   {$ENDREGION}
   end;
 
-  TFoldedList<T> = class(TList<T>)
-  private
-    fElementType: PTypeInfo;
-  protected
-    function CreateList: IList<T>; override;
-    function GetElementType: PTypeInfo; override;
-  public
-    constructor Create(elementType: PTypeInfo; const comparer: IComparer<T>;
-      ownsObjects: Boolean = False);
-  end;
-
-  TFoldedSortedList<T> = class(TSortedList<T>)
-  private
-    fElementType: PTypeInfo;
-  protected
-    function CreateList: IList<T>; override;
-    function GetElementType: PTypeInfo; override;
-  public
-    constructor Create(elementType: PTypeInfo; const comparer: IComparer<T>;
-      ownsObjects: Boolean = False);
-  end;
-
-  TObservableObjectList = class(TFoldedList<TObject>, INotifyPropertyChanged)
+  TObservableObjectList = class(TList<TObject>, INotifyPropertyChanged)
   private
     fOnPropertyChanged: TPropertyChangedEventImpl;
     function GetOnPropertyChanged: IPropertyChangedEvent;
@@ -399,7 +374,7 @@ type
     procedure BeforeDestruction; override;
   end;
 
-  TObservableInterfaceList = class(TFoldedList<IInterface>, INotifyPropertyChanged)
+  TObservableInterfaceList = class(TList<IInterface>, INotifyPropertyChanged)
   private
     fOnPropertyChanged: TPropertyChangedEventImpl;
     function GetOnPropertyChanged: IPropertyChangedEvent;
@@ -437,24 +412,18 @@ type
 
 {$REGION 'TAbstractArrayList<T>'}
 
-constructor TAbstractArrayList<T>.Create(const comparer: IComparer<T>);
+constructor TAbstractArrayList<T>.Create(elementType: PTypeInfo;
+  const comparer: IComparer<T>; ownsObjects: Boolean);
 begin
+  fElementType := elementType;
   fComparer := comparer;
+  {$IFDEF DELPHIXE7_UP}if GetTypeKind(T) = tkClass then{$ENDIF}
+  SetOwnsObjects(ownsObjects);
 end;
 
 function TAbstractArrayList<T>.CreateList: IList<T>;
 begin
-  Result := TList<T>.Create(fComparer);
-end;
-
-procedure TAbstractArrayList<T>.AfterConstruction;
-begin
-  inherited AfterConstruction;
-{$IFDEF DELPHIXE7_UP}
-  if (GetTypeKind(T) in FastComparableTypes) and (SizeOf(T) in [1, 2, 4, 8]) then
-    if DefaultComparer = nil then
-      DefaultComparer := _LookupVtableInfo(giComparer, GetElementType, SizeOf(T));
-{$ENDIF}
+  Result := TList<T>.Create(fElementType, fComparer);
 end;
 
 procedure TAbstractArrayList<T>.BeforeDestruction;
@@ -469,7 +438,7 @@ begin
 {$IFDEF DELPHIXE7_UP}
     (GetTypeKind(T) = tkClass)
     or ((GetTypeKind(T) in FastComparableTypes) and (SizeOf(T) in [1, 2, 4, 8])
-    and (Pointer(fComparer) = DefaultComparer));
+    and (Pointer(fComparer) = _LookupVtableInfo(giComparer, fElementType, SizeOf(T))));
 {$ELSE}
     PTypeInfo(TypeInfo(T)).Kind = tkClass;
 {$ENDIF}
@@ -2602,52 +2571,6 @@ begin
     if IEqualityComparer<T>(comparer).Equals(fItems(i), item) then
       Exit(i);
   Result := -1;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedList<T>'}
-
-constructor TFoldedList<T>.Create(elementType: PTypeInfo;
-  const comparer: IComparer<T>; ownsObjects: Boolean);
-begin
-  fComparer := comparer;
-  fElementType := elementType;
-  SetOwnsObjects(ownsObjects);
-end;
-
-function TFoldedList<T>.CreateList: IList<T>;
-begin
-  Result := TFoldedList<T>.Create(fElementType, fComparer);
-end;
-
-function TFoldedList<T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedSortedList<T>'}
-
-constructor TFoldedSortedList<T>.Create(elementType: PTypeInfo;
-  const comparer: IComparer<T>; ownsObjects: Boolean);
-begin
-  fComparer := comparer;
-  fElementType := elementType;
-  SetOwnsObjects(ownsObjects);
-end;
-
-function TFoldedSortedList<T>.CreateList: IList<T>;
-begin
-  Result := TFoldedList<T>.Create(fElementType, fComparer);
-end;
-
-function TFoldedSortedList<T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
 end;
 
 {$ENDREGION}

@@ -122,8 +122,10 @@ type
     function MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
   protected
     this: Pointer;
+    fElementType: PTypeInfo;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
+    function GetElementType: PTypeInfo;
     function GetIsEmpty: Boolean;
     function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
@@ -224,7 +226,6 @@ type
     fComparer: IComparer<T>;
   {$REGION 'Property Accessors'}
     function GetComparer: IComparer<T>;
-    function GetElementType: PTypeInfo; virtual;
   {$ENDREGION}
     function QueryInterface(const IID: TGUID; out obj): HResult; stdcall;
     function CopyTo(var values: TArray<T>; index: Integer): Integer;
@@ -396,7 +397,7 @@ type
   end;
 
   TExtensionKind = (
-    Empty, DefaultIfEmpty, Partition, PartitionFromEnd,
+    Empty, DefaultIfEmpty, Items, Partition, PartitionFromEnd,
     Distinct, Exclude, Intersect, Union,
     Concat, Memoize, Ordered, Reversed, Shuffled,
     SkipWhile, SkipWhileIndex,
@@ -424,8 +425,11 @@ type
 
     class function Create(classType: TClass; const source: IEnumerable;
       kind: TExtensionKind): TEnumerableExtension; static;
+    class function From(classType: TClass; values: PPointer; count: NativeInt;
+      typeInfo: PTypeInfo): TEnumerableExtension; static;
 
-    function Any(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
+    function Any(var value; getCurrent: TGetCurrent; default: TGetDefault;
+      assign: TAssign; elSize: NativeInt): Boolean;
     function GetNonEnumeratedCount: Integer;
     procedure MemoizeToArray(var values: Pointer; typeInfo: PTypeInfo);
     function PartitionToArray(var values: Pointer; typeInfo: PTypeInfo): Boolean;
@@ -433,12 +437,38 @@ type
     procedure Take(count: Integer; var result; classType: TClass);
     function TryGetElementAt(var value; index: Integer; getCurrent: TGetCurrent;
       default: TGetDefault; assign: TAssign; typeInfo: PTypeInfo): Boolean; overload;
-    function TryGetFirst(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
-    function TryGetLast(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
+    function TryGetFirst(var value; getCurrent: TGetCurrent;
+      default: TGetDefault; assign: TAssign): Boolean;
+    function TryGetLast(var value; getCurrent: TGetCurrent;
+      default: TGetDefault; assign: TAssign; elSize: NativeInt): Boolean;
     function TryGetLast_PartitionEnumerator(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
   end;
 
-  TEnumerableExtension<T> = class sealed(TEnumerableBase<T>, IInterface, IEnumerable<T>)
+  // For internal use only - this is for implementing the IReadOnlyList methods in
+  // the TEnumerableExtension class but without implementing its GUID
+  // This is needed for the implementation of TEnumerable.Empty and TEnumerable.From
+  // as they return IReadOnlyList<T> but the class cannot implement those for all
+  // TExtensionKind
+  IReadOnlyListInternal<T> = interface(IReadOnlyList<T>)
+  end;
+
+  TEnumerableExtension<T> = class sealed(TEnumerableBase<T>, IInterface, IEnumerable<T>,
+    IReadOnlyListInternal<T>)
+  private type
+  {$REGION 'Nested Types'}
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      Parent: TRefCountedObject;
+      fItems: Pointer;
+      fIndex, fCount: Integer;
+      function GetCurrent: T;
+      function MoveNext: Boolean;
+      class var Enumerator_Vtable: TEnumeratorVtable;
+    end;
+  {$ENDREGION}
   protected
     // field layout has to match with TEnumerableExtension above
     fSource: IEnumerable<T>;
@@ -449,8 +479,15 @@ type
     fEqualityComparer: IEqualityComparer<T>;
     fKind: TExtensionKind;
 
-    function GetElementType: PTypeInfo; override;
     function GetNonEnumeratedCount: Integer;
+
+  {$REGION 'Implements IReadOnlyList<T>'}
+    function CopyTo(var values: TArray<T>; index: Integer): Integer;
+    function GetItem(index: Integer): T;
+    function IndexOf(const item: T): Integer; overload;
+    function IndexOf(const item: T; index: Integer): Integer; overload;
+    function IndexOf(const item: T; index, count: Integer): Integer; overload;
+  {$ENDREGION}
   public
     function Any: Boolean; overload;
     function GetEnumerator: IEnumerator<T>;
@@ -609,60 +646,6 @@ type
     class function GetCurrentWithSelector(const enumerator, selector: IInterface): T2; static;
   end;
 
-  TArrayIterator<T> = class(TEnumerableBase<T>, IInterface,
-    IEnumerable<T>, IReadOnlyCollection<T>, IReadOnlyList<T>)
-  private type
-  {$REGION 'Nested Types'}
-    PEnumerator = ^TEnumerator;
-    TEnumerator = record
-      Vtable: Pointer;
-      RefCount: Integer;
-      TypeInfo: PTypeInfo;
-      Parent: TRefCountedObject;
-      fItems: TArray<T>;
-      fIndex, fCount: Integer;
-      function GetCurrent: T;
-      function MoveNext: Boolean;
-      class var Enumerator_Vtable: TEnumeratorVtable;
-    end;
-  {$ENDREGION}
-  private
-    fItems: TArray<T>;
-  {$REGION 'Property Accessors'}
-    function GetCount: Integer;
-    function GetItem(index: Integer): T;
-    function GetNonEnumeratedCount: Integer;
-  {$ENDREGION}
-  public
-    class function Create(const values: TArray<T>): IReadOnlyList<T>; overload; static;
-    class function Create(const values: array of T): IReadOnlyList<T>; overload; static;
-
-  {$REGION 'Implements IEnumerable<T>'}
-    function GetEnumerator: IEnumerator<T>;
-    function ToArray: TArray<T>;
-  {$ENDREGION}
-
-  {$REGION 'Implements IReadOnlyCollection<T>'}
-    function CopyTo(var values: TArray<T>; index: Integer): Integer;
-  {$ENDREGION}
-
-  {$REGION 'Implements IReadOnlyList<T>'}
-    function IndexOf(const item: T): Integer; overload;
-    function IndexOf(const item: T; index: Integer): Integer; overload;
-    function IndexOf(const item: T; index, count: Integer): Integer; overload;
-  {$ENDREGION}
-  end;
-
-  TFoldedArrayIterator<T> = class(TArrayIterator<T>)
-  private
-    fElementType: PTypeInfo;
-  protected
-    function GetElementType: PTypeInfo; override;
-  public
-    class function Create(const values: TArray<T>; elementType: PTypeInfo): IReadOnlyList<T>; overload; static;
-    class function Create(values: PPointer; count: Integer; elementType: PTypeInfo): IReadOnlyList<T>; overload; static;
-  end;
-
   TIterator<T> = class abstract(TEnumerableBase<T>, IInterface, IEnumerator<T>)
   private
     fCurrent: T;
@@ -690,7 +673,6 @@ type
   strict private
     fSource: IEnumerable<T>;
   protected
-    function GetElementType: PTypeInfo; override;
     property Source: IEnumerable<T> read fSource;
   public
     constructor Create(const source: IEnumerable<T>);
@@ -769,7 +751,6 @@ type
     // TEnumerableBase<T>
     fComparer: IInterface;
     fSource: TRefCountedObject;
-    fElementType: PTypeInfo;
     fHashTable: PHashTable;
     fValueComparer: IInterface;
     fOffset: Integer;
@@ -823,7 +804,6 @@ type
   {$ENDREGION}
   protected
     fSource: TRefCountedObject;
-    fElementType: PTypeInfo;
     fHashTable: PHashTable;
     fValueComparer: IEqualityComparer<T>;
     fOffset: Integer;
@@ -833,8 +813,6 @@ type
     function GetCount: Integer;
     function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
-  protected
-    function GetElementType: PTypeInfo; override;
   public
   {$REGION 'Implements IInterface'}
     function _AddRef: Integer; stdcall;
@@ -882,7 +860,6 @@ type
     // TEnumerableBase<T>
     fComparer: IInterface;
     fSource: TRefCountedObject;
-    fElementType: PTypeInfo;
     fTree: TBinaryTree;
     fVersion: PInteger;
     fValueComparer: IInterface;
@@ -942,7 +919,6 @@ type
   {$ENDREGION}
   protected
     fSource: TRefCountedObject;
-    fElementType: PTypeInfo;
     fTree: TBinaryTree;
     fVersion: PInteger;
     fValueComparer: IEqualityComparer<T>;
@@ -953,8 +929,6 @@ type
     function GetCount: Integer;
     function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
-  protected
-    function GetElementType: PTypeInfo; override;
   public
   {$REGION 'Implements IInterface'}
     function _AddRef: Integer; stdcall;
@@ -1048,8 +1022,8 @@ type
   {$REGION 'Property Accessors'}
     function GetOnKeyChanged: ICollectionChangedEvent<TKey>;
     function GetOnValueChanged: ICollectionChangedEvent<TValue>;
-    function GetKeyType: PTypeInfo; virtual;
-    function GetValueType: PTypeInfo; virtual;
+    function GetKeyType: PTypeInfo;
+    function GetValueType: PTypeInfo;
   {$ENDREGION}
     procedure DoNotify(const key: TKey; const value: TValue; action: TCollectionChangedAction); overload;
     function AsReadOnly: IReadOnlyDictionary<TKey, TValue>;
@@ -1168,7 +1142,7 @@ type
     code: Pointer;
   end;
 const
-  ChangedVirtualIndex = 1;
+  ChangedVirtualIndex = 0;
 var
   baseAddress, actualAddress: Pointer;
 begin
@@ -1616,14 +1590,10 @@ end;
 function TEnumerableBase.Contains(const value; comparer: Pointer;
   equals: TEqualsValue): Boolean;
 var
-  elementType: PTypeInfo;
   enumerator: IEnumerator;
 begin
   if not Assigned(comparer) then
-  begin
-    elementType := IEnumerable(this).GetElementType;
-    comparer := _LookupVtableInfo(giEqualityComparer, elementType, GetTypeSize(elementType));
-  end;
+    comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
   enumerator := IEnumerable(this).GetEnumerator;
   while enumerator.MoveNext do
@@ -1667,14 +1637,9 @@ begin
 end;
 
 procedure TEnumerableBase.Distinct(comparer: Pointer; var result; classType: TClass);
-var
-  elementType: PTypeInfo;
 begin
   if not Assigned(comparer) then
-  begin
-    elementType := IEnumerable(this).GetElementType;
-    comparer := _LookupVtableInfo(giEqualityComparer, elementType, GetTypeSize(elementType));
-  end;
+    comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Distinct) do
   begin
@@ -1686,7 +1651,6 @@ end;
 function TEnumerableBase.EqualsTo(const values: IInterface; comparer: Pointer;
   equals: TEqualsCurrentWithOtherEnumerator): Boolean;
 var
-  elementType: PTypeInfo;
   e1, e2: IEnumerator;
 begin
   if not Assigned(values) then RaiseHelper.ArgumentNil(ExceptionArgument.values);
@@ -1694,10 +1658,7 @@ begin
   if IInterface(this) = values then Exit(True);
 
   if not Assigned(comparer) then
-  begin
-    elementType := IEnumerable(this).GetElementType;
-    comparer := _LookupVtableInfo(giEqualityComparer, elementType, GetTypeSize(elementType));
-  end;
+    comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
   e1 := IEnumerable(this).GetEnumerator;
   e2 := IEnumerable(values).GetEnumerator;
@@ -1710,13 +1671,11 @@ end;
 
 function TEnumerableBase.EqualsTo(const values: Pointer; high: Integer; equals: TEqualsArray): Boolean;
 var
-  elementType: PTypeInfo;
   comparer: Pointer;
   enumerator: IEnumerator;
   i: NativeInt;
 begin
-  elementType := IEnumerable(this).GetElementType;
-  comparer := _LookupVtableInfo(giEqualityComparer, elementType, GetTypeSize(elementType));
+  comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
   enumerator := IEnumerable(this).GetEnumerator;
   for i := 0 to high do
     if not enumerator.MoveNext or not equals(enumerator, comparer, values, i) then
@@ -1733,16 +1692,11 @@ begin
 end;
 
 procedure TEnumerableBase.Exclude(const second: IInterface; comparer: Pointer; var result; classType: TClass);
-var
-  elementType: PTypeInfo;
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
   if not Assigned(comparer) then
-  begin
-    elementType := IEnumerable(this).GetElementType;
-    comparer := _LookupVtableInfo(giEqualityComparer, elementType, GetTypeSize(elementType));
-  end;
+    comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Exclude) do
   begin
@@ -1818,6 +1772,11 @@ begin
     Result := GetEnumeratedCount(IEnumerable(this));
 end;
 
+function TEnumerableBase.GetElementType: PTypeInfo;
+begin
+  Result := fElementType;
+end;
+
 function TEnumerableBase.GetIsEmpty: Boolean;
 var
   count: Integer;
@@ -1839,16 +1798,11 @@ begin
 end;
 
 procedure TEnumerableBase.Intersect(const second: IInterface; comparer: Pointer; var result; classType: TClass);
-var
-  elementType: PTypeInfo;
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
   if not Assigned(comparer) then
-  begin
-    elementType := IEnumerable(this).GetElementType;
-    comparer := _LookupVtableInfo(giEqualityComparer, elementType, GetTypeSize(elementType));
-  end;
+    comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Intersect) do
   begin
@@ -2507,16 +2461,11 @@ begin
 end;
 
 procedure TEnumerableBase.Union(const second: IInterface; comparer: Pointer; var result; classType: TClass);
-var
-  elementType: PTypeInfo;
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
   if not Assigned(comparer) then
-  begin
-    elementType := IEnumerable(this).GetElementType;
-    comparer := _LookupVtableInfo(giEqualityComparer, elementType, GetTypeSize(elementType));
-  end;
+    comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Union) do
   begin
@@ -2567,8 +2516,10 @@ end;
 procedure TEnumerableBase<T>.AfterConstruction;
 begin
   inherited AfterConstruction;
+  if fElementType = nil then
+    fElementType := TypeInfo(T);
   if not Assigned(fComparer) then
-    fComparer := IComparer<T>(_LookupVtableInfo(giComparer, GetElementType, SizeOf(T)));
+    fComparer := IComparer<T>(_LookupVtableInfo(giComparer, fElementType, SizeOf(T)));
 end;
 
 function TEnumerableBase<T>.Aggregate(const func: Func<T, T, T>): T; //FI:W521
@@ -2777,11 +2728,6 @@ end;
 function TEnumerableBase<T>.GetComparer: IComparer<T>;
 begin
   Result := fComparer;
-end;
-
-function TEnumerableBase<T>.GetElementType: PTypeInfo;
-begin
-  Result := TypeInfo(T);
 end;
 
 function TEnumerableBase<T>.Intersect(const second: IEnumerable<T>): IEnumerable<T>; //FI:W521
@@ -3318,13 +3264,9 @@ end;
 
 constructor TSourceIterator<T>.Create(const source: IEnumerable<T>); //FI:W525
 begin
+  fElementType := source.ElementType;
   AssignComparer(fComparer, source);
   fSource := source;
-end;
-
-function TSourceIterator<T>.GetElementType: PTypeInfo;
-begin
-  Result := fSource.ElementType;
 end;
 
 {$ENDREGION}
@@ -3742,11 +3684,6 @@ begin
   Result := THashMapInnerCollection(Self).GetCount;
 end;
 
-function THashMapInnerCollection<T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
-end;
-
 function THashMapInnerCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   if Assigned(fContains) then
@@ -4053,11 +3990,6 @@ end;
 function TTreeMapInnerCollection<T>.GetCount: Integer;
 begin
   Result := TTreeMapInnerCollection(Self).GetCount;
-end;
-
-function TTreeMapInnerCollection<T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
 end;
 
 function TTreeMapInnerCollection<T>.GetEnumerator: IEnumerator<T>; //FI:W521
@@ -4488,11 +4420,11 @@ end;
 
 procedure TMapBase<TKey, TValue>.AfterConstruction;
 begin
+  inherited AfterConstruction;
   TPairComparer.Create(@fComparer,
     @TKeyValuePairComparer.Comparer_Vtable,
     @TKeyValuePairComparer.Compare,
     GetKeyType, GetValueType);
-  inherited AfterConstruction;
   fOnKeyChanged := TCollectionChangedEventImpl<TKey>.Create;
   fOnValueChanged := TCollectionChangedEventImpl<TValue>.Create;
 end;
@@ -4542,7 +4474,7 @@ end;
 
 function TMapBase<TKey, TValue>.GetKeyType: PTypeInfo;
 begin
-  Result := TypeInfo(TKey);
+  Result := GetPairFieldTable(fElementType).KeyType^;
 end;
 
 function TMapBase<TKey, TValue>.GetOnKeyChanged: ICollectionChangedEvent<TKey>;
@@ -4557,7 +4489,7 @@ end;
 
 function TMapBase<TKey, TValue>.GetValueType: PTypeInfo;
 begin
-  Result := TypeInfo(TValue);
+  Result := GetPairFieldTable(fElementType).ValueType^;
 end;
 
 function TMapBase<TKey, TValue>.Remove(const item: TKeyValuePair): Boolean;
@@ -4660,8 +4592,9 @@ begin
   Source := nil;
   Predicate := nil;
   case Kind of
-    DefaultIfEmpty:;
-    Distinct..Union:
+    TExtensionKind.DefaultIfEmpty,
+    TExtensionKind.Items: ;
+    TExtensionKind.Distinct..TExtensionKind.Union:
       if Data <> nil then
       begin
         PHashTable(Data).Clear;
@@ -5642,7 +5575,8 @@ end;
 
 {$REGION 'TEnumerableExtension'}
 
-function TEnumerableExtension.Any(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
+function TEnumerableExtension.Any(var value; getCurrent: TGetCurrent;
+  default: TGetDefault; assign: TAssign; elSize: NativeInt): Boolean;
 var
   count: Integer;
 begin
@@ -5652,20 +5586,52 @@ begin
   else
     if not ((fKind = TExtensionKind.PartitionFromEnd)
       and (fIndex < 0)) then
-      Result := TryGetFirst(value, getCurrent, default)
+      Result := TryGetFirst(value, getCurrent, default, assign)
     else
-      Result := TryGetLast(value, getCurrent, default);
+      Result := TryGetLast(value, getCurrent, default, assign, elSize);
 end;
 
 class function TEnumerableExtension.Create(classType: TClass;
   const source: IEnumerable; kind: TExtensionKind): TEnumerableExtension;
 begin
   Result := Pointer(classType.NewInstance);
+  if Assigned(source) then
+    Result.fElementType := source.ElementType;
   TObject(Result).AfterConstruction;
   Result.fSource := source;
   if Assigned(source) then
     AssignComparer(Result.fComparer, source);
   Result.fKind := kind;
+end;
+
+class function TEnumerableExtension.From(classType: TClass;
+  values: PPointer; count: NativeInt; typeInfo: PTypeInfo): TEnumerableExtension;
+var
+  elType: PPTypeInfo;
+  p: PDynArrayTypeInfo;
+begin
+  Result := Pointer(classType.NewInstance);
+  elType := typeInfo.TypeData.DynArrElType;
+  if Assigned(elType) then
+    Result.fElementType := elType^;
+  TObject(Result).AfterConstruction;
+  Result.fKind := TExtensionKind.Items;
+  if count > 0 then
+  begin
+    Result.fCount := count;
+    DynArraySetLength(Result.fItems, typeInfo, 1, @count);
+
+    p := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name));
+    if Assigned(p.elType) then
+      MoveManaged(values, Result.fItems, p.elType^, count)
+    else
+      System.Move(values^, Result.fItems^, p.elSize * count);
+  end
+  else if count < 0 then // negative count indicates dynamic array that only gets assigned
+  begin
+    Result.fCount := DynArrayLength(values);
+    DynArrayAssign(Result.fItems, values, typeInfo);
+  end;
 end;
 
 function TEnumerableExtension.GetNonEnumeratedCount: Integer;
@@ -5679,6 +5645,8 @@ begin
       Result := fSource.GetNonEnumeratedCount;
       Exit(Result + Ord(Result = 0));
     end;
+    TExtensionKind.Items:
+      Exit(fCount);
     TExtensionKind.Concat:
     begin
       Result := fSource.GetNonEnumeratedCount;
@@ -5750,7 +5718,7 @@ procedure TEnumerableExtension.MemoizeToArray(var values: Pointer; typeInfo: PTy
 var
   count: Integer;
 begin
-  count := IEnumerable(this).Count;
+  count := GetNonEnumeratedCount;
   DynArrayCopyRange(values, fItems, typeInfo, 0, count);
 end;
 
@@ -5917,6 +5885,17 @@ begin
       default(value);
       Exit(False);
     end;
+    TExtensionKind.Items:
+    begin
+      if index < fCount then
+      begin
+        elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+        assign(value, PByte(fItems)[index*elSize]);
+        Exit(True);
+      end;
+      default(value);
+      Exit(False);
+    end;
     TExtensionKind.Partition:
     begin
       if Cardinal(index) < Cardinal(fCount) then
@@ -6033,7 +6012,8 @@ begin
   Result := inherited TryGetElementAt(value, index, getCurrent, default);
 end;
 
-function TEnumerableExtension.TryGetFirst(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
+function TEnumerableExtension.TryGetFirst(var value; getCurrent: TGetCurrent;
+  default: TGetDefault; assign: TAssign): Boolean;
 begin
   case fKind of
     TExtensionKind.Empty:
@@ -6046,6 +6026,16 @@ begin
       if not IEnumerable<Pointer>(fSource).TryGetFirst(Pointer(value)) then
         default(value);
       Exit(True);
+    end;
+    TExtensionKind.Items:
+    begin
+      if fCount > 0 then
+      begin
+        assign(value, fItems^);
+        Exit(True);
+      end;
+      default(value);
+      Exit(False);
     end;
     TExtensionKind.Partition:
     begin
@@ -6069,10 +6059,11 @@ begin
     TExtensionKind.Where:
       Exit(IEnumerable<Pointer>(fSource).TryGetFirst(Pointer(value), Predicate<Pointer>(fPredicate)));
   end;
-  Result := inherited;
+  Result := inherited TryGetFirst(value, getCurrent, default);
 end;
 
-function TEnumerableExtension.TryGetLast(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
+function TEnumerableExtension.TryGetLast(var value; getCurrent: TGetCurrent;
+  default: TGetDefault; assign: TAssign; elSize: NativeInt): Boolean;
 var
   count, lastIndex: NativeInt;
 begin
@@ -6087,6 +6078,17 @@ begin
       if not IEnumerable<Pointer>(fSource).TryGetFirst(Pointer(value)) then
         default(value);
       Exit(True);
+    end;
+    TExtensionKind.Items:
+    begin
+      lastIndex := fCount - 1;
+      if lastIndex >= 0 then
+      begin
+        assign(value, PByte(fItems)[lastIndex*elSize]);
+        Exit(True);
+      end;
+      default(value);
+      Exit(False);
     end;
     TExtensionKind.Partition:
     begin
@@ -6121,7 +6123,7 @@ begin
     TExtensionKind.Where:
       Exit(IEnumerable<Pointer>(fSource).TryGetLast(Pointer(value), Predicate<Pointer>(fPredicate)));
   end;
-  Result := inherited;
+  Result := inherited TryGetLast(value, getCurrent, default);;
 end;
 
 function TEnumerableExtension.TryGetLast_PartitionEnumerator(var value;
@@ -6157,26 +6159,76 @@ var
   value: T;
 begin
   Result := TEnumerableExtension(Self).Any(value,
-    TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault);
+    TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault,
+    TCollectionThunks<T>.Assign, SizeOf(T));
 end;
 
-function TEnumerableExtension<T>.GetElementType: PTypeInfo;
+function TEnumerableExtension<T>.CopyTo(var values: TArray<T>; index: Integer): Integer;
 begin
-  if Assigned(fSource) then
-    Result := fSource.ElementType
+  if fKind = TExtensionKind.Items then
+  begin
+    Result := fCount;
+    if Result > 0 then
+      if TType.IsManaged<T> then
+        MoveManaged(@fItems[0], @values[index], TypeInfo(T), Result)
+      else
+        System.Move(fItems[0], values[index], SizeOf(T) * Result);
+  end
   else
-    Result := inherited GetElementType;
+  begin
+    RaiseHelper.NotSupported;
+    Result := 0;
+  end;
 end;
 
 function TEnumerableExtension<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
-  TIteratorBlock.Create(@Result, TEnumerableExtension(Self), SizeOf(TIteratorBlock<T>),
-    @TIteratorBlock<T>.Finalize, @TIteratorBlock<T>.Initialize);
+  if fKind <> TExtensionKind.Items then
+    TIteratorBlock.Create(@Result, TEnumerableExtension(Self), SizeOf(TIteratorBlock<T>),
+      @TIteratorBlock<T>.Finalize, @TIteratorBlock<T>.Initialize)
+  else
+  begin
+    _AddRef;
+    with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
+      TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
+    begin
+      Parent := Self;
+      fItems := Pointer(Self.fItems);
+      fCount := Self.fCount;
+    end;
+  end;
+end;
+
+function TEnumerableExtension<T>.GetItem(index: Integer): T;
+begin
+  RaiseHelper.ArgumentOutOfRange_Index;
+  __SuppressWarning(Result);
 end;
 
 function TEnumerableExtension<T>.GetNonEnumeratedCount: Integer;
 begin
   Result := TEnumerableExtension(Self).GetNonEnumeratedCount;
+end;
+
+function TEnumerableExtension<T>.IndexOf(const item: T): Integer;
+begin
+  Result := IndexOf(item, 0, fCount);
+end;
+
+function TEnumerableExtension<T>.IndexOf(const item: T; index: Integer): Integer;
+begin
+  Result := IndexOf(item, index, fCount - index);
+end;
+
+function TEnumerableExtension<T>.IndexOf(const item: T; index, count: Integer): Integer;
+begin
+  // TODO: optimize - combine all IndexOf calls
+  {$IFDEF DELPHIXE7_UP}
+  Result := TArray.IndexOf<T>(Slice(TSlice<T>(Pointer(fItems)^), fCount), T(item), index, count);
+  {$ELSE}
+  // glitch in compiler with passing slice to overload, gives bogus E2193
+  Result := TArray.IndexOf<T>(fItems, item, index, count);
+  {$ENDIF}
 end;
 
 function TEnumerableExtension<T>.Skip(count: Integer): IEnumerable<T>;
@@ -6192,13 +6244,14 @@ end;
 function TEnumerableExtension<T>.ToArray: TArray<T>;
 begin
   case fKind of //FI:W535
-    TExtensionKind.Partition:
-      if TEnumerableExtension(Self).PartitionToArray(Pointer(Result), TypeInfo(TArray<T>)) then Exit;
+    TExtensionKind.Items,
     TExtensionKind.Memoize:
     begin
       TEnumerableExtension(Self).MemoizeToArray(Pointer(Result), TypeInfo(TArray<T>));
       Exit;
     end;
+    TExtensionKind.Partition:
+      if TEnumerableExtension(Self).PartitionToArray(Pointer(Result), TypeInfo(TArray<T>)) then Exit;
     TExtensionKind.Ordered..TExtensionKind.Shuffled:
     begin
       Result := fSource.ToArray;
@@ -6219,168 +6272,34 @@ end;
 function TEnumerableExtension<T>.TryGetFirst(var value: T): Boolean;
 begin
   Result := TEnumerableExtension(Self).TryGetFirst(value,
-    TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault);
+    TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault,
+    TCollectionThunks<T>.Assign);
 end;
 
 function TEnumerableExtension<T>.TryGetLast(var value: T): Boolean;
 begin
   Result := TEnumerableExtension(Self).TryGetLast(value,
-    TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault);
+    TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault,
+    TCollectionThunks<T>.Assign, SizeOf(T));
 end;
 
 {$ENDREGION}
 
 
-{$REGION 'TArrayIterator<T>'}
+{$REGION 'TEnumerableExtension<T>.TEnumerator'}
 
-class function TArrayIterator<T>.Create(const values: TArray<T>): IReadOnlyList<T>;
+function TEnumerableExtension<T>.TEnumerator.GetCurrent: T;
+begin
+  Result := TArray<T>(fItems)[fIndex - 1];
+end;
+
+function TEnumerableExtension<T>.TEnumerator.MoveNext: Boolean;
 var
-  iterator: TArrayIterator<T>;
+  index: Integer;
 begin
-  iterator := TArrayIterator<T>.Create;
-  iterator.fItems := values;
-  Result := iterator;
-end;
-
-class function TArrayIterator<T>.Create(const values: array of T): IReadOnlyList<T>;
-var
-  iterator: TArrayIterator<T>;
-  count: Integer;
-begin
-  iterator := TArrayIterator<T>.Create;
-  count := Length(values);
-  if count > 0 then
-  begin
-    SetLength(iterator.fItems, count);
-    if TType.IsManaged<T> then
-      MoveManaged(@values[0], @iterator.fItems[0], TypeInfo(T), count)
-    else
-      System.Move(values[0], iterator.fItems[0], SizeOf(T) * count);
-  end;
-  Result := iterator;
-end;
-
-function TArrayIterator<T>.CopyTo(var values: TArray<T>; index: Integer): Integer;
-begin
-  Result := DynArrayLength(fItems);
-  if Result > 0 then
-    if TType.IsManaged<T> then
-      MoveManaged(@fItems[0], @values[index], TypeInfo(T), Result)
-    else
-      System.Move(fItems[0], values[index], SizeOf(T) * Result);
-end;
-
-function TArrayIterator<T>.GetCount: Integer;
-begin
-  Result := DynArrayLength(fItems);
-end;
-
-function TArrayIterator<T>.GetEnumerator: IEnumerator<T>; //FI:W521
-var
-  items: Pointer;
-begin
-  items := Pointer(fItems);
-  with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-    TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
-  begin
-    fItems := TArray<T>(items);
-    fCount := DynArrayLength(items);
-  end;
-end;
-
-function TArrayIterator<T>.GetItem(index: Integer): T;
-begin
-  CheckIndex(index, DynArrayLength(fItems));
-
-  Result := fItems[index];
-end;
-
-function TArrayIterator<T>.GetNonEnumeratedCount: Integer;
-begin
-  Result := DynArrayLength(fItems);
-end;
-
-function TArrayIterator<T>.IndexOf(const item: T): Integer;
-begin
-  Result := IndexOf(item, 0, DynArrayLength(fItems));
-end;
-
-function TArrayIterator<T>.IndexOf(const item: T; index: Integer): Integer;
-begin
-  Result := IndexOf(item, index, DynArrayLength(fItems) - index);
-end;
-
-function TArrayIterator<T>.IndexOf(const item: T; index, count: Integer): Integer;
-var
-  comparer: Pointer;
-begin
-  CheckRange(index, count, DynArrayLength(fItems));
-
-  comparer := _LookupVtableInfo(giEqualityComparer, GetElementType, SizeOf(T));
-  for Result := index to index + count - 1 do
-    if IEqualityComparer<T>(comparer).Equals(fItems[Result], item) then
-      Exit;
-  Result := -1;
-end;
-
-function TArrayIterator<T>.ToArray: TArray<T>;
-begin
-  Result := Copy(fItems);
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TArrayIterator<T>.TEnumerator'}
-
-function TArrayIterator<T>.TEnumerator.GetCurrent: T;
-begin
-  Result := fItems[fIndex - 1];
-end;
-
-function TArrayIterator<T>.TEnumerator.MoveNext: Boolean;
-begin
-  Inc(fIndex);
-  Result := fIndex <= fCount;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedArrayIterator<T>'}
-
-class function TFoldedArrayIterator<T>.Create(const values: TArray<T>;
-  elementType: PTypeInfo): IReadOnlyList<T>;
-var
-  iterator: TFoldedArrayIterator<T>;
-begin
-  iterator := TFoldedArrayIterator<T>.Create;
-  iterator.fItems := values;
-  iterator.fElementType := elementType;
-  Result := iterator;
-end;
-
-class function TFoldedArrayIterator<T>.Create(values: PPointer; count: Integer;
-  elementType: PTypeInfo): IReadOnlyList<T>;
-var
-  iterator: TFoldedArrayIterator<T>;
-begin
-  iterator := TFoldedArrayIterator<T>.Create;
-  iterator.fElementType := elementType;
-  if count > 0 then
-  begin
-    SetLength(iterator.fItems, count);
-    if TType.IsManaged<T> then
-      MoveManaged(values, @iterator.fItems[0], TypeInfo(T), count)
-    else
-      System.Move(values^, iterator.fItems[0], SizeOf(T) * count);
-  end;
-  Result := iterator;
-end;
-
-function TFoldedArrayIterator<T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
+  index := fIndex;
+  fIndex := index + 1;
+  Result := index < fCount;
 end;
 
 {$ENDREGION}

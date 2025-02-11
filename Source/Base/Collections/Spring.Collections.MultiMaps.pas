@@ -88,7 +88,6 @@ type
     fUpdateValues: TUpdateValuesEvent;
     procedure RefreshIfEmpty;
     function GetCount: Integer;
-    function GetElementType: PTypeInfo;
     procedure GetEnumerator(enumerator: PPointer; vtable: PEnumeratorVtable;
       typeInfo, getCurrent: Pointer);
     function GetNonEnumeratedCount: Integer;
@@ -124,7 +123,6 @@ type
     fUpdateValues: TNotifyEvent;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
-    function GetElementType: PTypeInfo; override;
     function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   public
@@ -141,8 +139,6 @@ type
     IReadOnlyCollection<T>, IGrouping<TKey, T>, IGroupingInternal<TKey, T>)
   private
     fKey: TKey;
-    fElementType: PTypeInfo;
-    function GetElementType: PTypeInfo; reintroduce;
     function GetKey: TKey;
     function Add(const item: T): Boolean;
   public
@@ -152,8 +148,6 @@ type
   TValueHashSet<TKey, T> = class(THashSet<T>, IGrouping<TKey, T>, IGroupingInternal<TKey, T>)
   private
     fKey: TKey;
-    fElementType: PTypeInfo;
-    function GetElementType: PTypeInfo; reintroduce;
     function GetKey: TKey;
   public
     constructor Create(const key: TKey; elementType: PTypeInfo;
@@ -163,8 +157,6 @@ type
   TValueTreeSet<TKey, T> = class(TSortedSet<T>, IGrouping<TKey, T>, IGroupingInternal<TKey, T>)
   private
     fKey: TKey;
-    fElementType: PTypeInfo;
-    function GetElementType: PTypeInfo; reintroduce;
     function GetKey: TKey;
   public
     constructor Create(const key: TKey; elementType: PTypeInfo;
@@ -232,7 +224,8 @@ type
       action: TCollectionChangedAction; const extractTarget: ICollection<TValue>);
     procedure DoRemoveValues(item: PItem; action: TCollectionChangedAction);
   public
-    constructor Create(const keyComparer: IEqualityComparer<TKey>;
+    constructor Create(elementType: PTypeInfo;
+      const keyComparer: IEqualityComparer<TKey>;
       const valueComparer: IInterface;
       collectionFactory: TCollectionFactory;
       ownerships: TDictionaryOwnerships);
@@ -328,7 +321,8 @@ type
       const extractTarget: ICollection<TValue>; deleteNode: Boolean = True);
     procedure DoRemoveValues(node: PNode; action: TCollectionChangedAction);
   public
-    constructor Create(const keyComparer: IComparer<TKey>;
+    constructor Create(elementType: PTypeInfo;
+      const keyComparer: IComparer<TKey>;
       const valueComparer: IInterface;
       collectionFactory: TCollectionFactory;
       ownerships: TDictionaryOwnerships);
@@ -365,44 +359,12 @@ type
   {$ENDREGION}
   end;
 
-  TFoldedMultiMap<TKey, TValue> = class(TMultiMap<TKey, TValue>)
-  private
-    fElementType: PTypeInfo;
-    fKeyType: PTypeInfo;
-    fValueType: PTypeInfo;
-  protected
-    function GetElementType: PTypeInfo; override;
-    function GetKeyType: PTypeInfo; override;
-    function GetValueType: PTypeInfo; override;
-  public
-    constructor Create(keyType, valueType, elementType: PTypeInfo;
-      const keyComparer: IEqualityComparer<TKey>;
-      const valueComparer: IInterface;
-      collectionFactory: TCollectionFactory;
-      ownerships: TDictionaryOwnerships);
-  end;
-
-  TFoldedSortedMultiMap<TKey, TValue> = class(TSortedMultiMap<TKey, TValue>)
-  private
-    fElementType: PTypeInfo;
-    fKeyType: PTypeInfo;
-    fValueType: PTypeInfo;
-  protected
-    function GetElementType: PTypeInfo; override;
-    function GetKeyType: PTypeInfo; override;
-    function GetValueType: PTypeInfo; override;
-  public
-    constructor Create(keyType, valueType, elementType: PTypeInfo;
-      const keyComparer: IComparer<TKey>;
-      const valueComparer: IInterface;
-      collectionFactory: TCollectionFactory;
-      ownerships: TDictionaryOwnerships);
-  end;
-
   TCollectionsHelper = class(Spring.Collections.TCollections);
 
   TCollectionWrapper_Object = class(TCollectionWrapper<TObject>);
   TCollectionWrapper_Interface = class(TCollectionWrapper<IInterface>);
+
+procedure ValidateParams(keyType, valueType: PTypeInfo; ownerships: TDictionaryOwnerships);
 
 implementation
 
@@ -411,6 +373,17 @@ uses
   TypInfo,
   Spring.Comparers,
   Spring.ResourceStrings;
+
+procedure ValidateParams(keyType, valueType: PTypeInfo; ownerships: TDictionaryOwnerships);
+begin
+  if keyType.Kind <> tkClass then
+    if doOwnsKeys in ownerships then
+      RaiseHelper.NoClassType(keyType);
+
+  if valueType.Kind <> tkClass then
+    if doOwnsValues in ownerships then
+      RaiseHelper.NoClassType(valueType);
+end;
 
 
 {$REGION 'TCollectionWrapper'}
@@ -437,6 +410,7 @@ var
   instance: TCollectionWrapper;
 begin
   instance := Pointer(classType.NewInstance);
+  instance.fElementType := elementType;
   instance.fCollection := collection;
   instance.fWrappers := wrappers;
   TMonitor.Enter(instance.fWrappers);
@@ -458,11 +432,6 @@ function TCollectionWrapper.GetCount: Integer;
 begin
   RefreshIfEmpty;
   Result := fCollection.Count;
-end;
-
-function TCollectionWrapper.GetElementType: PTypeInfo;
-begin
-  Result := fCollection.ElementType;
 end;
 
 procedure TCollectionWrapper.GetEnumerator(enumerator: PPointer;
@@ -541,11 +510,6 @@ begin
   Result := TCollectionWrapper(Self).GetCount;
 end;
 
-function TCollectionWrapper<T>.GetElementType: PTypeInfo;
-begin
-  Result := TCollectionWrapper(Self).GetElementType;
-end;
-
 function TCollectionWrapper<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
   TCollectionWrapper(Self).GetEnumerator(@Result, @TEnumerator.Enumerator_Vtable,
@@ -610,25 +574,12 @@ end;
 
 {$REGION 'TMultiMap<TKey, TValue>'}
 
-constructor TMultiMap<TKey, TValue>.Create(
+constructor TMultiMap<TKey, TValue>.Create(elementType: PTypeInfo;
   const keyComparer: IEqualityComparer<TKey>; const valueComparer: IInterface;
   collectionFactory: TCollectionFactory; ownerships: TDictionaryOwnerships);
 begin
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TKey) <> tkClass then
-  {$ELSE}
-  if TType.Kind<TKey> <> tkClass then
-  {$ENDIF}
-    if doOwnsKeys in ownerships then
-      RaiseHelper.NoClassType(TypeInfo(TKey));
-
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TValue) <> tkClass then
-  {$ELSE}
-  if TType.Kind<TValue> <> tkClass then
-  {$ENDIF}
-    if doOwnsValues in ownerships then
-      RaiseHelper.NoClassType(TypeInfo(TValue));
+  fElementType := elementType;
+  ValidateParams(TypeInfo(TKey), TypeInfo(TValue), ownerships);
 
   fHashTable.Comparer := keyComparer;
   fHashTable.Ownerships := ownerships;
@@ -866,7 +817,7 @@ begin
         8: TCollectionsHelper.CreateList_Int64(comparer, Result, valueType);
       end;
   else{$ELSE}begin{$ENDIF}
-    Result := TList<TValue>.Create(IComparer<TValue>(comparer));
+    Result := TList<TValue>.Create(valueType, IComparer<TValue>(comparer));
   end;
 
   entry.HashCode := IEqualityComparer<TKey>(fHashTable.Comparer).GetHashCode(key);
@@ -1072,25 +1023,12 @@ end;
 
 {$REGION 'TSortedMultiMap<TKey, TValue>'}
 
-constructor TSortedMultiMap<TKey, TValue>.Create(
+constructor TSortedMultiMap<TKey, TValue>.Create(elementType: PTypeInfo;
   const keyComparer: IComparer<TKey>; const valueComparer: IInterface;
   collectionFactory: TCollectionFactory; ownerships: TDictionaryOwnerships);
 begin
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TKey) <> tkClass then
-  {$ELSE}
-  if TType.Kind<TKey> <> tkClass then
-  {$ENDIF}
-    if doOwnsKeys in ownerships then
-      RaiseHelper.NoClassType(TypeInfo(TKey));
-
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TValue) <> tkClass then
-  {$ELSE}
-  if TType.Kind<TValue> <> tkClass then
-  {$ENDIF}
-    if doOwnsValues in ownerships then
-      RaiseHelper.NoClassType(TypeInfo(TValue));
+  fElementType := elementType;
+  ValidateParams(TypeInfo(TKey), TypeInfo(TValue), ownerships);
 
   fKeyComparer := keyComparer;
   fValueComparer := valueComparer;
@@ -1325,7 +1263,7 @@ begin
         8: TCollectionsHelper.CreateList_Int64(comparer, Result, valueType);
       end;
   else{$ELSE}begin{$ENDIF}
-    Result := TList<TValue>.Create(IComparer<TValue>(comparer));
+    Result := TList<TValue>.Create(valueType, IComparer<TValue>(comparer));
   end;
 
   node := fTree.FindNode(key);
@@ -1527,108 +1465,6 @@ end;
 {$ENDREGION}
 
 
-{$REGION 'TFoldedMultiMap<TKey, TValue>'}
-
-constructor TFoldedMultiMap<TKey, TValue>.Create(
-  keyType, valueType, elementType: PTypeInfo;
-  const keyComparer: IEqualityComparer<TKey>; const valueComparer: IInterface;
-  collectionFactory: TCollectionFactory; ownerships: TDictionaryOwnerships);
-begin
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TKey) <> tkClass then
-  {$ELSE}
-  if TType.Kind<TKey> <> tkClass then
-  {$ENDIF}
-    if doOwnsKeys in ownerships then
-      RaiseHelper.NoClassType(keyType);
-
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TValue) <> tkClass then
-  {$ELSE}
-  if TType.Kind<TValue> <> tkClass then
-  {$ENDIF}
-    if doOwnsValues in ownerships then
-      RaiseHelper.NoClassType(valueType);
-
-  fHashTable.Comparer := keyComparer;
-  fHashTable.Ownerships := ownerships;
-  fValueComparer := valueComparer;
-  fCollectionFactory := collectionFactory;
-
-  fElementType := elementType;
-  fKeyType := keyType;
-  fValueType := valueType;
-end;
-
-function TFoldedMultiMap<TKey, TValue>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
-end;
-
-function TFoldedMultiMap<TKey, TValue>.GetKeyType: PTypeInfo;
-begin
-  Result := fKeyType;
-end;
-
-function TFoldedMultiMap<TKey, TValue>.GetValueType: PTypeInfo;
-begin
-  Result := fValueType;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedSortedMultiMap<TKey, TValue>'}
-
-constructor TFoldedSortedMultiMap<TKey, TValue>.Create(
-  keyType, valueType, elementType: PTypeInfo;
-  const keyComparer: IComparer<TKey>; const valueComparer: IInterface;
-  collectionFactory: TCollectionFactory; ownerships: TDictionaryOwnerships);
-begin
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TKey) <> tkClass then
-  {$ELSE}
-  if TType.Kind<TKey> <> tkClass then
-  {$ENDIF}
-    if doOwnsKeys in ownerships then
-      RaiseHelper.NoClassType(keyType);
-
-  {$IFDEF DELPHIXE7_UP}
-  if GetTypeKind(TValue) <> tkClass then
-  {$ELSE}
-  if TType.Kind<TValue> <> tkClass then
-  {$ENDIF}
-    if doOwnsValues in ownerships then
-      RaiseHelper.NoClassType(valueType);
-
-  fKeyComparer := keyComparer;
-  fOwnerships := ownerships;
-  fValueComparer := valueComparer;
-  fCollectionFactory := collectionFactory;
-
-  fElementType := elementType;
-  fKeyType := keyType;
-  fValueType := valueType;
-end;
-
-function TFoldedSortedMultiMap<TKey, TValue>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
-end;
-
-function TFoldedSortedMultiMap<TKey, TValue>.GetKeyType: PTypeInfo;
-begin
-  Result := fKeyType;
-end;
-
-function TFoldedSortedMultiMap<TKey, TValue>.GetValueType: PTypeInfo;
-begin
-  Result := fValueType;
-end;
-
-{$ENDREGION}
-
-
 {$REGION 'TValueList<TKey, T>'}
 
 constructor TValueList<TKey, T>.Create(const key: TKey; elementType: PTypeInfo);
@@ -1641,11 +1477,6 @@ function TValueList<TKey, T>.Add(const item: T): Boolean;
 begin
   inherited Add(item);
   Result := True;
-end;
-
-function TValueList<TKey, T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
 end;
 
 function TValueList<TKey, T>.GetKey: TKey;
@@ -1662,13 +1493,7 @@ constructor TValueHashSet<TKey, T>.Create(const key: TKey;
   elementType: PTypeInfo; const comparer: IEqualityComparer<T>);
 begin
   fKey := key;
-  fElementType := elementType;
-  inherited Create(0, comparer);
-end;
-
-function TValueHashSet<TKey, T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
+  inherited Create(elementType, 0, comparer);
 end;
 
 function TValueHashSet<TKey, T>.GetKey: TKey;
@@ -1687,11 +1512,6 @@ begin
   fKey := key;
   fElementType := elementType;
   inherited Create(comparer);
-end;
-
-function TValueTreeSet<TKey, T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
 end;
 
 function TValueTreeSet<TKey, T>.GetKey: TKey;

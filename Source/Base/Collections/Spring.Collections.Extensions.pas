@@ -704,7 +704,7 @@ type
     function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
   protected
-    function GetElementType: PTypeInfo; override;
+    function GetElementType: PTypeInfo;
     function GetEnumerableSorter(
       const next: IEnumerableSorter<T>): IEnumerableSorter<T>; virtual; abstract;
   public
@@ -1943,7 +1943,7 @@ end;
 
 function TSelectIterator<TSource, TResult>.Clone: TIterator<TResult>;
 begin
-  Result := TSelectIterator<TSource, TResult>.Create(fSource, fSelector)
+  Result := TSelectIterator<TSource, TResult>.Create(fSource, fSelector);
 end;
 
 procedure TSelectIterator<TSource, TResult>.Dispose;

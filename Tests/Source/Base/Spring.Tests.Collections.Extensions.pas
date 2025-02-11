@@ -1357,7 +1357,7 @@ begin
   SetLength(values, Length(s));
   for i := 0 to Length(s) - 1 do
     values[i] := s[i + 1];
-  Result := TArrayIterator<Char>.Create(values);
+  Result := TEnumerable.From<Char>(values);
 end;
 
 { TTestAny }
@@ -4918,7 +4918,7 @@ var
   iterator: IEnumerator<Integer>;
 begin
   source := TArray<Integer>.Create(0, 1, 2, 3);
-  query := TArrayIterator<Integer>.Create(source);
+  query := TEnumerable.From<Integer>(source);
   query := query.Reversed;
   source[1] := 99;
   iterator := query.GetEnumerator;

@@ -275,7 +275,7 @@ var
 begin
   inherited AfterConstruction;
 
-  elementType := GetElementType;
+  elementType := fElementType;
   fHashTable.ItemsInfo := TypeInfo(TItems);
   fHashTable.Initialize(TComparerThunks<T>.Equals, TComparerThunks<T>.GetHashCode, elementType);
   {$IFDEF DELPHIXE7_UP}
@@ -582,7 +582,7 @@ constructor TTreeMultiSet<T>.Create(const comparer: IComparer<T>);
 begin
   fTree := TRedBlackTreeBase<T, Integer>.Create(comparer);
   fItems := TTreeMapInnerCollection.Create(TTreeMapInnerCollection<T>,
-    Self, fTree, @fVersion, nil, GetElementType, 0);
+    Self, fTree, @fVersion, nil, fElementType, 0);
   fEntries := TTreeMapInnerCollection.Create(TTreeMapInnerCollection<TPair<T,Integer>>,
     Self, fTree, @fVersion, nil, TypeInfo(TEntry), 0);
 end;
@@ -836,3 +836,4 @@ end;
 
 
 end.
+

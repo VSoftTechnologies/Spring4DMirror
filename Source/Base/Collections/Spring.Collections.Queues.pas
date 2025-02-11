@@ -59,8 +59,8 @@ type
   private
     procedure Grow;
   public
-    constructor Create(const values: array of T); overload;
-    constructor Create(const values: IEnumerable<T>); overload;
+    constructor Create(const elementType: PTypeInfo;
+      const comparer: IComparer<T>; ownsObjects: Boolean = False);
 
   {$REGION 'Implements IQueue<T>'}
     function Enqueue(const item: T): Boolean;
@@ -142,16 +142,6 @@ type
     function AddFirst(const item: T): Boolean;
     function AddLast(const item: T): Boolean;
   {$ENDREGION}
-  end;
-
-  TFoldedQueue<T> = class(TQueue<T>)
-  private
-    fElementType: PTypeInfo;
-  protected
-    function GetElementType: PTypeInfo; override;
-  public
-    constructor Create(const elementType: PTypeInfo;
-      const comparer: IComparer<T>; ownsObjects: Boolean = False);
   end;
 
 implementation
@@ -254,26 +244,12 @@ end;
 
 {$REGION 'TQueue<T>'}
 
-constructor TQueue<T>.Create(const values: array of T);
-var
-  i: Integer;
+constructor TQueue<T>.Create(const elementType: PTypeInfo;
+  const comparer: IComparer<T>; ownsObjects: Boolean);
 begin
-  SetCapacity(Length(values));
-  for i := 0 to High(values) do
-    Enqueue(values[i]);
-end;
-
-constructor TQueue<T>.Create(const values: IEnumerable<T>);
-var
-  enumerator: IEnumerator<T>;
-  item: T;
-begin
-  enumerator := values.GetEnumerator;
-  while enumerator.MoveNext do
-  begin
-    item := enumerator.Current;
-    Enqueue(item);
-  end;
+  fElementType := elementType;
+  fComparer := comparer;
+  SetOwnsObjects(ownsObjects);
 end;
 
 function TQueue<T>.Enqueue(const item: T): Boolean;
@@ -526,24 +502,6 @@ begin
     DeleteFromHead(caRemoved);
   AddToTail(item);
   Result := True;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedQueue<T>'}
-
-constructor TFoldedQueue<T>.Create(const elementType: PTypeInfo;
-  const comparer: IComparer<T>; ownsObjects: Boolean);
-begin
-  fComparer := comparer;
-  fElementType := elementType;
-  SetOwnsObjects(ownsObjects);
-end;
-
-function TFoldedQueue<T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
 end;
 
 {$ENDREGION}

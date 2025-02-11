@@ -107,8 +107,8 @@ type
   private
     procedure Grow;
   public
-    constructor Create(const values: array of T); overload;
-    constructor Create(const values: IEnumerable<T>); overload;
+    constructor Create(const elementType: PTypeInfo;
+      const comparer: IComparer<T>; ownsObjects: Boolean = False);
     procedure Clear;
     function Push(const item: T): Boolean;
   end;
@@ -116,16 +116,6 @@ type
   TBoundedStack<T> = class(TAbstractStack<T>, IInterface, IEnumerable<T>, IStack<T>)
   public
     function Push(const item: T): Boolean;
-  end;
-
-  TFoldedStack<T> = class(TStack<T>)
-  private
-    fElementType: PTypeInfo;
-  protected
-    function GetElementType: PTypeInfo; override;
-  public
-    constructor Create(const elementType: PTypeInfo;
-      const comparer: IComparer<T>; ownsObjects: Boolean = False);
   end;
 
 implementation
@@ -393,27 +383,12 @@ end;
 
 {$REGION 'TStack<T>'}
 
-constructor TStack<T>.Create(const values: array of T);
-var
-  i: Integer;
+constructor TStack<T>.Create(const elementType: PTypeInfo;
+  const comparer: IComparer<T>; ownsObjects: Boolean);
 begin
-  inherited Create(Length(values));
-  for i := 0 to High(values) do
-    Push(values[i]);
-end;
-
-constructor TStack<T>.Create(const values: IEnumerable<T>);
-var
-  enumerator: IEnumerator<T>;
-  item: T;
-begin
-  inherited Create;
-  enumerator := values.GetEnumerator;
-  while enumerator.MoveNext do
-  begin
-    item := enumerator.Current;
-    Push(item);
-  end;
+  fElementType := elementType;
+  fComparer := comparer;
+  inherited Create(0, ownsObjects);
 end;
 
 procedure TStack<T>.Clear;
@@ -448,25 +423,6 @@ begin
     Exit(False);
   PushInternal(item);
   Result := True;
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TFoldedStack<T>'}
-
-constructor TFoldedStack<T>.Create(const elementType: PTypeInfo;
-  const comparer: IComparer<T>; ownsObjects: Boolean);
-begin
-  fElementType := elementType;
-  fComparer := comparer;
-  inherited Create;
-  SetOwnsObjects(ownsObjects);
-end;
-
-function TFoldedStack<T>.GetElementType: PTypeInfo;
-begin
-  Result := fElementType;
 end;
 
 {$ENDREGION}
