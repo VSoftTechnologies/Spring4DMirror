@@ -257,6 +257,7 @@ type
     function GetItem(index: Integer): Integer;
     function GetNonEnumeratedCount: Integer;
   {$ENDREGION}
+    class procedure Empty(var result); static;
   public
     constructor Create(start, count: Integer);
 
@@ -1548,6 +1549,11 @@ begin
   fCount := count;
 end;
 
+class procedure TRangeIterator.Empty(var result);
+begin
+  TEnumerableExtension.Empty(TEnumerableExtension<Integer>, TypeInfo(Integer), result);
+end;
+
 function TRangeIterator.Contains(const item: Integer): Boolean;
 begin
   Result := Cardinal(item - fStart) < Cardinal(fCount);
@@ -1632,7 +1638,7 @@ begin
   if count < 0 then
     count := 0;
   if count >= fCount then
-    Result := TEnumerable.Empty<Integer>
+    Empty(Result)
   else
     Result := TRangeIterator.Create(fStart + count, fCount - count);
 end;
@@ -1642,7 +1648,7 @@ begin
   if count < 0 then
     count := 0;
   if count >= fCount then
-    Result := TEnumerable.Empty<Integer>
+    Empty(Result)
   else
     Result := TRangeIterator.Create(fStart, fCount - count);
 end;
@@ -1650,7 +1656,7 @@ end;
 function TRangeIterator.Take(count: Integer): IEnumerable<Integer>;
 begin
   if count <= 0 then
-    Result := TEnumerable.Empty<Integer>
+    Empty(Result)
   else if count >= fCount then
     Result := IEnumerable<Integer>(this)
   else
@@ -1660,7 +1666,7 @@ end;
 function TRangeIterator.TakeLast(count: Integer): IEnumerable<Integer>;
 begin
   if count <= 0 then
-    Result := TEnumerable.Empty<Integer>
+    Empty(Result)
   else if count >= fCount then
     Result := IEnumerable<Integer>(this)
   else
@@ -2295,7 +2301,7 @@ function TLookup<TKey, TElement>.GetItem(
 begin
   Result := GetGrouping(key, False);
   if not Assigned(Result) then
-    Result := TEnumerable.Empty<TElement>;
+    TEnumerableExtension.Empty(TEnumerableExtension<TElement>, TypeInfo(TElement), Result);
 end;
 
 function TLookup<TKey, TElement>.GetNonEnumeratedCount: Integer;

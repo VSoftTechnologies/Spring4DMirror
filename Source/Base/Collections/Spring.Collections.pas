@@ -5425,19 +5425,14 @@ type
   TEnumerable = class
   protected
   {$REGION 'Internal factory methods'}
-    class procedure CreateEmpty_Int8(var result; elementType: Pointer); static;
-    class procedure CreateEmpty_Int16(var result; elementType: Pointer); static;
-    class procedure CreateEmpty_Int32(var result; elementType: Pointer); static;
-    class procedure CreateEmpty_Int64(var result; elementType: Pointer); static;
-    class procedure CreateEmpty_Method(var result; elementType: Pointer); static;
-    class procedure CreateEmpty_Interface(var result; elementType: Pointer); static;
-    class procedure CreateEmpty_Object(var result; elementType: Pointer); static;
-    class procedure CreateEmpty_String(var result; elementType: Pointer); static;
-
-    class procedure InternalFrom_DynArray(values: Pointer; var result;
-      classType: TClass; typeInfo: PTypeInfo); static;
-    class procedure InternalFrom_OpenArray(values: Pointer; count: Integer; var result;
-      classType: TClass; typeInfo: PTypeInfo); static;
+    class function ExtensionClass_Int8: TClass; static;
+    class function ExtensionClass_Int16: TClass; static;
+    class function ExtensionClass_Int32: TClass; static;
+    class function ExtensionClass_Int64: TClass; static;
+    class function ExtensionClass_Method: TClass; static;
+    class function ExtensionClass_Interface: TClass; static;
+    class function ExtensionClass_Object: TClass; static;
+    class function ExtensionClass_String: TClass; static;
 
     class procedure InternalOfType_Object(const source: IEnumerable<TObject>; var result; resultType: PTypeInfo); static;
   {$ENDREGION}
@@ -11856,52 +11851,44 @@ end;
 
 {$REGION 'TEnumerable'}
 
-class procedure TEnumerable.CreateEmpty_Int8(var result; elementType: Pointer);
+class function TEnumerable.ExtensionClass_Int8: TClass;
 begin
-  with TEnumerableExtension.Create(TEnumerableExtension<Int8>, nil, TExtensionKind.Empty) do
-    IInterface(result) := IInterface(@IMT);
+  Result := TEnumerableExtension<Int8>;
 end;
 
-class procedure TEnumerable.CreateEmpty_Int16(var result; elementType: Pointer);
+class function TEnumerable.ExtensionClass_Int16: TClass;
 begin
-  with TEnumerableExtension.Create(TEnumerableExtension<Int16>, nil, TExtensionKind.Empty) do
-    IInterface(result) := IInterface(@IMT);
+  Result := TEnumerableExtension<Int16>;
 end;
 
-class procedure TEnumerable.CreateEmpty_Int32(var result; elementType: Pointer);
+class function TEnumerable.ExtensionClass_Int32: TClass;
 begin
-  with TEnumerableExtension.Create(TEnumerableExtension<Int32>, nil, TExtensionKind.Empty) do
-    IInterface(result) := IInterface(@IMT);
+  Result := TEnumerableExtension<Int32>;
 end;
 
-class procedure TEnumerable.CreateEmpty_Int64(var result; elementType: Pointer);
+class function TEnumerable.ExtensionClass_Int64: TClass;
 begin
-  with TEnumerableExtension.Create(TEnumerableExtension<Int64>, nil, TExtensionKind.Empty) do
-    IInterface(result) := IInterface(@IMT);
+  Result := TEnumerableExtension<Int64>;
 end;
 
-class procedure TEnumerable.CreateEmpty_Interface(var result; elementType: Pointer);
+class function TEnumerable.ExtensionClass_Interface: TClass;
 begin
-  with TEnumerableExtension.Create(TEnumerableExtension<IInterface>, nil, TExtensionKind.Empty) do
-    IInterface(result) := IInterface(@IMT);
+  Result := TEnumerableExtension<IInterface>;
 end;
 
-class procedure TEnumerable.CreateEmpty_Method(var result; elementType: Pointer);
+class function TEnumerable.ExtensionClass_Method: TClass;
 begin
-  with TEnumerableExtension.Create(TEnumerableExtension<TMethodPointer>, nil, TExtensionKind.Empty) do
-    IInterface(result) := IInterface(@IMT);
+  Result := TEnumerableExtension<TMethodPointer>;
 end;
 
-class procedure TEnumerable.CreateEmpty_Object(var result; elementType: Pointer);
+class function TEnumerable.ExtensionClass_Object: TClass;
 begin
-  with TEnumerableExtension.Create(TEnumerableExtension<TObject>, nil, TExtensionKind.Empty) do
-    IInterface(result) := IInterface(@IMT);
+  Result := TEnumerableExtension<TObject>;
 end;
 
-class procedure TEnumerable.CreateEmpty_String(var result; elementType: Pointer);
+class function TEnumerable.ExtensionClass_String: TClass;
 begin
-  with TEnumerableExtension.Create(TEnumerableExtension<string>, nil, TExtensionKind.Empty) do
-    IInterface(result) := IInterface(@IMT);
+  Result := TEnumerableExtension<string>;
 end;
 
 class function TEnumerable.Aggregate<TSource, TAccumulate>(
@@ -11985,24 +11972,29 @@ begin
 end;
 
 class function TEnumerable.Empty<T>: IReadOnlyList<T>;
+var
+  classType: TClass;
 begin
 {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
-    tkClass: CreateEmpty_Object(Result, TypeInfo(T));
-    tkInterface: CreateEmpty_Interface(Result, TypeInfo(T));
-    tkUString: CreateEmpty_String(Result, TypeInfo(T));
-    tkMethod: CreateEmpty_Method(Result, TypeInfo(T));
+    tkClass: classType := ExtensionClass_Object;
+    tkInterface: classType := ExtensionClass_Interface;
+    tkUString: classType := ExtensionClass_String;
+    tkMethod: classType := ExtensionClass_Method;
     tkInteger, tkChar, tkWChar, tkEnumeration, tkInt64, tkClassRef, tkPointer, tkProcedure:
       case SizeOf(T) of
-        1: CreateEmpty_Int8(Result, TypeInfo(T));
-        2: CreateEmpty_Int16(Result, TypeInfo(T));
-        4: CreateEmpty_Int32(Result, TypeInfo(T));
-        8: CreateEmpty_Int64(Result, TypeInfo(T));
+        1: classType := ExtensionClass_Int8;
+        2: classType := ExtensionClass_Int16;
+        4: classType := ExtensionClass_Int32;
+        8: classType := ExtensionClass_Int64;
+      else
+        classType := nil;
       end;
   else{$ELSE}begin{$ENDIF}
-    with TEnumerableExtension.Create(TEnumerableExtension<T>, nil, TExtensionKind.Empty) do
-      IInterface(result) := IInterface(@IMT);
+    classType := TEnumerableExtension<T>;
   end;
+
+  TEnumerableExtension.Empty(classType, TypeInfo(T), Result);
 end;
 
 class function TEnumerable.&Except<T>(const first,
@@ -12017,20 +12009,6 @@ begin
   Result := first.Exclude(second, comparer);
 end;
 
-class procedure TEnumerable.InternalFrom_DynArray(values: Pointer; var result;
-  classType: TClass; typeInfo: PTypeInfo);
-begin
-  with TEnumerableExtension.From(classType, values, -1, typeInfo) do
-    IInterface(result) := IInterface(@IMT);
-end;
-
-class procedure TEnumerable.InternalFrom_OpenArray(values: Pointer;
-  count: Integer; var result; classType: TClass; typeInfo: PTypeInfo);
-begin
-  with TEnumerableExtension.From(classType, values, count, typeInfo) do
-    IInterface(result) := IInterface(@IMT);
-end;
-
 class procedure TEnumerable.InternalOfType_Object(const source: IEnumerable<TObject>;
   var result; resultType: PTypeInfo);
 begin
@@ -12038,43 +12016,55 @@ begin
 end;
 
 class function TEnumerable.From<T>(const values: array of T): IReadOnlyList<T>;
+var
+  classType: TClass;
 begin
 {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
-    tkClass: TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<TObject>, TypeInfo(TArray<T>));
-    tkInterface: TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<IInterface>, TypeInfo(TArray<T>));
-    tkUString: TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<string>, TypeInfo(TArray<T>));
-    tkMethod: TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<TMethodPointer>, TypeInfo(TArray<T>));
+    tkClass: classType := ExtensionClass_Object;
+    tkInterface: classType := ExtensionClass_Interface;
+    tkUString: classType := ExtensionClass_String;
+    tkMethod: classType := ExtensionClass_Method;
     tkInteger, tkChar, tkWChar, tkEnumeration, tkInt64, tkClassRef, tkPointer, tkProcedure:
       case SizeOf(T) of
-        1: TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<Int8>, TypeInfo(TArray<T>));
-        2: TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<Int16>, TypeInfo(TArray<T>));
-        4: TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<Int32>, TypeInfo(TArray<T>));
-        8: TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<Int64>, TypeInfo(TArray<T>));
+        1: classType := ExtensionClass_Int8;
+        2: classType := ExtensionClass_Int16;
+        4: classType := ExtensionClass_Int32;
+        8: classType := ExtensionClass_Int64;
+      else
+        classType := nil;
       end;
   else{$ELSE}begin{$ENDIF}
-    TEnumerable.InternalFrom_OpenArray(@values, Length(values), result, TEnumerableExtension<T>, TypeInfo(TArray<T>));
+    classType := TEnumerableExtension<T>;
   end;
+
+  TEnumerableExtension.From(@values, Length(values), result, classType, TypeInfo(TArray<T>));
 end;
 
 class function TEnumerable.From<T>(const values: TArray<T>): IReadOnlyList<T>;
+var
+  classType: TClass;
 begin
 {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(T) of
-    tkClass: TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<TObject>, TypeInfo(TArray<T>));
-    tkInterface: TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<IInterface>, TypeInfo(TArray<T>));
-    tkUString: TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<string>, TypeInfo(TArray<T>));
-    tkMethod: TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<TMethodPointer>, TypeInfo(TArray<T>));
+    tkClass: classType := ExtensionClass_Object;
+    tkInterface: classType := ExtensionClass_Interface;
+    tkUString: classType := ExtensionClass_String;
+    tkMethod: classType := ExtensionClass_Method;
     tkInteger, tkChar, tkWChar, tkEnumeration, tkInt64, tkClassRef, tkPointer, tkProcedure:
       case SizeOf(T) of
-        1: TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<Int8>, TypeInfo(TArray<T>));
-        2: TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<Int16>, TypeInfo(TArray<T>));
-        4: TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<Int32>, TypeInfo(TArray<T>));
-        8: TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<Int64>, TypeInfo(TArray<T>));
+        1: classType := ExtensionClass_Int8;
+        2: classType := ExtensionClass_Int16;
+        4: classType := ExtensionClass_Int32;
+        8: classType := ExtensionClass_Int64;
+      else
+        classType := nil;
       end;
   else{$ELSE}begin{$ENDIF}
-    TEnumerable.InternalFrom_DynArray(Pointer(values), result, TEnumerableExtension<T>, TypeInfo(TArray<T>));
+    classType := TEnumerableExtension<T>;
   end;
+
+  TEnumerableExtension.From(Pointer(values), -1, result, classType, TypeInfo(TArray<T>));
 end;
 
 class function TEnumerable.GroupBy<T, TKey>(const source: IEnumerable<T>;
@@ -12295,7 +12285,7 @@ class function TEnumerable.Range(start, count: Integer): IReadOnlyList<Integer>;
 begin
   if (count >= 0) and (Int64(start) + count <= Cardinal(MaxInt) + 1) then
     if count = 0 then
-      Result := TEnumerable.Empty<Integer>
+      TEnumerableExtension.Empty(TEnumerableExtension<Integer>, TypeInfo(Integer), Result)
     else
       Result := TRangeIterator.Create(start, count)
   else
@@ -12305,7 +12295,7 @@ end;
 class function TEnumerable.Repeated<T>(const element: T; count: Integer): IEnumerable<T>; //FI:W521
 begin
   if count = 0 then
-    Result := TEnumerable.Empty<T>
+    TEnumerableExtension.Empty(TEnumerableExtension<T>, TypeInfo(T), Result)
   else if count > 0 then
     Result := TRepeatIterator<T>.Create(element, count)
   else

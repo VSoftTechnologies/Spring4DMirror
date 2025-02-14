@@ -119,6 +119,7 @@ type
   private
     // Win64 compilers of XE2 and XE3 generate some bad code when using nil directly
     const emptyComparer{$IF defined(WIN64) and not defined(DELPHIXE4_UP)}: Pointer{$IFEND} = nil;
+    function IsEmptyExtension: Boolean;
     function MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
   protected
     this: Pointer;
@@ -425,16 +426,18 @@ type
 
     class function Create(classType: TClass; const source: IEnumerable;
       kind: TExtensionKind): TEnumerableExtension; static;
-    class function From(classType: TClass; values: PPointer; count: NativeInt;
-      typeInfo: PTypeInfo): TEnumerableExtension; static;
+    class procedure Empty(classType: TClass; elementType: PTypeInfo; var result); static;
+    class procedure From(values: PPointer; count: NativeInt; var result;
+      classType: TClass; typeInfo: PTypeInfo); static;
 
     function Any(var value; getCurrent: TGetCurrent; default: TGetDefault;
       assign: TAssign; elSize: NativeInt): Boolean;
+    function GetIsEmpty: Boolean;
     function GetNonEnumeratedCount: Integer;
     procedure MemoizeToArray(var values: Pointer; typeInfo: PTypeInfo);
     function PartitionToArray(var values: Pointer; typeInfo: PTypeInfo): Boolean;
-    procedure Skip(count: Integer; var result; classType: TClass);
-    procedure Take(count: Integer; var result; classType: TClass);
+    procedure Skip(count: Integer; var result; typeInfo: PTypeInfo);
+    procedure Take(count: Integer; var result; typeInfo: PTypeInfo);
     function TryGetElementAt(var value; index: Integer; getCurrent: TGetCurrent;
       default: TGetDefault; assign: TAssign; typeInfo: PTypeInfo): Boolean; overload;
     function TryGetFirst(var value; getCurrent: TGetCurrent;
@@ -449,11 +452,12 @@ type
   // This is needed for the implementation of TEnumerable.Empty and TEnumerable.From
   // as they return IReadOnlyList<T> but the class cannot implement those for all
   // TExtensionKind
-  IReadOnlyListInternal<T> = interface(IReadOnlyList<T>)
+  IEnumerableExtension<T> = interface(IReadOnlyList<T>)
+    ['{163EC7DA-F759-44A8-A34A-77D539C6FE94}']
   end;
 
   TEnumerableExtension<T> = class sealed(TEnumerableBase<T>, IInterface, IEnumerable<T>,
-    IReadOnlyListInternal<T>)
+    IEnumerableExtension<T>)
   private type
   {$REGION 'Nested Types'}
     PEnumerator = ^TEnumerator;
@@ -479,6 +483,7 @@ type
     fEqualityComparer: IEqualityComparer<T>;
     fKind: TExtensionKind;
 
+    function GetIsEmpty: Boolean;
     function GetNonEnumeratedCount: Integer;
 
   {$REGION 'Implements IReadOnlyList<T>'}
@@ -1062,6 +1067,7 @@ const
   IReadOnlyDictionaryGuid: TGUID = '{39F7C68B-373E-4758-808C-705D3978E38F}';
 
   IPartitionOfTGuid: TGUID = '{ACFB79AB-F593-4F2B-9720-E6CE984F6844}';
+  IEnumerableExtensionOfTGuid: TGUID = '{163EC7DA-F759-44A8-A34A-77D539C6FE94}';
 
   DefaultMethod: TMethod = ();
 
@@ -1580,6 +1586,12 @@ procedure TEnumerableBase.Concat(const second: IInterface; var result; classType
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := second;
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Concat) do
   begin
     fPredicate := second;
@@ -1638,6 +1650,12 @@ end;
 
 procedure TEnumerableBase.Distinct(comparer: Pointer; var result; classType: TClass);
 begin
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   if not Assigned(comparer) then
     comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
@@ -1694,6 +1712,12 @@ end;
 procedure TEnumerableBase.Exclude(const second: IInterface; comparer: Pointer; var result; classType: TClass);
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
+
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
 
   if not Assigned(comparer) then
     comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
@@ -1801,6 +1825,12 @@ procedure TEnumerableBase.Intersect(const second: IInterface; comparer: Pointer;
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   if not Assigned(comparer) then
     comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
@@ -1810,6 +1840,12 @@ begin
     fEqualityComparer := IInterface(comparer);
     IInterface(result) := IInterface(@IMT);
   end;
+end;
+
+function TEnumerableBase.IsEmptyExtension: Boolean;
+begin
+  Result := Assigned(GetInterfaceEntry(IEnumerableExtensionOfTGuid))
+    and (TEnumerableExtension(Self).fKind = TExtensionKind.Empty);
 end;
 
 function TEnumerableBase.MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
@@ -1929,6 +1965,12 @@ end;
 
 procedure TEnumerableBase.Memoize(var result; classType: TClass);
 begin
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   if MemoizeCanReturnThis(classType) then
     IInterface(Result) := IInterface(this)
   else
@@ -2076,6 +2118,12 @@ procedure TEnumerableBase.Ordered(const comparer: IInterface; var result; classT
 begin
   if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
 
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Ordered) do
   begin
     fPredicate := comparer;
@@ -2118,12 +2166,24 @@ end;
 
 procedure TEnumerableBase.Reversed(var result; classType: TClass);
 begin
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Reversed) do
     IInterface(result) := IInterface(@IMT);
 end;
 
 procedure TEnumerableBase.Shuffled(var result; classType: TClass);
 begin
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Shuffled) do
     IInterface(result) := IInterface(@IMT);
 end;
@@ -2132,6 +2192,12 @@ procedure TEnumerableBase.Skip(count: Integer; var result; classType: TClass);
 var
   maxCount: Integer;
 begin
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   if count <= 0 then
     IInterface(result) := IInterface(this)
   else
@@ -2148,6 +2214,12 @@ end;
 
 procedure TEnumerableBase.SkipLast(count: Integer; var result; classType: TClass);
 begin
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   if count <= 0 then
     IInterface(result) := IInterface(this)
   else
@@ -2162,6 +2234,12 @@ procedure TEnumerableBase.SkipWhile(const predicate: IInterface; var result; cla
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.SkipWhile) do
   begin
     fPredicate := predicate;
@@ -2172,6 +2250,12 @@ end;
 procedure TEnumerableBase.SkipWhileIndex(const predicate: IInterface; var result; classType: TClass);
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
+
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
 
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.SkipWhileIndex) do
   begin
@@ -2241,6 +2325,18 @@ end;
 
 procedure TEnumerableBase.Take(count: Integer; var result; classType: TClass);
 begin
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
+  if count <= 0 then
+  begin
+    TEnumerableExtension.Empty(classType, fElementType, result);
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Partition) do
   begin
     if count < 0 then
@@ -2252,6 +2348,12 @@ end;
 
 procedure TEnumerableBase.TakeLast(count: Integer; var result; classType: TClass);
 begin
+  if count <= 0 then
+  begin
+    TEnumerableExtension.Empty(classType, fElementType, result);
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.PartitionFromEnd) do
   begin
     fIndex := -1;
@@ -2266,6 +2368,12 @@ procedure TEnumerableBase.TakeWhile(const predicate: IInterface; var result; cla
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.TakeWhile) do
   begin
     fPredicate := predicate;
@@ -2276,6 +2384,12 @@ end;
 procedure TEnumerableBase.TakeWhileIndex(const predicate: IInterface; var result; classType: TClass);
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
+
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
 
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.TakeWhileIndex) do
   begin
@@ -2479,6 +2593,12 @@ procedure TEnumerableBase.Where(const predicate: IInterface; var result; classTy
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Where) do
   begin
     fPredicate := predicate;
@@ -2489,6 +2609,12 @@ end;
 procedure TEnumerableBase.WhereIndex(const predicate: IInterface; var result; classType: TClass);
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
+
+  if IsEmptyExtension then
+  begin
+    IInterface(result) := IInterface(this);
+    Exit;
+  end;
 
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.WhereIndex) do
   begin
@@ -5580,57 +5706,88 @@ function TEnumerableExtension.Any(var value; getCurrent: TGetCurrent;
 var
   count: Integer;
 begin
-  count := GetNonEnumeratedCount;
-  if count >= 0 then
-    Result := count > 0
+  case fKind of
+    TExtensionKind.Empty,
+    TExtensionKind.DefaultIfEmpty,
+    TExtensionKind.Items: Result := fKind <> TExtensionKind.Empty;
   else
-    if not ((fKind = TExtensionKind.PartitionFromEnd)
-      and (fIndex < 0)) then
-      Result := TryGetFirst(value, getCurrent, default, assign)
+    count := GetNonEnumeratedCount;
+    if count >= 0 then
+      Result := count > 0
     else
-      Result := TryGetLast(value, getCurrent, default, assign, elSize);
+      if not ((fKind = TExtensionKind.PartitionFromEnd)
+        and (fIndex < 0)) then
+        Result := TryGetFirst(value, getCurrent, default, assign)
+      else
+        Result := TryGetLast(value, getCurrent, default, assign, elSize);
+  end;
 end;
 
 class function TEnumerableExtension.Create(classType: TClass;
   const source: IEnumerable; kind: TExtensionKind): TEnumerableExtension;
 begin
   Result := Pointer(classType.NewInstance);
-  if Assigned(source) then
-    Result.fElementType := source.ElementType;
+  Result.fElementType := source.ElementType;
   TObject(Result).AfterConstruction;
   Result.fSource := source;
-  if Assigned(source) then
-    AssignComparer(Result.fComparer, source);
+  AssignComparer(Result.fComparer, source);
   Result.fKind := kind;
 end;
 
-class function TEnumerableExtension.From(classType: TClass;
-  values: PPointer; count: NativeInt; typeInfo: PTypeInfo): TEnumerableExtension;
+class procedure TEnumerableExtension.Empty(classType: TClass; elementType: PTypeInfo; var result);
 var
-  elType: PPTypeInfo;
-  p: PDynArrayTypeInfo;
+  instance: TEnumerableExtension;
 begin
-  Result := Pointer(classType.NewInstance);
+  instance := TEnumerableExtension(classType.NewInstance);
+  if Assigned(elementType) then
+    instance.fElementType := elementType;
+  TObject(instance).AfterConstruction;
+  IInterface(result) := IInterface(@instance.IMT);
+end;
+
+class procedure TEnumerableExtension.From(values: PPointer; count: NativeInt;
+  var result; classType: TClass; typeInfo: PTypeInfo);
+var
+  instance: TEnumerableExtension;
+  elType: PPTypeInfo;
+  p: PTypeInfoData;
+begin
+  instance := TEnumerableExtension(classType.NewInstance);
   elType := typeInfo.TypeData.DynArrElType;
   if Assigned(elType) then
-    Result.fElementType := elType^;
-  TObject(Result).AfterConstruction;
-  Result.fKind := TExtensionKind.Items;
+    instance.fElementType := elType^;
+  TObject(instance).AfterConstruction;
   if count > 0 then
   begin
-    Result.fCount := count;
-    DynArraySetLength(Result.fItems, typeInfo, 1, @count);
+    instance.fKind := TExtensionKind.Items;
+    instance.fCount := count;
+    DynArraySetLength(instance.fItems, typeInfo, 1, @count);
 
-    p := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name));
+    p := GetTypeInfoData(typeInfo);
     if Assigned(p.elType) then
-      MoveManaged(values, Result.fItems, p.elType^, count)
+      MoveManaged(values, instance.fItems, p.elType^, count)
     else
-      System.Move(values^, Result.fItems^, p.elSize * count);
+      System.Move(values^, instance.fItems^, p.elSize * count);
   end
-  else if count < 0 then // negative count indicates dynamic array that only gets assigned
+  else if (count < 0) and Assigned(values) then // negative count indicates dynamic array that only gets assigned
   begin
-    Result.fCount := DynArrayLength(values);
-    DynArrayAssign(Result.fItems, values, typeInfo);
+    instance.fKind := TExtensionKind.Items;
+    {$POINTERMATH ON}
+    instance.fCount := PNativeInt(values)[-1];
+    {$POINTERMATH OFF}
+    DynArrayAssign(instance.fItems, values, typeInfo);
+  end;
+  IInterface(result) := IInterface(@instance.IMT);
+end;
+
+function TEnumerableExtension.GetIsEmpty: Boolean;
+begin
+  case fKind of
+    TExtensionKind.Empty,
+    TExtensionKind.DefaultIfEmpty,
+    TExtensionKind.Items: Result := fKind = TExtensionKind.Empty;
+  else
+    Result := inherited;
   end;
 end;
 
@@ -5740,7 +5897,7 @@ begin
         count := 0;
       DynArraySetLength(values, typeInfo, 1, @count);
       source := Pointer(fSource);
-      elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+      elSize := GetTypeInfoData(typeInfo).elSize;
       for i := 0 to count - 1 do
       begin
         // little hack - we can hardcast here since we are just passing along a by ref param
@@ -5757,108 +5914,115 @@ begin
   end;
 end;
 
-procedure TEnumerableExtension.Skip(count: Integer; var result; classType: TClass);
+procedure TEnumerableExtension.Skip(count: Integer; var result; typeInfo: PTypeInfo);
 var
   minIndex: Integer;
   source: Pointer;
 begin
-  if fKind <> TExtensionKind.Partition then
-  begin
-    inherited;
-    Exit;
-  end;
-
-  if count < 0 then
-    count := 0;
-  {$Q-}
-  minIndex := fIndex + count;
-  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-  if fCount = -1 then
-  begin
-    if minIndex < 0 then
+  case fKind of
+    TExtensionKind.Empty:
     begin
-      // If we don't know our max count and minIndex can no longer fit in a positive int,
-      // then we will need to wrap ourselves in another iterator.
-      // This can happen, for example, during e.Skip(MaxInt).Skip(MaxInt).
-      source := Pointer(this);
-      minIndex := count;
-      count := -1;
-    end
-    else
-    begin
-      source := Pointer(fSource);
-      count := -1;
+      TEnumerableExtension.Empty(ClassType, fElementType, result);
+      Exit;
     end;
-  end
-  else if count >= fCount then
-  begin
-    source := nil;
-    minIndex := 0;
-    count := 0;
-  end
-  else
-  begin
-    source := Pointer(fSource);
-    count := fCount - count;
-  end;
+    TExtensionKind.Partition:
+    begin
+      if count < 0 then
+        count := 0;
+      {$Q-}
+      minIndex := fIndex + count;
+      {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+      if fCount = -1 then
+      begin
+        if minIndex < 0 then
+        begin
+          // If we don't know our max count and minIndex can no longer fit in a positive int,
+          // then we will need to wrap ourselves in another iterator.
+          // This can happen, for example, during e.Skip(MaxInt).Skip(MaxInt).
+          source := Pointer(this);
+          minIndex := count;
+          count := -1;
+        end
+        else
+        begin
+          source := Pointer(fSource);
+          count := -1;
+        end;
+      end
+      else if count < fCount then
+      begin
+        count := fCount - count;
+        source := Pointer(fSource);
+      end
+      else
+      begin
+        TEnumerableExtension.Empty(ClassType, fElementType, result);
+        Exit;
+      end;
 
-  with TEnumerableExtension.Create(classType, IEnumerable(source), TExtensionKind.Partition) do
-  begin
-    fIndex := minIndex;
-    fCount := count;
-    IInterface(result) := IInterface(@IMT);
+      with TEnumerableExtension.Create(ClassType, IEnumerable(source), TExtensionKind.Partition) do
+      begin
+        fIndex := minIndex;
+        fCount := count;
+        IInterface(result) := IInterface(@IMT);
+      end;
+      Exit;
+    end;
   end;
+  inherited Skip(count, result, ClassType);
 end;
 
-procedure TEnumerableExtension.Take(count: Integer; var result; classType: TClass);
+procedure TEnumerableExtension.Take(count: Integer; var result; typeInfo: PTypeInfo);
 var
   maxIndex: Integer;
   source: Pointer;
 begin
-  if fKind <> TExtensionKind.Partition then
-  begin
-    inherited;
-    Exit;
-  end;
+  case fKind of
+    TExtensionKind.Empty: count := 0;
+    TExtensionKind.Partition:
+    begin
+      {$Q-}
+      maxIndex := fIndex + count - 1;
+      {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+      if fCount = -1 then
+      begin
+        if maxIndex < 0 then
+        begin
+          // If we don't know our max count and maxIndex can no longer fit in a positive int,
+          // then we will need to wrap ourselves in another iterator.
+          // Note that although maxIndex may be too large, the difference between it and
+          // fIterator.Index (which is count - 1) must fit in an int.
+          // Example: e.Skip(50).Take(MaxInt).
+          source := Pointer(this);
+          maxIndex := 0;
+        end
+        else
+        begin
+          source := Pointer(fSource);
+          maxIndex := fIndex;
+        end;
+      end
+      else if count >= fCount then
+      begin
+        IInterface(result) := IInterface(this);
+        Exit;
+      end
+      else
+      begin
+        source := Pointer(fSource);
+        maxIndex := fIndex;
+      end;
 
-  {$Q-}
-  maxIndex := fIndex + count - 1;
-  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-  if fCount = -1 then
-  begin
-    if maxIndex < 0 then
-    begin
-      // If we don't know our max count and maxIndex can no longer fit in a positive int,
-      // then we will need to wrap ourselves in another iterator.
-      // Note that although maxIndex may be too large, the difference between it and
-      // fIterator.Index (which is count - 1) must fit in an int.
-      // Example: e.Skip(50).Take(MaxInt).
-      source := Pointer(this);
-      maxIndex := 0;
-    end
-    else
-    begin
-      source := Pointer(fSource);
-      maxIndex := fIndex;
+      with TEnumerableExtension.Create(ClassType, IEnumerable(source), TExtensionKind.Partition) do
+      begin
+        fIndex := maxIndex;
+        fCount := count;
+        IInterface(result) := IInterface(@IMT);
+      end;
+      Exit;
     end;
-  end
-  else if count >= fCount then
-  begin
-    IInterface(result) := IInterface(this);
-    Exit;
-  end
-  else
-  begin
-    source := Pointer(fSource);
-    maxIndex := fIndex;
   end;
-
-  with TEnumerableExtension.Create(classType, IEnumerable(source), TExtensionKind.Partition) do
-  begin
-    fIndex := maxIndex;
-    fCount := count;
-    IInterface(result) := IInterface(@IMT);
-  end;
+  inherited Take(count, result, ClassType);
 end;
 
 function TEnumerableExtension.TryGetElementAt(var value; index: Integer;
@@ -5889,7 +6053,7 @@ begin
     begin
       if index < fCount then
       begin
-        elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+        elSize := GetTypeInfoData(typeInfo).elSize;
         assign(value, PByte(fItems)[index*elSize]);
         Exit(True);
       end;
@@ -6199,6 +6363,11 @@ begin
   end;
 end;
 
+function TEnumerableExtension<T>.GetIsEmpty: Boolean;
+begin
+  Result := TEnumerableExtension(Self).GetIsEmpty;
+end;
+
 function TEnumerableExtension<T>.GetItem(index: Integer): T;
 begin
   RaiseHelper.ArgumentOutOfRange_Index;
@@ -6233,12 +6402,12 @@ end;
 
 function TEnumerableExtension<T>.Skip(count: Integer): IEnumerable<T>;
 begin
-  TEnumerableExtension(Self).Skip(count, Result, TEnumerableExtension<T>);
+  TEnumerableExtension(Self).Skip(count, Result, TypeInfo(TArray<T>));
 end;
 
 function TEnumerableExtension<T>.Take(count: Integer): IEnumerable<T>;
 begin
-  TEnumerableExtension(Self).Take(count, Result, TEnumerableExtension<T>);
+  TEnumerableExtension(Self).Take(count, Result, TypeInfo(TArray<T>));
 end;
 
 function TEnumerableExtension<T>.ToArray: TArray<T>;
