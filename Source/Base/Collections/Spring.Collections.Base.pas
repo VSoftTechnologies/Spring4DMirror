@@ -68,9 +68,7 @@ type
     Parent: TRefCountedObject;
     function _Release: Integer; stdcall;
     class function Create(enumerator: PPointer; vtable: PEnumeratorVtable;
-      typeInfo, getCurrent, moveNext: Pointer): Pointer; overload; static;
-    class function Create(enumerator: PPointer; vtable: PEnumeratorVtable;
-      typeInfo: Pointer): Pointer; overload; static;
+      typeInfo, getCurrent, moveNext: Pointer): Pointer; static;
   end;
 
   PComparerVtable = ^TComparerVtable;
@@ -398,7 +396,7 @@ type
   end;
 
   TExtensionKind = (
-    Empty, DefaultIfEmpty, Items, Partition, PartitionFromEnd,
+    Empty, DefaultIfEmpty, Repeated, Items, Partition, PartitionFromEnd,
     Distinct, Exclude, Intersect, Union,
     Concat, Memoize, Ordered, Reversed, Shuffled,
     SkipWhile, SkipWhileIndex,
@@ -410,7 +408,30 @@ type
     Finalize: function(self: Pointer): Boolean;
   end;
 
+  TExtensionEnumeratorVtables = array[{$IFNDEF DELPHIXE}TExtensionKind.{$ENDIF}Repeated..TExtensionKind.Items] of TEnumeratorVtable;
+
   TEnumerableExtension = class sealed(TEnumerableBase)
+  private type
+  {$REGION 'Nested Types'}
+    PEnumerator = ^TEnumerator;
+    TEnumerator = record
+      Vtable: Pointer;
+      RefCount: Integer;
+      TypeInfo: PTypeInfo;
+      Parent: TRefCountedObject;
+      fItems: Pointer;
+      fIndex, fCount: Integer;
+      function MoveNextCount: Boolean;
+      function MoveNextIndex: Boolean;
+    end;
+    function ClassType: TClass; inline;
+  {$ENDREGION}
+  const
+    MoveNext: array[{$IFNDEF DELPHIXE}TExtensionKind.{$ENDIF}Repeated..TExtensionKind.Items] of Pointer = (
+      @TEnumerator.MoveNextCount,
+      @TEnumerator.MoveNextIndex
+    );
+  public
     // field layout has to match with TEnumerableExtension<T> below
     // TEnumerableBase<T>
     fComparer: IInterface;
@@ -429,13 +450,18 @@ type
     class procedure Empty(classType: TClass; elementType: PTypeInfo; var result); static;
     class procedure From(values: PPointer; count: NativeInt; var result;
       classType: TClass; typeInfo: PTypeInfo); static;
+    class procedure Repeated(const value; count: Integer; var result;
+      classType: TClass; typeInfo: PTypeInfo); static;
 
     function Any(var value; getCurrent: TGetCurrent; default: TGetDefault;
       assign: TAssign; elSize: NativeInt): Boolean;
     function GetIsEmpty: Boolean;
     function GetNonEnumeratedCount: Integer;
+    procedure GetEnumerator(var result; var enumeratorVTables: TExtensionEnumeratorVtables;
+      typeInfo, getCurrent: Pointer);
     procedure MemoizeToArray(var values: Pointer; typeInfo: PTypeInfo);
-    function PartitionToArray(var values: Pointer; typeInfo: PTypeInfo): Boolean;
+    procedure PartitionToArray(var values: Pointer; typeInfo: PTypeInfo; getCurrent: TGetCurrent);
+    procedure RepeatedToArray(var values: Pointer; typeInfo: PTypeInfo);
     procedure Skip(count: Integer; var result; typeInfo: PTypeInfo);
     procedure Take(count: Integer; var result; typeInfo: PTypeInfo);
     function TryGetElementAt(var value; index: Integer; getCurrent: TGetCurrent;
@@ -469,8 +495,7 @@ type
       fItems: Pointer;
       fIndex, fCount: Integer;
       function GetCurrent: T;
-      function MoveNext: Boolean;
-      class var Enumerator_Vtable: TEnumeratorVtable;
+      class var Enumerator_Vtables: TExtensionEnumeratorVtables;
     end;
   {$ENDREGION}
   protected
@@ -1227,33 +1252,6 @@ begin
     vtable[2] := @TEnumeratorBlock._Release;
     vtable[3] := getCurrent;
     vtable[4] := moveNext;
-  end;
-end;
-
-class function TEnumeratorBlock.Create(enumerator: PPointer;
-  vtable: PEnumeratorVtable; typeInfo: Pointer): Pointer;
-
-  function GetEnumeratorBlockSize(typeInfo: Pointer): Integer; inline;
-  var
-    p: PByte;
-  begin
-    p := typeInfo;
-    Result := PTypeData(@p[p[1]+2]).RecSize;
-  end;
-
-begin
-  IInterface(enumerator^) := nil;
-  Result := AllocMem(GetEnumeratorBlockSize(typeInfo));
-  PEnumeratorBlock(Result).Vtable := vtable;
-  PEnumeratorBlock(Result).RefCount := 1;
-  PEnumeratorBlock(Result).TypeInfo := typeInfo;
-  enumerator^ := Result;
-
-  if not Assigned(vtable[0]) then
-  begin
-    vtable[0] := @NopQueryInterface;
-    vtable[1] := @RecAddRef;
-    vtable[2] := @TEnumeratorBlock._Release;
   end;
 end;
 
@@ -5701,6 +5699,11 @@ end;
 
 {$REGION 'TEnumerableExtension'}
 
+function TEnumerableExtension.ClassType: TClass;
+begin
+  Result := PPointer(Self)^;
+end;
+
 function TEnumerableExtension.Any(var value; getCurrent: TGetCurrent;
   default: TGetDefault; assign: TAssign; elSize: NativeInt): Boolean;
 var
@@ -5709,6 +5712,7 @@ begin
   case fKind of
     TExtensionKind.Empty,
     TExtensionKind.DefaultIfEmpty,
+    TExtensionKind.Repeated,
     TExtensionKind.Items: Result := fKind <> TExtensionKind.Empty;
   else
     count := GetNonEnumeratedCount;
@@ -5780,11 +5784,70 @@ begin
   IInterface(result) := IInterface(@instance.IMT);
 end;
 
+class procedure TEnumerableExtension.Repeated(const value; count: Integer;
+  var result; classType: TClass; typeInfo: PTypeInfo);
+const
+  Len: NativeInt = 1;
+var
+  instance: TEnumerableExtension;
+  elType: PPTypeInfo;
+  p: PTypeInfoData;
+begin
+  if count > 0 then
+  begin
+    instance := TEnumerableExtension(classType.NewInstance);
+    elType := typeInfo.TypeData.DynArrElType;
+    if Assigned(elType) then
+      instance.fElementType := elType^;
+    TObject(instance).AfterConstruction;
+    instance.fKind := TExtensionKind.Repeated;
+    instance.fCount := count;
+    DynArraySetLength(instance.fItems, typeInfo, 1, @Len);
+
+    p := GetTypeInfoData(typeInfo);
+    if Assigned(p.elType) then
+      MoveManaged(@value, instance.fItems, p.elType^, 1)
+    else
+      System.Move(value, instance.fItems^, p.elSize);
+    IInterface(result) := IInterface(@instance.IMT);
+  end
+  else if count = 0 then
+  begin
+    elType := typeInfo.TypeData.DynArrElType;
+    if Assigned(elType) then
+      elType := Pointer(elType^);
+    TEnumerableExtension.Empty(classType, Pointer(elType), Result)
+  end
+  else
+    RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+end;
+
+procedure TEnumerableExtension.GetEnumerator(var result;
+  var enumeratorVTables: TExtensionEnumeratorVtables; typeInfo, getCurrent: Pointer);
+begin
+  case fKind of
+    TExtensionKind.Repeated,
+    TExtensionKind.Items:
+    begin
+      _AddRef;
+      with PEnumerator(TEnumeratorBlock.Create(@result, @enumeratorVTables[fKind],
+        typeInfo, getCurrent, MoveNext[fKind]))^ do
+      begin
+        Parent := Self;
+        fItems := Pointer(Self.fItems);
+        fCount := Self.fCount;
+        fIndex := Ord(fKind = TExtensionKind.Repeated);
+      end;
+    end;
+  end;
+end;
+
 function TEnumerableExtension.GetIsEmpty: Boolean;
 begin
   case fKind of
     TExtensionKind.Empty,
     TExtensionKind.DefaultIfEmpty,
+    TExtensionKind.Repeated,
     TExtensionKind.Items: Result := fKind = TExtensionKind.Empty;
   else
     Result := inherited;
@@ -5802,6 +5865,7 @@ begin
       Result := fSource.GetNonEnumeratedCount;
       Exit(Result + Ord(Result = 0));
     end;
+    TExtensionKind.Repeated,
     TExtensionKind.Items:
       Exit(fCount);
     TExtensionKind.Concat:
@@ -5879,39 +5943,70 @@ begin
   DynArrayCopyRange(values, fItems, typeInfo, 0, count);
 end;
 
-function TEnumerableExtension.PartitionToArray(var values: Pointer; typeInfo: PTypeInfo): Boolean;
-var
-  count, index, i, elSize: NativeInt;
-  source: Pointer;
-begin
-  if Assigned(fSource) then
+procedure TEnumerableExtension.PartitionToArray(var values: Pointer; typeInfo: PTypeInfo; getCurrent: TGetCurrent);
+
+  procedure Fill(const source: IEnumerable<Pointer>; current: PByte; index, count, elSize: NativeInt);
+  var
+    i: NativeInt;
   begin
-    Result := SupportsIndexedAccess(fSource);
-    if Result then
+    for i := 1 to count do
     begin
-      index := fIndex;
-      count := fSource.Count - index;
-      if count > fCount then
-        count := fCount
-      else if count < 0 then
-        count := 0;
-      DynArraySetLength(values, typeInfo, 1, @count);
-      source := Pointer(fSource);
-      elSize := GetTypeInfoData(typeInfo).elSize;
-      for i := 0 to count - 1 do
-      begin
-        // little hack - we can hardcast here since we are just passing along a by ref param
-        IEnumerable<Pointer>(source).TryGetElementAt(PPointer(@PByte(values)[i*elSize])^, index);
-        Inc(index);
-      end;
-      Result := True;
+      // little hack - we can hardcast here since we are just passing along a by ref param
+      source.TryGetElementAt(PPointer(current)^, index);
+      Inc(current, elSize);
+      Inc(index);
     end;
+  end;
+
+var
+  count, index, elSize: NativeInt;
+begin
+  if not Assigned(fSource) then
+    DynArrayClear(values, typeInfo)
+  else if SupportsIndexedAccess(fSource) then
+  begin
+    index := fIndex;
+    count := fSource.Count - index;
+    if count > fCount then
+      count := fCount
+    else if count < 0 then
+      count := 0;
+    DynArraySetLength(values, typeInfo, 1, @count);
+    elSize := GetTypeInfoData(typeInfo).elSize;
+    Fill(IEnumerable<Pointer>(fSource), values, index, count, elSize);
   end
   else
+    inherited ToArray(values, typeInfo, getCurrent)
+end;
+
+procedure TEnumerableExtension.RepeatedToArray(var values: Pointer; typeInfo: PTypeInfo);
+var
+  count, elSize, i: NativeInt;
+  items, current: PByte;
+  p: PTypeInfoData;
+  elType: PTypeInfo;
+begin
+  count := fCount;
+  DynArraySetLength(values, typeInfo, 1, @count);
+  p := GetTypeInfoData(typeInfo);
+  current := values;
+  elSize := p.elSize;
+  items := fItems;
+  if p.elType <> nil then
   begin
-    DynArrayClear(values, typeInfo);
-    Result := True;
-  end;
+    elType := PPTypeInfo(p.elType)^;
+    for i := 1 to count do
+    begin
+      MoveManaged(items, current, elType, 1);
+      Inc(current, elSize);
+    end
+  end
+  else
+    for i := 0 to count - 1 do
+    begin
+      Move(items^, current^, elSize);
+      Inc(current, elSize);
+    end
 end;
 
 procedure TEnumerableExtension.Skip(count: Integer; var result; typeInfo: PTypeInfo);
@@ -5925,6 +6020,15 @@ begin
       TEnumerableExtension.Empty(ClassType, fElementType, result);
       Exit;
     end;
+    TExtensionKind.Repeated:
+      if count > 0 then
+      begin
+        if count >= fCount then
+          TEnumerableExtension.Empty(ClassType, fElementType, result)
+        else
+          TEnumerableExtension.Repeated(fItems^, fCount - count, result, ClassType, typeInfo);
+        Exit;
+      end;
     TExtensionKind.Partition:
     begin
       if count < 0 then
@@ -5979,6 +6083,15 @@ var
 begin
   case fKind of
     TExtensionKind.Empty: count := 0;
+    TExtensionKind.Repeated:
+      if count > 0 then
+      begin
+        if count >= fCount then
+          IInterface(result) := IInterface(this)
+        else
+          TEnumerableExtension.Repeated(fItems^, count, result, ClassType, typeInfo);
+        Exit;
+      end;
     TExtensionKind.Partition:
     begin
       {$Q-}
@@ -6316,6 +6429,29 @@ end;
 {$ENDREGION}
 
 
+{$REGION 'TEnumerableExtension.TEnumerator'}
+
+function TEnumerableExtension.TEnumerator.MoveNextCount: Boolean;
+var
+  count: Integer;
+begin
+  count := fCount;
+  fCount := count - 1;
+  Result := count > 0;
+end;
+
+function TEnumerableExtension.TEnumerator.MoveNextIndex: Boolean;
+var
+  index: Integer;
+begin
+  index := fIndex;
+  fIndex := index + 1;
+  Result := index < fCount;
+end;
+
+{$ENDREGION}
+
+
 {$REGION 'TEnumerableExtension<T>'}
 
 function TEnumerableExtension<T>.Any: Boolean;
@@ -6347,19 +6483,14 @@ end;
 
 function TEnumerableExtension<T>.GetEnumerator: IEnumerator<T>; //FI:W521
 begin
-  if fKind <> TExtensionKind.Items then
+  case fKind of
+    TExtensionKind.Repeated,
+    TExtensionKind.Items:
+      TEnumerableExtension(Self).GetEnumerator(Result, TEnumerator.Enumerator_Vtables,
+        TypeInfo(TEnumerator), @TEnumerator.GetCurrent);
+  else
     TIteratorBlock.Create(@Result, TEnumerableExtension(Self), SizeOf(TIteratorBlock<T>),
       @TIteratorBlock<T>.Finalize, @TIteratorBlock<T>.Initialize)
-  else
-  begin
-    _AddRef;
-    with PEnumerator(TEnumeratorBlock.Create(@Result, @TEnumerator.Enumerator_Vtable,
-      TypeInfo(TEnumerator), @TEnumerator.GetCurrent, @TEnumerator.MoveNext))^ do
-    begin
-      Parent := Self;
-      fItems := Pointer(Self.fItems);
-      fCount := Self.fCount;
-    end;
   end;
 end;
 
@@ -6370,6 +6501,16 @@ end;
 
 function TEnumerableExtension<T>.GetItem(index: Integer): T;
 begin
+  case fKind of
+    TExtensionKind.Repeated,
+    TExtensionKind.Items:
+      if Cardinal(index) < Cardinal(fCount) then
+      begin
+        if fKind = TExtensionKind.Repeated then
+          index := 0;
+        Exit(fItems[index]);
+      end;
+  end;
   RaiseHelper.ArgumentOutOfRange_Index;
   __SuppressWarning(Result);
 end;
@@ -6413,22 +6554,21 @@ end;
 function TEnumerableExtension<T>.ToArray: TArray<T>;
 begin
   case fKind of //FI:W535
-    TExtensionKind.Items,
-    TExtensionKind.Memoize:
-    begin
-      TEnumerableExtension(Self).MemoizeToArray(Pointer(Result), TypeInfo(TArray<T>));
-      Exit;
-    end;
+    TExtensionKind.Repeated:
+      TEnumerableExtension(Self).RepeatedToArray(Pointer(Result), TypeInfo(TArray<T>));
     TExtensionKind.Partition:
-      if TEnumerableExtension(Self).PartitionToArray(Pointer(Result), TypeInfo(TArray<T>)) then Exit;
+      TEnumerableExtension(Self).PartitionToArray(Pointer(Result), TypeInfo(TArray<T>), TCollectionThunks<T>.GetCurrent);
+    TExtensionKind.Memoize,
+    TExtensionKind.Items:
+      TEnumerableExtension(Self).MemoizeToArray(Pointer(Result), TypeInfo(TArray<T>));
     TExtensionKind.Ordered..TExtensionKind.Shuffled:
     begin
       Result := fSource.ToArray;
       TCollectionThunks<T>.ProcessArray(fKind, Result, IComparer<T>(fPredicate));
-      Exit;
     end;
+  else
+    Result := inherited ToArray;
   end;
-  Result := inherited ToArray;
 end;
 
 function TEnumerableExtension<T>.TryGetElementAt(var value: T; index: Integer): Boolean;
@@ -6460,15 +6600,6 @@ end;
 function TEnumerableExtension<T>.TEnumerator.GetCurrent: T;
 begin
   Result := TArray<T>(fItems)[fIndex - 1];
-end;
-
-function TEnumerableExtension<T>.TEnumerator.MoveNext: Boolean;
-var
-  index: Integer;
-begin
-  index := fIndex;
-  fIndex := index + 1;
-  Result := index < fCount;
 end;
 
 {$ENDREGION}

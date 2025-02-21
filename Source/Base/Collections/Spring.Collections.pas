@@ -6413,7 +6413,7 @@ type
     /// <exception cref="EArgumentOutOfRangeException">
     ///   <c>count</c> is less than 0.
     /// </exception>
-    class function Repeated<T>(const element: T; count: Integer): IEnumerable<T>; static;
+    class function Repeated<T>(const element: T; count: Integer): IReadOnlyList<T>; static;
 
     /// <summary>
     ///   Projects each element of a sequence into a new form by incorporating
@@ -12292,14 +12292,30 @@ begin
     RaiseHelper.ArgumentOutOfRange_Count;
 end;
 
-class function TEnumerable.Repeated<T>(const element: T; count: Integer): IEnumerable<T>; //FI:W521
+class function TEnumerable.Repeated<T>(const element: T; count: Integer): IReadOnlyList<T>; //FI:W521
+var
+  classType: TClass;
 begin
-  if count = 0 then
-    TEnumerableExtension.Empty(TEnumerableExtension<T>, TypeInfo(T), Result)
-  else if count > 0 then
-    Result := TRepeatIterator<T>.Create(element, count)
-  else
-    RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+{$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkClass: classType := ExtensionClass_Object;
+    tkInterface: classType := ExtensionClass_Interface;
+    tkUString: classType := ExtensionClass_String;
+    tkMethod: classType := ExtensionClass_Method;
+    tkInteger, tkChar, tkWChar, tkEnumeration, tkInt64, tkClassRef, tkPointer, tkProcedure:
+      case SizeOf(T) of
+        1: classType := ExtensionClass_Int8;
+        2: classType := ExtensionClass_Int16;
+        4: classType := ExtensionClass_Int32;
+        8: classType := ExtensionClass_Int64;
+      else
+        classType := nil;
+      end;
+  else{$ELSE}begin{$ENDIF}
+    classType := TEnumerableExtension<T>;
+  end;
+
+  TEnumerableExtension.Repeated(element, count, Result, classType, TypeInfo(TArray<T>));
 end;
 
 class function TEnumerable.Select<T, TResult>(const source: IEnumerable<T>;
