@@ -791,6 +791,7 @@ procedure TRedBlackTree.Clear;
 begin
   fRoot := nil;
   fCount := 0;
+  fFreeNode := nil;
 end;
 
 procedure TRedBlackTree.Delete(node: PNode);
