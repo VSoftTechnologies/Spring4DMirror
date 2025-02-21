@@ -59,7 +59,9 @@ type
     function Remove(const item: TElement): Boolean;
   end;
 
+  TCollectionWrapper = class;
   TCollectionFactory = procedure (const key; const comparer: IInterface; elementType: PTypeInfo; var result);
+  TUpdateValuesEvent = procedure(collection: TCollectionWrapper) of object;
 
   // same layout as TCollectionWrapper<T>
   TCollectionWrapper = class sealed(TEnumerableBase)
@@ -83,9 +85,8 @@ type
     fComparer: IInterface;
     fCollection: IEnumerable;
     fWrappers: TList;
-    fUpdateValues: TNotifyEvent;
+    fUpdateValues: TUpdateValuesEvent;
     procedure RefreshIfEmpty;
-    procedure HandleDestroy(Sender: TObject);
     function GetCount: Integer;
     function GetElementType: PTypeInfo;
     procedure GetEnumerator(enumerator: PPointer; vtable: PEnumeratorVtable;
@@ -93,7 +94,7 @@ type
     function GetNonEnumeratedCount: Integer;
   public
     class procedure Create(classType: TClass; const collection: IEnumerable;
-      wrappers: TList; updateValues: TNotifyEvent;
+      wrappers: TList; updateValues: TUpdateValuesEvent;
       collectionFactory: TCollectionFactory; const key;
       const valueComparer: IInterface; elementType: PTypeInfo; var result); static;
 
@@ -129,6 +130,7 @@ type
   public
     procedure BeforeDestruction; override;
 
+    function Contains(const value: T): Boolean; overload;
     function Contains(const value: T;
       const comparer: IEqualityComparer<T>): Boolean; overload;
     function GetEnumerator: IEnumerator<T>;
@@ -169,6 +171,11 @@ type
       const comparer: IComparer<T>);
   end;
 
+  TCollectionWrapperList = class(TList)
+    class function Create: TCollectionWrapperList; static;
+    procedure Free;
+  end;
+
   TMultiMap<TKey, TValue> = class abstract(TMapBase<TKey, TValue>, IInterface,
     IEnumerable<TPair<TKey, TValue>>, IReadOnlyCollection<TPair<TKey, TValue>>,
     IReadOnlyMap<TKey, TValue>, IReadOnlyMultiMap<TKey, TValue>,
@@ -207,11 +214,11 @@ type
     fValues: THashMapInnerCollection;
     fGroups: THashMapInnerCollection;
     fCount: Integer;
-    fWrappers: TList;
+    fWrappers: TCollectionWrapperList;
     fValueComparer: IInterface;
     fCollectionFactory: TCollectionFactory;
     function CreateWrappedCollection(const key: TKey; item: PItem): IReadOnlyCollection<TValue>;
-    procedure UpdateValues(collection: TObject);
+    procedure UpdateValues(collection: TCollectionWrapper);
   protected
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
@@ -301,13 +308,13 @@ type
     fGroups: TTreeMapInnerCollection;
     fVersion: Integer;
     fCount: Integer;
-    fWrappers: TList;
+    fWrappers: TCollectionWrapperList;
     fKeyComparer: IComparer<TKey>;
     fValueComparer: IInterface;
     fCollectionFactory: TCollectionFactory;
     fOwnerships: TDictionaryOwnerships;
     function CreateWrappedCollection(const key: TKey; node: PNode): IReadOnlyCollection<TValue>;
-    procedure UpdateValues(collection: TObject);
+    procedure UpdateValues(collection: TCollectionWrapper);
   protected
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
@@ -424,7 +431,7 @@ end;
 
 class procedure TCollectionWrapper.Create(classType: TClass;
   const collection: IEnumerable; wrappers: TList;
-  updateValues: TNotifyEvent; collectionFactory: TCollectionFactory; const key;
+  updateValues: TUpdateValuesEvent; collectionFactory: TCollectionFactory; const key;
   const valueComparer: IInterface; elementType: PTypeInfo; var result);
 var
   instance: TCollectionWrapper;
@@ -482,12 +489,6 @@ begin
   Result := fCollection.GetNonEnumeratedCount;
 end;
 
-procedure TCollectionWrapper.HandleDestroy(Sender: TObject);
-begin
-  fWrappers := nil;
-  fUpdateValues := nil;
-end;
-
 procedure TCollectionWrapper.RefreshIfEmpty;
 begin
   if fCollection.IsEmpty and Assigned(fUpdateValues) then
@@ -520,6 +521,12 @@ end;
 procedure TCollectionWrapper<T>.BeforeDestruction;
 begin
   TCollectionWrapper(Self).BeforeDestruction;
+end;
+
+function TCollectionWrapper<T>.Contains(const value: T): Boolean;
+begin
+  TCollectionWrapper(Self).RefreshIfEmpty;
+  Result := fCollection.Contains(value);
 end;
 
 function TCollectionWrapper<T>.Contains(
@@ -570,6 +577,32 @@ begin
   else
   {$ENDIF}
   Result := fEnumerator.Current;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TCollectionWrapperList'}
+
+class function TCollectionWrapperList.Create: TCollectionWrapperList;
+begin
+  Result := TCollectionWrapperList(TCollectionWrapperList.NewInstance);
+end;
+
+procedure TCollectionWrapperList.Free;
+var
+  list: Pointer;
+  i: Integer;
+  wrapper: TCollectionWrapper;
+begin
+  list := Self.List;
+  for i := 1 to Count do
+  begin
+    wrapper := TCollectionWrapper({$IFDEF DELPHIXE}PPointerList{$ELSE}TPointerList{$ENDIF}(list)[i-1]);
+    wrapper.fWrappers := nil;
+    wrapper.fUpdateValues := nil;
+  end;
+  inherited Free;
 end;
 
 {$ENDREGION}
@@ -642,17 +675,11 @@ begin
   end;
   fGroups := THashMapInnerCollection.Create_Interface(Self,
     @fHashTable, nil, TypeInfo(IGrouping<TKey, TValue>), SizeOf(TKey));
-  fWrappers := TList.Create;
+  fWrappers := TCollectionWrapperList.Create;
 end;
 
 procedure TMultiMap<TKey, TValue>.BeforeDestruction;
-var
-  list: Pointer;
-  i: Integer;
 begin
-  list := fWrappers.List;
-  for i := 1 to fWrappers.Count do
-    TCollectionWrapper({$IFDEF DELPHIXE}PPointerList{$ELSE}TPointerList{$ENDIF}(list)[i-1]).HandleDestroy(Self);
   fWrappers.Free;
   Clear;
   fKeys.Free;
@@ -1001,14 +1028,14 @@ begin
   end;
 end;
 
-procedure TMultiMap<TKey, TValue>.UpdateValues(collection: TObject);
+procedure TMultiMap<TKey, TValue>.UpdateValues(collection: TCollectionWrapper);
 var
   item: PItem;
 begin
   item := IHashTable<TKey>(@fHashTable).Find(
-    IGrouping<TKey, TValue>(TCollectionWrapper(collection).fCollection).Key);
+    IGrouping<TKey, TValue>(collection.fCollection).Key);
   if Assigned(item) then
-    TCollectionWrapper(collection).fCollection := IEnumerable(item.Values);
+    collection.fCollection := IEnumerable(item.Values);
 end;
 
 function TMultiMap<TKey, TValue>.TryGetValues(const key: TKey;
@@ -1103,15 +1130,11 @@ begin
   end;
   fGroups := TTreeMapInnerCollection.Create_Interface(
     Self, fTree, @fVersion, nil, TypeInfo(IGrouping<TKey, TValue>), 0);
-  fWrappers := TList.Create;
+  fWrappers := TCollectionWrapperList.Create;
 end;
 
 procedure TSortedMultiMap<TKey, TValue>.BeforeDestruction;
-var
-  i: Integer;
 begin
-  for i := 0 to fWrappers.Count-1 do
-    TCollectionWrapper(fWrappers.List[i]).HandleDestroy(Self);
   fWrappers.Free;
   Clear;
   fTree.Free;
@@ -1475,14 +1498,14 @@ begin
   Result := True;
 end;
 
-procedure TSortedMultiMap<TKey, TValue>.UpdateValues(collection: TObject);
+procedure TSortedMultiMap<TKey, TValue>.UpdateValues(collection: TCollectionWrapper);
 var
   node: PNode;
 begin
   node := Pointer(fTree.FindNode(
-    IGrouping<TKey, TValue>(TCollectionWrapper(collection).fCollection).Key));
+    IGrouping<TKey, TValue>(collection.fCollection).Key));
   if Assigned(node) then
-    TCollectionWrapper(collection).fCollection := IEnumerable(node.Values);
+    collection.fCollection := IEnumerable(node.Values);
 end;
 
 {$ENDREGION}
