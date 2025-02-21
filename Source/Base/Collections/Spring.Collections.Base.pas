@@ -5877,7 +5877,7 @@ var
   items: Pointer;
   count, offset, elSize: NativeInt;
   source: Pointer;
-  enumerator: {$IFDEF MSWINDOWS}Pointer{$ELSE}IEnumerable{$ENDIF};
+  enumerator: {$IFDEF MSWINDOWS}Pointer{$ELSE}IEnumerator{$ENDIF};
 begin
   case fKind of
     TExtensionKind.DefaultIfEmpty:
@@ -5947,7 +5947,7 @@ begin
             IEnumerableInternal(source).GetEnumerator(enumerator);
             try
             {$ELSE}
-            enumerator := IEnumerable(sources[i]).GetEnumerator;
+            enumerator := IEnumerable(source).GetEnumerator;
             {$ENDIF}
             while IEnumerator(enumerator).MoveNext do
             begin
