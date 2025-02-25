@@ -96,15 +96,14 @@ type
   end;
 
   TComparerThunks<T> = record
-    class function Compare(instance: Pointer; const left, right): Integer; static;
-    class function Equals(instance: Pointer; const left, right): Boolean; static;
-    class function GetHashCode(instance: Pointer; const value): Integer; static;
+    class function Compare(const comparer: IInterface; const left, right): Integer; static;
+    class function Equals(const comparer: IInterface; const left, right): Boolean; static;
+    class function GetHashCode(const comparer: IInterface; const value): Integer; static;
   end;
 
   TActionCall = procedure(const enumerator, action: IInterface);
   TAssign = procedure(var target; const source);
-  TCompare = function(self: Pointer; const left, right): Integer;
-  TContains = function(const collection: IInterface; const value; const comparer: IInterface): Boolean;
+  TContainsThunk = function(const collection: IInterface; const value; const comparer: IInterface): Boolean;
   TEqualsCurrentWithOtherEnumerator = function(const enumerator1, enumerator2, comparer: IInterface): Boolean;
   TEqualsValue = function(const enumerator, comparer: IInterface; const value): Boolean;
   TEqualsArray = function(const enumerator: IInterface; comparer, values: Pointer; index: NativeInt): Boolean;
@@ -483,7 +482,7 @@ type
 
     Current: record end;
 
-    procedure InitHashTable(const equals, getHashCode: Pointer;
+    procedure InitHashTable(equals: TEqualsThunk; getHashCode: TGetHashCodeThunk;
       itemsInfo: PTypeInfo; const comparer: IInterface);
 
     function Finalize(typeInfo: PTypeInfo): Boolean;
@@ -774,9 +773,9 @@ type
     fValueComparer: IInterface;
     fOffset: Integer;
     fCount: PInteger;
-    fContains: TContains;
+    fContains: TContainsThunk;
     function GetCount: Integer;
-    function Contains(const value; comparer: Pointer; equals: TEqualsMethod): Boolean;
+    function Contains(const value; comparer: Pointer; equals: TEqualsThunk): Boolean;
     procedure ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
     function TryGetElementAt(var value; index: Integer;
       assign: TAssign; default: TGetDefault; getCurrent: TGetCurrent): Boolean;
@@ -784,15 +783,15 @@ type
     class function Create(classType: TClass; source: TRefCountedObject;
       hashTable: PHashTable; const valueComparer: IInterface;
       elementType: PTypeInfo; offset: Integer = 0; count: PInteger = nil;
-      contains: TContains = nil): THashMapInnerCollection; static;
+      contains: TContainsThunk = nil): THashMapInnerCollection; static;
     class function Create_Object(source: TRefCountedObject;
       hashTable: PHashTable; const valueComparer: IInterface;
       elementType: PTypeInfo; offset: Integer = 0; count: PInteger = nil;
-      contains: TContains = nil): THashMapInnerCollection; static;
+      contains: TContainsThunk = nil): THashMapInnerCollection; static;
     class function Create_Interface(source: TRefCountedObject;
       hashTable: PHashTable; const valueComparer: IInterface;
       elementType: PTypeInfo; offset: Integer = 0; count: PInteger = nil;
-      contains: TContains = nil): THashMapInnerCollection; static;
+      contains: TContainsThunk = nil): THashMapInnerCollection; static;
     property _this: Pointer read this;
   end;
 
@@ -828,7 +827,7 @@ type
     fValueComparer: IEqualityComparer<T>;
     fOffset: Integer;
     fCount: PInteger;
-    fContains: TContains;
+    fContains: TContainsThunk;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
     function GetNonEnumeratedCount: Integer;
@@ -842,6 +841,7 @@ type
   {$ENDREGION}
 
   {$REGION 'Implements IEnumerable<T>'}
+    function Contains(const value: T): Boolean; overload;
     function Contains(const value: T; const comparer: IEqualityComparer<T>): Boolean; overload;
     function GetEnumerator: IEnumerator<T>;
     function ToArray: TArray<T>;
@@ -849,7 +849,6 @@ type
   {$ENDREGION}
   end;
 
-  TCompareMethod = function(self: Pointer; const left, right): Integer;
   TTreeMapInnerCollection = class(TEnumerableBase)
   public type
   {$REGION 'Nested Types'}
@@ -859,6 +858,7 @@ type
       Childs: array[0..1] of PNode;
       Key: record end;
     end;
+    TCompareThunk = function(const comparer: IInterface; const left, right): Integer;
 
     TEnumerator = record
       // same layout as TTreeMapInnerCollection<T>.TEnumerator
@@ -887,24 +887,24 @@ type
     fValueComparer: IInterface;
     fOffset: Integer;
     fCount: PInteger;
-    fContains: TContains;
+    fContains: TContainsThunk;
     function GetCount: Integer;
     function Contains(const value; comparer: Pointer;
-      compare: TCompareMethod; equals: TEqualsMethod): Boolean;
+      compare: TCompareThunk; equals: TEqualsThunk): Boolean;
     procedure ToArray(var result: Pointer; typeInfo: Pointer; assign: TAssign);
   public
     class function Create(classType: TClass; source: TRefCountedObject;
       tree: TBinaryTree; version: PInteger; const valueComparer: IInterface;
       elementType: PTypeInfo; offset: Integer; count: PInteger = nil;
-      contains: TContains = nil): TTreeMapInnerCollection; static;
+      contains: TContainsThunk = nil): TTreeMapInnerCollection; static;
     class function Create_Object(source: TRefCountedObject;
       tree: TBinaryTree; version: PInteger; const valueComparer: IInterface;
       elementType: PTypeInfo; offset: Integer; count: PInteger = nil;
-      contains: TContains = nil): TTreeMapInnerCollection; static;
+      contains: TContainsThunk = nil): TTreeMapInnerCollection; static;
     class function Create_Interface(source: TRefCountedObject;
       tree: TBinaryTree; version: PInteger; const valueComparer: IInterface;
       elementType: PTypeInfo; offset: Integer; count: PInteger = nil;
-      contains: TContains = nil): TTreeMapInnerCollection; static;
+      contains: TContainsThunk = nil): TTreeMapInnerCollection; static;
     property _this: Pointer read this;
   end;
 
@@ -947,7 +947,7 @@ type
     fValueComparer: IEqualityComparer<T>;
     fOffset: Integer;
     fCount: PInteger;
-    fContains: TContains;
+    fContains: TContainsThunk;
   {$REGION 'Property Accessors'}
     function GetCount: Integer;
     function GetNonEnumeratedCount: Integer;
@@ -1344,19 +1344,19 @@ end;
 
 {$REGION 'TComparerThunks<T>'}
 
-class function TComparerThunks<T>.Compare(instance: Pointer; const left, right): Integer;
+class function TComparerThunks<T>.Compare(const comparer: IInterface; const left, right): Integer;
 begin
-  Result := IComparer<T>(instance).Compare(T(left), T(right));
+  Result := IComparer<T>(comparer).Compare(T(left), T(right));
 end;
 
-class function TComparerThunks<T>.Equals(instance: Pointer; const left, right): Boolean;
+class function TComparerThunks<T>.Equals(const comparer: IInterface; const left, right): Boolean;
 begin
-  Result := IEqualityComparer<T>(instance).Equals(T(left), T(right));
+  Result := IEqualityComparer<T>(comparer).Equals(T(left), T(right));
 end;
 
-class function TComparerThunks<T>.GetHashCode(instance: Pointer; const value): Integer;
+class function TComparerThunks<T>.GetHashCode(const comparer: IInterface; const value): Integer;
 begin
-  Result := IEqualityComparer<T>(instance).GetHashCode(T(value));
+  Result := IEqualityComparer<T>(comparer).GetHashCode(T(value));
 end;
 
 {$ENDREGION}
@@ -3450,7 +3450,7 @@ end;
 class function THashMapInnerCollection.Create(classType: TClass;
   source: TRefCountedObject; hashTable: PHashTable;
   const valueComparer: IInterface; elementType: PTypeInfo;
-  offset: Integer; count: PInteger; contains: TContains): THashMapInnerCollection;
+  offset: Integer; count: PInteger; contains: TContainsThunk): THashMapInnerCollection;
 begin
   Result := THashMapInnerCollection(classType.NewInstance);
   Result.fSource := source;
@@ -3466,7 +3466,7 @@ end;
 class function THashMapInnerCollection.Create_Interface(
   source: TRefCountedObject; hashTable: PHashTable;
   const valueComparer: IInterface; elementType: PTypeInfo; offset: Integer;
-  count: PInteger; contains: TContains): THashMapInnerCollection;
+  count: PInteger; contains: TContainsThunk): THashMapInnerCollection;
 begin
   Result := Create(THashMapInnerCollection<IInterface>,
     source, hashTable, valueComparer, elementType, offset, count, contains);
@@ -3475,55 +3475,57 @@ end;
 class function THashMapInnerCollection.Create_Object(source: TRefCountedObject;
   hashTable: PHashTable; const valueComparer: IInterface;
   elementType: PTypeInfo; offset: Integer; count: PInteger;
-  contains: TContains): THashMapInnerCollection;
+  contains: TContainsThunk): THashMapInnerCollection;
 begin
   Result := Create(THashMapInnerCollection<TObject>,
     source, hashTable, valueComparer, elementType, offset, count, contains);
 end;
 
-function THashMapInnerCollection.Contains(const value; comparer: Pointer; equals: TEqualsMethod): Boolean;
+function THashMapInnerCollection.Contains(const value; comparer: Pointer; equals: TEqualsThunk): Boolean;
 var
   hashTable: PHashTable;
-  item: PByte;
+  foundItem, item: PByte;
   itemCount, itemSize, offset: NativeInt;
+  contains: TContainsThunk;
 begin
-  if fOffset = KeyOffset then // means this is for the key
+  if (fOffset = KeyOffset) // means this is for the key
+    and ((fHashTable.Comparer = IInterface(comparer))
+    or (comparer = nil)) then
   begin
-    item := fHashTable.FindItem(value);
-    Result := Assigned(item);
-  end
-  else if not Assigned(fContains) then
-  begin
-    offset := fOffset;
-    hashTable := fHashTable;
-    item := hashTable.Items;
-    itemCount := hashTable.ItemCount;
-    itemSize := hashTable.ItemSize;
-    if comparer = nil then
-      comparer := Pointer(fValueComparer);
-    while itemCount > 0 do
-    begin
-      if PInteger(item)^ >= 0 then
-        if equals(comparer, item[offset], value) then
-          Exit(True);
-      Inc(item, itemSize);
-      Dec(itemCount);
-    end;
-    Result := False;
+    foundItem := fHashTable.FindItem(value);
+    Result := Assigned(foundItem);
   end
   else
   begin
     hashTable := fHashTable;
     item := hashTable.Items;
-    itemSize := hashTable.ItemSize;
     itemCount := hashTable.ItemCount;
-    while itemCount > 0 do
+    itemSize := hashTable.ItemSize;
+    if not Assigned(fContains) then
     begin
-      if PInteger(item)^ >= 0 then
-        if fContains(PInterface(@item[itemSize - SizeOf(Pointer)])^, value, IInterface(comparer)) then
-          Exit(True);
-      Inc(item, itemSize);
-      Dec(itemCount);
+      offset := fOffset;
+      if comparer = nil then
+        comparer := Pointer(fValueComparer);
+      while itemCount > 0 do
+      begin
+        if PInteger(item)^ >= 0 then
+          if equals(IInterface(comparer), item[offset], value) then
+            Exit(True);
+        Inc(item, itemSize);
+        Dec(itemCount);
+      end;
+    end
+    else
+    begin
+      contains := fContains;
+      while itemCount > 0 do
+      begin
+        if PInteger(item)^ >= 0 then
+          if contains(PInterface(@item[itemSize - SizeOf(Pointer)])^, value, IInterface(comparer)) then
+            Exit(True);
+        Inc(item, itemSize);
+        Dec(itemCount);
+      end;
     end;
     Result := False;
   end;
@@ -3703,6 +3705,19 @@ end;
 
 {$REGION 'THashMapInnerCollection<T>'}
 
+function THashMapInnerCollection<T>.Contains(const value: T): Boolean;
+var
+  item: Pointer;
+begin
+  if fOffset = KeyOffset then
+  begin
+    item := IHashTable<T>(fHashTable).Find(value);
+    Result := Assigned(item);
+  end
+  else
+    Result := THashMapInnerCollection(Self).Contains(value, nil, TComparerThunks<T>.Equals);
+end;
+
 function THashMapInnerCollection<T>.Contains(const value: T;
   const comparer: IEqualityComparer<T>): Boolean;
 begin
@@ -3787,7 +3802,7 @@ end;
 class function TTreeMapInnerCollection.Create(classType: TClass;
   source: TRefCountedObject; tree: TBinaryTree; version: PInteger;
   const valueComparer: IInterface; elementType: PTypeInfo;
-  offset: Integer; count: PInteger; contains: TContains): TTreeMapInnerCollection;
+  offset: Integer; count: PInteger; contains: TContainsThunk): TTreeMapInnerCollection;
 begin
   Result := TTreeMapInnerCollection(classType.NewInstance);
   Result.fComparer := tree.Comparer;
@@ -3805,7 +3820,7 @@ end;
 class function TTreeMapInnerCollection.Create_Interface(
   source: TRefCountedObject; tree: TBinaryTree; version: PInteger;
   const valueComparer: IInterface; elementType: PTypeInfo; offset: Integer;
-  count: PInteger; contains: TContains): TTreeMapInnerCollection;
+  count: PInteger; contains: TContainsThunk): TTreeMapInnerCollection;
 begin
   Result := Create(TTreeMapInnerCollection<IInterface>,
     source, tree, version, valueComparer, elementType, offset, count, contains);
@@ -3814,14 +3829,14 @@ end;
 class function TTreeMapInnerCollection.Create_Object(source: TRefCountedObject;
   tree: TBinaryTree; version: PInteger; const valueComparer: IInterface;
   elementType: PTypeInfo; offset: Integer; count: PInteger;
-  contains: TContains): TTreeMapInnerCollection;
+  contains: TContainsThunk): TTreeMapInnerCollection;
 begin
   Result := Create(TTreeMapInnerCollection<TObject>,
     source, tree, version, valueComparer, elementType, offset, count, contains);
 end;
 
 function TTreeMapInnerCollection.Contains(const value; comparer: Pointer;
-  compare: TCompareMethod; equals: TEqualsMethod): Boolean;
+  compare: TCompareThunk; equals: TEqualsThunk): Boolean;
 var
   root, temp, next: Pointer;
   node: PNode;
@@ -3835,7 +3850,7 @@ begin
     if not Assigned(root) then Exit(Boolean(root));
     node := root;
     repeat
-      compareResult := compare(comparer, PNode(node).Key, value);
+      compareResult := compare(IInterface(comparer), PNode(node).Key, value);
       if compareResult = 0 then Break;
       i := compareResult shr 31; // left -> 0, right -> 1
       node := PNode(node).Childs[i];
@@ -3850,7 +3865,7 @@ begin
     if not Assigned(temp) then Exit(Boolean(temp));
     repeat
       node := temp;
-      Result := equals(comparer, PByte(@node.Key)[fOffset], value);
+      Result := equals(IInterface(comparer), PByte(@node.Key)[fOffset], value);
       if Result then
         Exit;
       temp := PBinaryTreeNode(node).Next;
@@ -4857,7 +4872,7 @@ begin
   Result := Methods.MoveNext(@Self);
 end;
 
-procedure TIteratorBlock.InitHashTable(const equals, getHashCode: Pointer;
+procedure TIteratorBlock.InitHashTable(equals: TEqualsThunk; getHashCode: TGetHashCodeThunk;
   itemsInfo: PTypeInfo; const comparer: IInterface);
 begin
   PHashTable(Data) := AllocMem(SizeOf(THashTable));
@@ -4996,8 +5011,8 @@ begin
   end;
 
   if Kind in [Distinct..Union] then
-    PIteratorBlock(@Self).InitHashTable(@TComparerThunks<T>.Equals,
-      @TComparerThunks<T>.GetHashCode, TypeInfo(TItems), extension.fEqualityComparer);
+    PIteratorBlock(@Self).InitHashTable(TComparerThunks<T>.Equals,
+      TComparerThunks<T>.GetHashCode, TypeInfo(TItems), extension.fEqualityComparer);
 
   if Assigned(Enumerator_Vtable[0]) then
   begin

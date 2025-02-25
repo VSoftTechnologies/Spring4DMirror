@@ -603,7 +603,7 @@ begin
   valueType := GetValueType;
   if not Assigned(fValueComparer) then
     fValueComparer := IEqualityComparer<TValue>(_LookupVtableInfo(giEqualityComparer, valueType, SizeOf(TValue)));
-  fHashTable.Initialize(@TComparerThunks<TKey>.Equals, @TComparerThunks<TKey>.GetHashCode, keyType);
+  fHashTable.Initialize(TComparerThunks<TKey>.Equals, TComparerThunks<TKey>.GetHashCode, keyType);
   {$IFDEF DELPHIXE7_UP}
   if fHashTable.DefaultComparer then
     fHashTable.Find := @THashTable<TKey>.FindWithoutComparer

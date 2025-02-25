@@ -380,7 +380,7 @@ begin
   inherited AfterConstruction;
 
   elementType := GetElementType;
-  fHashTable.Initialize(@TComparerThunks<T>.Equals, @TComparerThunks<T>.GetHashCode, elementType);
+  fHashTable.Initialize(TComparerThunks<T>.Equals, TComparerThunks<T>.GetHashCode, elementType);
   {$IFDEF DELPHIXE7_UP}
   if fHashTable.DefaultComparer then
     fHashTable.Find := @THashTable<T>.FindWithoutComparer

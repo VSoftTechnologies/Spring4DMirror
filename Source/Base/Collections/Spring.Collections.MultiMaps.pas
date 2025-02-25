@@ -645,7 +645,7 @@ begin
   keyType := GetKeyType;
   valueType := GetValueType;
   fHashTable.ItemsInfo := TypeInfo(TItems);
-  fHashTable.Initialize(@TComparerThunks<TKey>.Equals, @TComparerThunks<TKey>.GetHashCode, keyType);
+  fHashTable.Initialize(TComparerThunks<TKey>.Equals, TComparerThunks<TKey>.GetHashCode, keyType);
   {$IFDEF DELPHIXE7_UP}
   if fHashTable.DefaultComparer then
     fHashTable.Find := @THashTable<TKey>.FindWithoutComparer
