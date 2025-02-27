@@ -545,9 +545,12 @@ begin
     FreeMem(@Self);
 end;
 
-function GetTypeData(typeInfo: PTypeInfo): PTypeData; inline;
+function GetTypeInfoData(typeInfo: PTypeInfo): PTypeInfoData; inline;
+var
+  len: NativeInt;
 begin
-  Result := Pointer(NativeUInt(typeInfo) + NativeUInt(PByte(@PByte(typeInfo)[1])^) + 2);
+  len := PTypeInfoData(typeInfo).Name;
+  Result := Pointer(PByte(@typeInfo.Kind) + len);
 end;
 
 function Compare_Int8(const inst: Pointer; const left, right: ShortInt): Integer;
@@ -2419,7 +2422,7 @@ const
    (@Comparer_Int32, @EqualityComparer_Int32), (@Comparer_UInt32, @EqualityComparer_Int32)
   );
 begin
-  Result := ComparerTable[GetTypeData(typeInfo).OrdType, intf];
+  Result := ComparerTable[GetTypeInfoData(typeInfo).OrdType, intf];
 end;
 
 function Selector_Int64(intf: TDefaultGenericInterface; typeInfo: PTypeInfo; size: Integer): Pointer;
@@ -2428,7 +2431,7 @@ const
    (@Comparer_Int64, @EqualityComparer_Int64), (@Comparer_UInt64, @EqualityComparer_Int64)
   );
 begin
-  with GetTypeData(typeInfo)^ do
+  with GetTypeInfoData(typeInfo)^ do
     Result := ComparerTable[MaxInt64Value <= MinInt64Value, intf];
 end;
 
@@ -2440,7 +2443,7 @@ const
    (@Comparer_UInt64, @EqualityComparer_Int64), (@Comparer_UInt64, @EqualityComparer_Int64)
   );
 begin
-  Result := ComparerTable[GetTypeData(typeInfo).FloatType, intf];
+  Result := ComparerTable[GetTypeInfoData(typeInfo).FloatType, intf];
 end;
 
 function Selector_Binary(intf: TDefaultGenericInterface; typeInfo: PTypeInfo; size: Integer): Pointer;
@@ -2485,7 +2488,7 @@ begin
     Result := FindComparer(intf, typeInfo);
     if not Assigned(Result) then
     begin
-      Result := MakeInstance(ComparerTable[intf], typeInfo, typeInfo.TypeData.elSize);
+      Result := MakeInstance(ComparerTable[intf], typeInfo, GetTypeInfoData(typeInfo).elSize);
       RegisterComparer(intf, typeInfo, IInterface(Result));
     end;
   finally

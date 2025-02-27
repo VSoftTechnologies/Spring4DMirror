@@ -534,7 +534,7 @@ begin
   n := DynArrayLength(fItems) + 1;
   Inc(fCapacity, BlockSize);
   DynArraySetLength(fItems, arrayType, 1, @n);
-  elemType := Pointer(PDynArrayTypeInfo(PByte(arrayType) + Byte(PDynArrayTypeInfo(arrayType).name)).elType^);
+  elemType := GetTypeInfoData(arrayType).elType^;
   blockLength := BlockSize;
   DynArraySetLength(TArray<Pointer>(fItems)[n-1], elemType, 1, @blockLength);
 end;
@@ -550,7 +550,7 @@ begin
     Inc(newLength);
   fCapacity := newLength * BlockSize;
   DynArraySetLength(fItems, arrayType, 1, @newLength);
-  elemType := Pointer(PDynArrayTypeInfo(PByte(arrayType) + Byte(PDynArrayTypeInfo(arrayType).name)).elType^);
+  elemType := GetTypeInfoData(arrayType).elType^;
   blockLength := BlockSize;
   for i := oldLength to newLength - 1 do
     DynArraySetLength(TArray<Pointer>(fItems)[i], elemType, 1, @blockLength);

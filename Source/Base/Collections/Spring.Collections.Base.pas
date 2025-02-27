@@ -1185,10 +1185,10 @@ end;
 
 procedure DynArrayUnwrap(var items: Pointer; typeInfo: PTypeInfo; index, count: NativeInt);
 var
-  p: PDynArrayTypeInfo;
+  p: PTypeInfoData;
   capacity: NativeInt;
 begin
-  p := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name));
+  p := GetTypeInfoData(typeInfo);
   {$POINTERMATH ON}
   capacity := PNativeInt(items)[-1];
   {$POINTERMATH OFF}
@@ -1198,7 +1198,7 @@ begin
     DynArraySetLength(items, typeInfo, 1, @capacity);
   end;
   {$IFDEF WEAKREF}
-  if Assigned(p.elType) and HasWeakRef(PPointer(p.elType)^) then
+  if Assigned(p.elType) and HasWeakRef(p.elType^) then
   begin
     MoveManaged(items, @PByte(items)[count*p.elSize], p.elType^, index);
     MoveManaged(@PByte(items)[index*p.elSize], items, p.elType^, count);
@@ -1653,12 +1653,12 @@ procedure TEnumerableBase.DefaultIfEmpty(defaultValue: Pointer; var result; type
 const
   Len: NativeInt = 1;
 var
-  p: PDynArrayTypeInfo;
+  p: PTypeInfoData;
 begin
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.DefaultIfEmpty) do
   begin
     DynArraySetLength(fItems, typeInfo, 1, @Len);
-    p := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name));
+    p := GetTypeInfoData(typeInfo);
     IInterface(result) := IInterface(@IMT);
     if defaultValue <> nil then
       if p.elType <> nil then
@@ -2327,7 +2327,7 @@ var
 begin
   count := 0;
   capacity := 0;
-  size := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+  size := GetTypeInfoData(typeInfo).elSize;
   enumerator := IEnumerable(this).GetEnumerator;
   while enumerator.MoveNext do
   begin
@@ -3552,7 +3552,7 @@ begin
     offset := fOffset;
     hashTable := fHashTable;
     count := hashTable.Count;
-    elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+    elSize := GetTypeInfoData(typeInfo).elSize;
     DynArraySetLength(result, typeInfo, 1, @count);
     target := result;
     if target = nil then Exit;
@@ -3895,7 +3895,7 @@ begin
     offset := fOffset;
     tree := fTree;
     count := tree.Count;
-    elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+    elSize := GetTypeInfoData(typeInfo).elSize;
     DynArraySetLength(result, typeInfo, 1, @count);
     next := tree.Root.LeftMost;
     if Assigned(next) then
@@ -4629,7 +4629,7 @@ end;
 
 function TIteratorBlock.Finalize(typeInfo: PTypeInfo): Boolean;
 var
-  p: PDynArrayTypeInfo;
+  p: PTypeInfoData;
 begin
   Enumerator := nil;
   Source := nil;
@@ -4647,7 +4647,7 @@ begin
   else
     DynArrayClear(Items, typeInfo);
   end;
-  p := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name));
+  p := GetTypeInfoData(typeInfo);
   if p.elType <> nil then
     System.FinalizeArray(@Current, p.elType^, 1);
   Result := False;
@@ -4806,7 +4806,7 @@ begin
 
   i := 0;
   capacity := 0;
-  elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+  elSize := GetTypeInfoData(typeInfo).elSize;
   repeat
     if not Enumerator.MoveNext then Exit(False);
 
@@ -4837,7 +4837,7 @@ begin
   i := 0;
   capacity := 0;
   wrapAround := False;
-  elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+  elSize := GetTypeInfoData(typeInfo).elSize;
   repeat
     if i >= capacity then
       capacity := DynArrayGrow(Pointer(Items), typeInfo, capacity);
@@ -4881,7 +4881,7 @@ var
 begin
   iterator := TEnumerableExtension(Parent);
   count := iterator.fCount and CountMask;
-  elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+  elSize := GetTypeInfoData(typeInfo).elSize;
   if Index >= count then
   begin
     if iterator.fPredicate = nil then
@@ -5971,7 +5971,7 @@ begin
     TExtensionKind.Memoize:
       if index < (fCount and CountMask) then
       begin
-        elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+        elSize := GetTypeInfoData(typeInfo).elSize;
         assign(value, PByte(fItems)[index*elSize]);
         Exit(True);
       end;
@@ -5995,7 +5995,7 @@ begin
           count := DynArrayLength(items);
           if index < count then
           begin
-            elSize := PDynArrayTypeInfo(PByte(typeInfo) + Byte(PDynArrayTypeInfo(typeInfo).name)).elSize;
+            elSize := GetTypeInfoData(typeInfo).elSize;
             assign(value, Pointer(PByte(items) + (count - index - 1) * elSize)^);
             Exit(True);
           end;

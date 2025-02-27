@@ -2681,6 +2681,10 @@ type
       @TSort_Int64.PatternDefeatingQuickSort,
       @TSort_UInt64.PatternDefeatingQuickSort
     );
+    const Float64TypeSorters: array[Boolean] of Pointer = (
+      @TSort_Int64.PatternDefeatingQuickSort,
+      @TSort_Double.PatternDefeatingQuickSort
+    );
 
     class function QuickSortPartition<T>(const values: Span<T>; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>): NativeInt; overload; static;
     class procedure IntroSort<T>(const values: Span<T>; const compare: TCompareMethod<T>; depthLimit: Integer = -1); overload; static;
@@ -3469,6 +3473,26 @@ function RegisterExpectedMemoryLeak(P: Pointer): Boolean;
 
 function PassByRef(TypeInfo: PTypeInfo; CC: TCallConv; IsConst: Boolean = False): Boolean;
 
+type
+  // using the same trick here as in System.TDynArrayTypeInfo but for all Kinds
+  PTypeInfoData = ^TTypeInfoData;
+  TTypeInfoData = packed record
+    Kind: TTypeKind;
+    Name: Byte; {string[0];}
+    case TTypeKind of
+      tkInteger, tkChar, tkEnumeration, tkWChar: (OrdType: TOrdType);
+      tkFloat: (FloatType: TFloatType);
+      tkClass: (
+        ClassType: TClass;
+        ParentInfo: PPTypeInfo;
+        PropCount: SmallInt;
+        UnitName: TSymbolName);
+      tkInt64: (MinInt64Value, MaxInt64Value: Int64);
+      tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}: (Size: Integer);
+      tkDynArray: (elSize: Integer; elType: PPTypeInfo);
+  end;
+
+function GetTypeInfoData(typeInfo: Pointer): PTypeInfoData; inline;
 function GetOrdTypeEx(typeInfo: PTypeInfo): TOrdTypeEx;
 
 {$IFNDEF DELPHIX_TOKYO_UP}
@@ -4228,52 +4252,68 @@ begin
     Inc(Result);
 end;
 
+function GetTypeInfoData(typeInfo: Pointer): PTypeInfoData;
+var
+  len: NativeInt;
+begin
+  len := PTypeInfoData(typeInfo).Name;
+  Result := Pointer(PByte(typeInfo) + len);
+end;
+
 function GetTypeSize(typeInfo: PTypeInfo): Integer;
 const
-  COrdinalSizes: array[TOrdType] of Integer = (
-    SizeOf(ShortInt){1},
-    SizeOf(Byte){1},
-    SizeOf(SmallInt){2},
-    SizeOf(Word){2},
-    SizeOf(Integer){4},
-    SizeOf(Cardinal){4});
-  CFloatSizes: array[TFloatType] of Integer = (
-    SizeOf(Single){4},
-    SizeOf(Double){8},
-{$IFDEF ALIGN_STACK}
-    16,
-{$ELSE}
-    SizeOf(Extended){10},
-{$ENDIF}
-    SizeOf(Comp){8},
-    SizeOf(Currency){8});
+  COrdinalSizes: array[TOrdType] of ShortInt = (
+    SizeOf(ShortInt),   // otSByte
+    SizeOf(Byte),       // otUByte
+    SizeOf(SmallInt),   // otSWord
+    SizeOf(Word),       // otUWord
+    SizeOf(Integer),    // otSLong
+    SizeOf(Cardinal));  // otULong
+  CFloatSizes: array[TFloatType] of ShortInt = (
+    SizeOf(Single),     // ftSingle
+    SizeOf(Double),     // ftDouble
+    SizeOf(Extended),   // ftExtended
+    SizeOf(Comp),       // ftComp
+    SizeOf(Currency));  // ftCurr
+  CTypeSizes: array[TTypeKind] of ShortInt = (
+    -1,                 // tkUnknown
+    -1,                 // tkInteger
+    SizeOf(AnsiChar),   // tkChar
+    -1,                 // tkEnumeration
+    -1,                 // tkFloat,
+    SizeOf(Pointer),    // tkString
+    -1,                 // tkSet
+    SizeOf(Pointer),    // tkClass
+    SizeOf(TMethod),    // tkMethod
+    SizeOf(WideChar),   // tkWChar
+    SizeOf(Pointer),    // tkLString
+    SizeOf(Pointer),    // tkWString
+    SizeOf(Variant),    // tkVariant
+    -1,                 // tkArray
+    -1,                 // tkRecord
+    SizeOf(Pointer),    // tkInterface
+    SizeOf(Int64),      // tkInt64
+    SizeOf(Pointer),    // tkDynArray
+    SizeOf(Pointer),    // tkUString
+    SizeOf(Pointer),    // tkClassRef
+    SizeOf(Pointer),    // tkPointer
+    SizeOf(Pointer)     // tkProcedure
+    {$IF Declared(tkMRecord)}
+    , 1                 // tkMRecord
+    {$IFEND}
+    );
 begin
   case typeInfo.Kind of
-    tkChar:
-      Result := SizeOf(AnsiChar){1};
-    tkWChar:
-      Result := SizeOf(WideChar){2};
     tkInteger, tkEnumeration:
-      Result := COrdinalSizes[typeInfo.TypeData.OrdType];
+      Result := COrdinalSizes[GetTypeInfoData(typeInfo).OrdType];
     tkFloat:
-      Result := CFloatSizes[typeInfo.TypeData.FloatType];
-    tkString, tkLString, tkUString, tkWString, tkInterface, tkClass, tkClassRef, tkDynArray, tkPointer, tkProcedure:
-      Result := SizeOf(Pointer);
-    tkMethod:
-      Result := SizeOf(TMethod);
-    tkInt64:
-      Result := SizeOf(Int64){8};
-    tkVariant:
-      Result := SizeOf(Variant);
+      Result := CFloatSizes[GetTypeInfoData(typeInfo).FloatType];
     tkSet:
       Result := GetSetSize(typeInfo);
-    tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
-      Result := typeInfo.TypeData.RecSize;
-    tkArray:
-      Result := typeInfo.TypeData.ArrayData.Size;
+    tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
+      Result := GetTypeInfoData(typeInfo).Size;
   else
-    Assert(False, 'Unsupported type'); { TODO -o##jwp -cEnhance : add more context to the assert }
-    Result := -1;
+    Result := CTypeSizes[typeInfo.Kind];
   end;
 end;
 
@@ -5043,16 +5083,16 @@ end;
 
 function GetOrdTypeEx(typeInfo: PTypeInfo): TOrdTypeEx;
 var
-  typeData: PTypeData;
+  typeInfoData: PTypeInfoData;
 begin
-  typeData := Pointer(PByte(@typeInfo.Name[0]) + Byte(typeInfo.Name[0]) + 1);
+  typeInfoData := GetTypeInfoData(typeInfo);
   if typeInfo.Kind <> tkInt64 then
-    Result := TOrdTypeEx(typeData.OrdType)
+    Result := TOrdTypeEx(typeInfoData.OrdType)
   else
   begin
     Result := TOrdTypeEx.otUQWord;
     // the highest bit in MinInt64Value tells us if the tkInt64 is signed or not
-    Dec(Result, Int64Rec(typeData.MinInt64Value).Bytes[7] shr 7);
+    Dec(Result, Int64Rec(typeInfoData.MinInt64Value).Bytes[7] shr 7);
   end;
 end;
 
@@ -5563,7 +5603,7 @@ begin
       else if (fieldType = TypeInfo(TTime)) and (VarType(value) = varUString) then
         defaultField := TDefaultField<TTime>.Create(offset, StrToTime(value, ISO8601FormatSettings))
       else
-        case FieldType.TypeData.FloatType of
+        case fieldType.TypeData.FloatType of
           ftSingle: defaultField := TDefaultField<Single>.Create(offset, value);
           ftDouble: defaultField := TDefaultField<Double>.Create(offset, value);
           ftExtended: defaultField := TDefaultField<Extended>.Create(offset, value);
@@ -11942,9 +11982,9 @@ begin
     tkFloat:
       case SizeOf(T) of
         4: Reverse_Single(values, hi);
-        10: Reverse_Extended(values, hi);
+        10, 16: Reverse_Extended(values, hi);
       else
-        if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+        if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
           Reverse_Double(values, hi)
         else
           Reverse_Int64(values, hi);
@@ -12173,9 +12213,9 @@ begin
     tkFloat:
       case SizeOf(T) of
         4: Shuffle_Single(values, hi);
-        10: Shuffle_Extended(values, hi);
+        10, 16: Shuffle_Extended(values, hi);
       else
-        if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+        if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
           Shuffle_Double(values, hi)
         else
           Shuffle_Int64(values, hi);
@@ -12504,9 +12544,9 @@ begin
     tkFloat:
       case SizeOf(T) of
         4: IntroSort_Single(Span<Single>(span), compare);
-        10,16: IntroSort_Extended(Span<Extended>(span), compare);
+        10, 16: IntroSort_Extended(Span<Extended>(span), compare);
       else
-        if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+        if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
           IntroSort_Double(Span<Double>(span), compare)
         else
           IntroSort_Int64(Span<Int64>(span), compare);
@@ -12559,9 +12599,9 @@ begin
     tkFloat:
       case SizeOf(T) of
         4: IntroSort_Single(Span<Single>(span), compare);
-        10,16: IntroSort_Extended(Span<Extended>(span), compare);
+        10, 16: IntroSort_Extended(Span<Extended>(span), compare);
       else
-        if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+        if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
           IntroSort_Double(Span<Double>(span), compare)
         else
           IntroSort_Int64(Span<Int64>(span), compare);
@@ -12799,7 +12839,6 @@ begin
             TPatternDefeatingQuickSort(OrdinalTypeSorters[GetOrdTypeEx(TypeInfo(T))])(@values[0], @values[len]);
       end;
     tkFloat:
-    begin
       case SizeOf(T) of
         // ftSingle
         4: TSort_Single.PatternDefeatingQuickSort(@values[0], @values[len]);
@@ -12809,10 +12848,8 @@ begin
             TSort_Double.PatternDefeatingQuickSort(@values[0], @values[len])
           else if TypeInfo(T) = TypeInfo(Currency) then
             TSort_Int64.PatternDefeatingQuickSort(@values[0], @values[len])
-          else if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
-            TSort_Double.PatternDefeatingQuickSort(@values[0], @values[len])
           else
-            TSort_Int64.PatternDefeatingQuickSort(@values[0], @values[len]);
+            TPatternDefeatingQuickSort(Float64TypeSorters[GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble])(@values[0], @values[len]);
         // ftExtended
         10, 16:
         begin
@@ -12822,7 +12859,6 @@ begin
       else
         RaiseHelper.NotSupported;
       end;
-    end;
     tkString:
     begin
       comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
@@ -12920,9 +12956,9 @@ begin
     tkFloat:
       case SizeOf(T) of
         4: PatternDefeatingQuickSort_Single(@values[0], @values[len], IComparer<Single>(comparer));
-        10,16: PatternDefeatingQuickSort_Extended(@values[0], @values[len], IComparer<Extended>(comparer));
+        10, 16: PatternDefeatingQuickSort_Extended(@values[0], @values[len], IComparer<Extended>(comparer));
       else
-        if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+        if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
           PatternDefeatingQuickSort_Double(@values[0], @values[len], IComparer<Double>(comparer))
         else
           PatternDefeatingQuickSort_Int64(@values[0], @values[len], IComparer<Int64>(comparer));
@@ -12982,9 +13018,9 @@ begin
       tkFloat:
         case SizeOf(T) of
           4: PatternDefeatingQuickSort_Single(@values[index], @values[hi], IComparer<Single>(comparer));
-          10,16: PatternDefeatingQuickSort_Extended(@values[index], @values[hi], IComparer<Extended>(comparer));
+          10, 16: PatternDefeatingQuickSort_Extended(@values[index], @values[hi], IComparer<Extended>(comparer));
         else
-          if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+          if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
             PatternDefeatingQuickSort_Double(@values[index], @values[hi], IComparer<Double>(comparer))
           else
             PatternDefeatingQuickSort_Int64(@values[index], @values[hi], IComparer<Int64>(comparer));
@@ -13041,9 +13077,9 @@ begin
     tkFloat:
       case SizeOf(T) of
         4: PatternDefeatingQuickSort_Single(@values[0], @values[len], IComparer<Single>(PPointer(@comparison)^));
-        10,16: PatternDefeatingQuickSort_Extended(@values[0], @values[len], IComparer<Extended>(PPointer(@comparison)^));
+        10, 16: PatternDefeatingQuickSort_Extended(@values[0], @values[len], IComparer<Extended>(PPointer(@comparison)^));
       else
-        if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+        if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
           PatternDefeatingQuickSort_Double(@values[0], @values[len], IComparer<Double>(PPointer(@comparison)^))
         else
           PatternDefeatingQuickSort_Int64(@values[0], @values[len], IComparer<Int64>(PPointer(@comparison)^));
@@ -13103,9 +13139,9 @@ begin
       tkFloat:
         case SizeOf(T) of
           4: PatternDefeatingQuickSort_Single(@values[index], @values[hi], IComparer<Single>(PPointer(@comparison)^));
-          10,16: PatternDefeatingQuickSort_Extended(@values[index], @values[hi], IComparer<Extended>(PPointer(@comparison)^));
+          10, 16: PatternDefeatingQuickSort_Extended(@values[index], @values[hi], IComparer<Extended>(PPointer(@comparison)^));
         else
-          if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+          if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
             PatternDefeatingQuickSort_Double(@values[index], @values[hi], IComparer<Double>(PPointer(@comparison)^))
           else
             PatternDefeatingQuickSort_Int64(@values[index], @values[hi], IComparer<Int64>(PPointer(@comparison)^));

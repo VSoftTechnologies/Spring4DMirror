@@ -11985,7 +11985,7 @@ end;
 class procedure TEnumerable.InternalOfType_Object(const source: IEnumerable<TObject>;
   var result; resultType: PTypeInfo);
 begin
-  IEnumerable<TObject>(Result) := TOfTypeIterator.Create(source, GetTypeData(resultType).ClassType);
+  IEnumerable<TObject>(Result) := TOfTypeIterator.Create(source, GetTypeInfoData(resultType).ClassType);
 end;
 
 class procedure TEnumerable.InternalFrom_Int8_DynArray(source: Pointer;
