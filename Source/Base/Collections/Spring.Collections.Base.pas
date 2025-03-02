@@ -462,7 +462,7 @@ type
     procedure GetEnumerator(var result; var enumeratorVTables: TExtensionEnumeratorVtables;
       typeInfo, getCurrent: Pointer);
     function TryGetSpan(var span: Span<Pointer>): Boolean;
-    procedure MemoizeToArray(var values: Pointer; typeInfo: PTypeInfo);
+    procedure ToArray(var values: Pointer; typeInfo: PTypeInfo; getCurrent: TGetCurrent);
     procedure PartitionToArray(var values: Pointer; typeInfo: PTypeInfo; getCurrent: TGetCurrent);
     procedure RepeatedToArray(var values: Pointer; typeInfo: PTypeInfo);
     procedure Skip(count: Integer; var result; typeInfo: PTypeInfo);
@@ -5974,12 +5974,16 @@ begin
   Result := -1;
 end;
 
-procedure TEnumerableExtension.MemoizeToArray(var values: Pointer; typeInfo: PTypeInfo);
-var
-  count: Integer;
+procedure TEnumerableExtension.ToArray(var values: Pointer; typeInfo: PTypeInfo; getCurrent: TGetCurrent);
 begin
-  count := GetNonEnumeratedCount;
-  DynArrayCopyRange(values, fItems, typeInfo, 0, count);
+  case fKind of
+    TExtensionKind.Repeated: RepeatedToArray(values, typeInfo);
+    TExtensionKind.Items: DynArrayCopyRange(values, fItems, typeInfo, 0, fCount);
+    TExtensionKind.Memoize: DynArrayCopyRange(values, fItems, typeInfo, 0, GetCount);
+    TExtensionKind.Partition: PartitionToArray(values, typeInfo, getCurrent);
+  else
+    inherited ToArray(values, typeInfo, getCurrent);
+  end;
 end;
 
 procedure TEnumerableExtension.PartitionToArray(var values: Pointer; typeInfo: PTypeInfo; getCurrent: TGetCurrent);
@@ -6041,7 +6045,7 @@ begin
     end
   end
   else
-    for i := 0 to count - 1 do
+    for i := 1 to count do
     begin
       Move(items^, current^, elSize);
       Inc(current, elSize);
@@ -6603,20 +6607,23 @@ begin
 end;
 
 function TEnumerableExtension<T>.CopyTo(var values: TArray<T>; index: Integer): Integer;
+var
+  count: Integer;
 begin
   case fKind of
+    TExtensionKind.Empty,
     TExtensionKind.Items:
     begin
-      Result := fCount;
-      if Result > 0 then
+      count := fCount;
+      if count > 0 then
         if TType.IsManaged<T> then
-          MoveManaged(@fItems[0], @values[index], TypeInfo(T), Result)
+          MoveManaged(@fItems[0], @values[index], TypeInfo(T), count)
         else
-          System.Move(fItems[0], values[index], SizeOf(T) * Result);
+          System.Move(fItems[0], values[index], SizeOf(T) * count);
+      Result := count;
     end;
   else
-    RaiseHelper.NotSupported;
-    Result := 0;
+    Result := TEnumerableBase(Self).CopyTo(Pointer(values), index, SizeOf(T), TCollectionThunks<T>.GetCurrent);
   end;
 end;
 
@@ -6713,20 +6720,13 @@ end;
 function TEnumerableExtension<T>.ToArray: TArray<T>;
 begin
   case fKind of //FI:W535
-    TExtensionKind.Repeated:
-      TEnumerableExtension(Self).RepeatedToArray(Pointer(Result), TypeInfo(TArray<T>));
-    TExtensionKind.Partition:
-      TEnumerableExtension(Self).PartitionToArray(Pointer(Result), TypeInfo(TArray<T>), TCollectionThunks<T>.GetCurrent);
-    TExtensionKind.Memoize,
-    TExtensionKind.Items:
-      TEnumerableExtension(Self).MemoizeToArray(Pointer(Result), TypeInfo(TArray<T>));
     TExtensionKind.Ordered..TExtensionKind.Shuffled:
     begin
       Result := fSource.ToArray;
       TCollectionThunks<T>.ProcessArray(fKind, Result, IComparer<T>(fPredicate));
     end;
   else
-    Result := inherited ToArray;
+    TEnumerableExtension(Self).ToArray(Pointer(Result), TypeInfo(TArray<T>), TCollectionThunks<T>.GetCurrent);
   end;
 end;
 
