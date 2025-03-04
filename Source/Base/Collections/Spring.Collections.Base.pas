@@ -163,6 +163,7 @@ type
     procedure ExtractAll(var result); overload;
     procedure ExtractAll(const match: IInterface; var result); overload;
     function RemoveAll(const match: IInterface; typeInfo: PTypeInfo): Integer;
+    function RemoveRange(const values: IInterface; operation: TCollectionOperation): Integer;
 
     function Sum(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Integer>): Integer; overload;
     function Sum(const selector: IInterface; getCurrent: TGetCurrentWithSelector<Int64>): Int64; overload;
@@ -2149,6 +2150,18 @@ begin
   end;
 end;
 
+function TEnumerableBase.RemoveRange(const values: IInterface;
+  operation: TCollectionOperation): Integer;
+begin
+  if IInterface(this) = values then
+  begin
+    Result := ICollection(this).Count;
+    ICollection(this).Clear;
+  end
+  else
+    Result := ForEach(values, operation);
+end;
+
 procedure TEnumerableBase.Reversed(var result; classType: TClass);
 begin
   with TEnumerableExtension.Create(classType, IEnumerable(this), TExtensionKind.Reversed) do
@@ -3428,7 +3441,7 @@ end;
 
 function TCollectionBase<T>.RemoveRange(const values: IEnumerable<T>): Integer;
 begin
-  Result := inherited ForEach(values, TCollectionThunks<T>.RemoveCurrentFromCollection);
+  Result := inherited RemoveRange(values, TCollectionThunks<T>.RemoveCurrentFromCollection);
 end;
 
 procedure TCollectionBase<T>.Reset;
