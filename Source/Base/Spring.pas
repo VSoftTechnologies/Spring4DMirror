@@ -2728,8 +2728,8 @@ type
       hi: NativeInt;
       temp: T;
     end;
-    TPatternDefeatingQuickSort = procedure (lo, hi: Pointer; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False);
+    TPatternDefeatingQuickSort = procedure (lo, hi: Pointer; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False);
   protected
     const FoldedTypeKinds = [tkInteger, tkChar, tkEnumeration, tkClass, tkMethod, tkWChar, tkInterface, tkInt64, tkUString, tkClassRef, tkPointer, tkProcedure];
     const PointerTypeKinds = [tkClass, tkInterface, tkDynArray, tkUString, tkClassRef, tkPointer, tkProcedure];
@@ -2796,20 +2796,20 @@ type
     class procedure Shuffle_Generic<T>(var values: array of T); static;
 
     {$IFDEF DELPHIXE7_UP}
-    class procedure PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const comparer: IComparer<Int8>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const compare: TLessThanFunc<Int8>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const comparer: IComparer<Int16>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const compare: TLessThanFunc<Int16>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const comparer: IComparer<Int24>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const compare: TLessThanFunc<Int24>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const comparer: IComparer<Int32>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const compare: TLessThanFunc<Int32>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const comparer: IComparer<Int64>); overload; static;
-    class procedure PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const compare: TLessThanFunc<Int64>); overload; static;
-    class procedure PatternDefeatingQuickSort_Single(lo, hi: Pointer; const comparer: IComparer<Single>); static;
-    class procedure PatternDefeatingQuickSort_Double(lo, hi: Pointer; const comparer: IComparer<Double>); static;
-    class procedure PatternDefeatingQuickSort_Extended(lo, hi: Pointer; const comparer: IComparer<Extended>); static;
-    class procedure PatternDefeatingQuickSort_Method(lo, hi: Pointer; const comparer: IComparer<TMethodPointer>); static;
+    class procedure PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const comparer: IComparer<Int8>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const compare: TLessThanFunc<Int8>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const comparer: IComparer<Int16>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const compare: TLessThanFunc<Int16>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const comparer: IComparer<Int24>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const compare: TLessThanFunc<Int24>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const comparer: IComparer<Int32>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const compare: TLessThanFunc<Int32>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const comparer: IComparer<Int64>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const compare: TLessThanFunc<Int64>; threads: Integer = 1); overload; static;
+    class procedure PatternDefeatingQuickSort_Single(lo, hi: Pointer; const comparer: IComparer<Single>; threads: Integer = 1); static;
+    class procedure PatternDefeatingQuickSort_Double(lo, hi: Pointer; const comparer: IComparer<Double>; threads: Integer = 1); static;
+    class procedure PatternDefeatingQuickSort_Extended(lo, hi: Pointer; const comparer: IComparer<Extended>; threads: Integer = 1); static;
+    class procedure PatternDefeatingQuickSort_Method(lo, hi: Pointer; const comparer: IComparer<TMethodPointer>; threads: Integer = 1); static;
     {$ENDIF}
 
     class function IndexOf_Int8(lo: PInt8; const item: Int8; index, count: NativeInt): NativeInt; static; inline;
@@ -3186,9 +3186,19 @@ type
     class procedure Sort<T>(var values: array of T); overload; static;
 
     /// <summary>
+    ///   Sorts the elements in an array using the default comparer.
+    /// </summary>
+    class procedure SortParallel<T>(var values: array of T); overload; static;
+
+    /// <summary>
     ///   Sorts the elements in an array using the specified comparer.
     /// </summary>
     class procedure Sort<T>(var values: array of T; const comparer: IComparer<T>); overload; static;
+
+    /// <summary>
+    ///   Sorts the elements in an array using the specified comparer.
+    /// </summary>
+    class procedure SortParallel<T>(var values: array of T; const comparer: IComparer<T>); overload; static;
 
     /// <summary>
     ///   Sorts the specified range of elements in an array using the specified
@@ -13744,110 +13754,110 @@ begin
 end;
 
 {$IFDEF DELPHIXE7_UP}
-class procedure TArray.PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const comparer: IComparer<Int8>);
+class procedure TArray.PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const comparer: IComparer<Int8>; threads: Integer);
 var
   compare: TCompareMethod<Int8>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<Int8>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int8>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const compare: TLessThanFunc<Int8>);
+class procedure TArray.PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const compare: TLessThanFunc<Int8>; threads: Integer);
 begin
-  TSort.PatternDefeatingQuickSort<Int8>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int8>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const comparer: IComparer<Int16>);
+class procedure TArray.PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const comparer: IComparer<Int16>; threads: Integer);
 var
   compare: TCompareMethod<Int16>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<Int16>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int16>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const compare: TLessThanFunc<Int16>);
+class procedure TArray.PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const compare: TLessThanFunc<Int16>; threads: Integer);
 begin
-  TSort.PatternDefeatingQuickSort<Int16>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int16>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const comparer: IComparer<Int24>);
+class procedure TArray.PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const comparer: IComparer<Int24>; threads: Integer);
 var
   compare: TCompareMethod<Int24>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<Int24>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int24>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const compare: TLessThanFunc<Int24>);
+class procedure TArray.PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const compare: TLessThanFunc<Int24>; threads: Integer);
 begin
-  TSort.PatternDefeatingQuickSort<Int24>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int24>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const comparer: IComparer<Int32>);
+class procedure TArray.PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const comparer: IComparer<Int32>; threads: Integer);
 var
   compare: TCompareMethod<Int32>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<Int32>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int32>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const compare: TLessThanFunc<Int32>);
+class procedure TArray.PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const compare: TLessThanFunc<Int32>; threads: Integer);
 begin
-  TSort.PatternDefeatingQuickSort<Int32>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int32>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const comparer: IComparer<Int64>);
+class procedure TArray.PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const comparer: IComparer<Int64>; threads: Integer);
 var
   compare: TCompareMethod<Int64>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<Int64>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int64>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const compare: TLessThanFunc<Int64>);
+class procedure TArray.PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const compare: TLessThanFunc<Int64>; threads: Integer);
 begin
-  TSort.PatternDefeatingQuickSort<Int64>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Int64>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Single(lo, hi: Pointer; const comparer: IComparer<Single>);
+class procedure TArray.PatternDefeatingQuickSort_Single(lo, hi: Pointer; const comparer: IComparer<Single>; threads: Integer);
 var
   compare: TCompareMethod<Single>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<Single>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Single>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Double(lo, hi: Pointer; const comparer: IComparer<Double>);
+class procedure TArray.PatternDefeatingQuickSort_Double(lo, hi: Pointer; const comparer: IComparer<Double>; threads: Integer);
 var
   compare: TCompareMethod<Double>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<Double>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Double>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Extended(lo, hi: Pointer; const comparer: IComparer<Extended>);
+class procedure TArray.PatternDefeatingQuickSort_Extended(lo, hi: Pointer; const comparer: IComparer<Extended>; threads: Integer);
 var
   compare: TCompareMethod<Extended>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<Extended>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<Extended>(lo, hi, compare, threads);
 end;
 
-class procedure TArray.PatternDefeatingQuickSort_Method(lo, hi: Pointer; const comparer: IComparer<TMethodPointer>);
+class procedure TArray.PatternDefeatingQuickSort_Method(lo, hi: Pointer; const comparer: IComparer<TMethodPointer>; threads: Integer);
 var
   compare: TCompareMethod<TMethodPointer>;
 begin
   TMethod(compare).Data := Pointer(comparer);
   TMethod(compare).Code := PPVTable(comparer)^[3];
-  TSort.PatternDefeatingQuickSort<TMethodPointer>(lo, hi, compare);
+  TSort.PatternDefeatingQuickSort<TMethodPointer>(lo, hi, compare, threads);
 end;
 
 class procedure TArray.IntroSort_Int8(const values: Span<Int8>; const compare: TMethod);
@@ -14314,6 +14324,159 @@ begin
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
+class procedure TArray.SortParallel<T>(var values: array of T);
+var
+  len: NativeUInt;
+  comparer, lessThan: Pointer;
+  compare: TCompareMethod<T>;
+begin
+  {$R-}
+  len := Length(values);
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64:
+      case SizeOf(T) of
+        1:
+          if TypeInfo(T) = TypeInfo(Int8) then
+            TSort_Int8.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else if (TypeInfo(T) = TypeInfo(UInt8))
+            or (TypeInfo(T) = TypeInfo(AnsiChar)) then
+            TSort_UInt8.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else
+            TPatternDefeatingQuickSort(OrdinalTypeSorters[GetOrdTypeEx(TypeInfo(T))])(@values[0], @values[len], 0);
+        2:
+          if TypeInfo(T) = TypeInfo(Int16) then
+            TSort_Int16.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else if (TypeInfo(T) = TypeInfo(UInt8))
+            or (TypeInfo(T) = TypeInfo(WideChar)) then
+            TSort_UInt16.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else
+            TPatternDefeatingQuickSort(OrdinalTypeSorters[GetOrdTypeEx(TypeInfo(T))])(@values[0], @values[len], 0);
+        4:
+          if (TypeInfo(T) = TypeInfo(Int32))
+            or (TypeInfo(T) = TypeInfo(NativeInt)) then
+            TSort_Int32.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else if (TypeInfo(T) = TypeInfo(UInt32))
+            or (TypeInfo(T) = TypeInfo(NativeUInt)) then
+            TSort_UInt32.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else
+            TPatternDefeatingQuickSort(OrdinalTypeSorters[GetOrdTypeEx(TypeInfo(T))])(@values[0], @values[len], 0);
+        8:
+          if (TypeInfo(T) = TypeInfo(Int64))
+            or (TypeInfo(T) = TypeInfo(NativeInt)) then
+            TSort_Int64.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else if (TypeInfo(T) = TypeInfo(UInt64))
+            or (TypeInfo(T) = TypeInfo(NativeUInt)) then
+            TSort_UInt64.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else
+            TPatternDefeatingQuickSort(OrdinalTypeSorters[GetOrdTypeEx(TypeInfo(T))])(@values[0], @values[len], 0);
+      end;
+    tkFloat:
+    begin
+      case SizeOf(T) of
+        // ftSingle
+        4: TSort_Single.PatternDefeatingQuickSort(@values[0], @values[len], 0);
+        // ftDouble, ftCurrency, ftComp
+        8:
+          if TypeInfo(T) = TypeInfo(Double) then
+            TSort_Double.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else if TypeInfo(T) = TypeInfo(Currency) then
+            TSort_Int64.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+            TSort_Double.PatternDefeatingQuickSort(@values[0], @values[len], 0)
+          else
+            TSort_Int64.PatternDefeatingQuickSort(@values[0], @values[len], 0);
+        // ftExtended
+        10, 16:
+        begin
+          comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+          PatternDefeatingQuickSort_Extended(@values[0], @values[len], IComparer<Extended>(comparer), 0);
+        end;
+      else
+        RaiseHelper.NotSupported;
+      end;
+    end;
+    tkString:
+    begin
+      comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+      TMethod(compare).Data := Pointer(comparer);
+      TMethod(compare).Code := PPVTable(comparer)^[3];
+      TSort_Ref.PatternDefeatingQuickSort(@values[0], @values[len], SizeOf(T), TSort_Ref.TCompareMethod(compare), 0);
+    end;
+    tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
+      if not System.HasWeakRef(T) then
+      begin
+        if GetTypeKind(T) in [tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}] then
+        begin
+          lessThan := GetLessThanOperator(TypeInfo(T));
+          if Assigned(lessThan) then
+          begin
+            case SizeOf(T) of
+              1: PatternDefeatingQuickSort_Int8(@values[0], @values[len], TLessThanFunc<Int8>(lessThan), 0);
+              2: PatternDefeatingQuickSort_Int16(@values[0], @values[len], TLessThanFunc<Int16>(lessThan), 0);
+            {$IFDEF CPU32BITS}
+              3: PatternDefeatingQuickSort_Int24(@values[0], @values[len], TLessThanFunc<Int24>(lessThan), 0);
+            {$ENDIF}
+              4: PatternDefeatingQuickSort_Int32(@values[0], @values[len], TLessThanFunc<Int32>(lessThan), 0);
+            {$IFDEF PASS_64BIT_VALUE_REGISTER}
+              8: PatternDefeatingQuickSort_Int64(@values[0], @values[len], TLessThanFunc<Int64>(lessThan), 0);
+            {$ENDIF}
+            else
+              TSort_Ref.PatternDefeatingQuickSort(@values[0], @values[len], SizeOf(T), TSort_Ref.TLessThanFunc(lessThan), 0);
+            end;
+            Exit;
+          end;
+        end;
+
+        comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+        case SizeOf(T) of
+          1: PatternDefeatingQuickSort_Int8(@values[0], @values[len], IComparer<Int8>(comparer), 0);
+          2: PatternDefeatingQuickSort_Int16(@values[0], @values[len], IComparer<Int16>(comparer), 0);
+          3: PatternDefeatingQuickSort_Int24(@values[0], @values[len], IComparer<Int24>(comparer), 0);
+          4: PatternDefeatingQuickSort_Int32(@values[0], @values[len], IComparer<Int32>(comparer), 0);
+        {$IFDEF PASS_64BIT_VALUE_REGISTER}
+          8: PatternDefeatingQuickSort_Int64(@values[0], @values[len], IComparer<Int64>(comparer), 0);
+        {$ENDIF}
+        else
+          TMethod(compare).Data := Pointer(comparer);
+          TMethod(compare).Code := PPVTable(comparer)^[3];
+          TSort_Ref.PatternDefeatingQuickSort(@values[0], @values[len], SizeOf(T), TSort_Ref.TCompareMethod(compare), 0);
+        end;
+      end
+      else
+      begin
+        comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+        TMethod(compare).Data := Pointer(comparer);
+        TMethod(compare).Code := PPVTable(comparer)^[3];
+        TSort.PatternDefeatingQuickSort<T>(@values[0], @values[len], compare, 0);
+      end;
+    tkClass, tkLString, tkWString, tkDynArray, tkUString:
+    begin
+      comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+      case SizeOf(T) of
+        4: PatternDefeatingQuickSort_Int32(@values[0], @values[len], IComparer<Int32>(comparer), 0);
+        8: PatternDefeatingQuickSort_Int64(@values[0], @values[len], IComparer<Int64>(comparer), 0);
+      end;
+    end;
+    tkMethod:
+    begin
+      comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+      PatternDefeatingQuickSort_Method(@values[0], @values[len], IComparer<TMethodPointer>(comparer), 0);
+    end;
+    tkInterface, tkClassRef, tkPointer, tkProcedure:
+      case SizeOf(T) of
+        4: TSort_UInt32.PatternDefeatingQuickSort(@values[0], @values[len], 0);
+        8: TSort_UInt64.PatternDefeatingQuickSort(@values[0], @values[len], 0);
+      end;
+  else{$ELSE}begin{$ENDIF}
+    comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+    TMethod(compare).Data := Pointer(comparer);
+    TMethod(compare).Code := PPVTable(comparer)^[3];
+    TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), compare, 0);
+  end;
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
 class procedure TArray.Sort<T>(var values: array of T; const comparer: IComparer<T>);
 var
   len: NativeUInt;
@@ -14374,6 +14537,70 @@ begin
     TMethod(compare).Data := Pointer(comparer);
     TMethod(compare).Code := PPVTable(comparer)^[3];
     TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), compare);
+  end;
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+end;
+
+class procedure TArray.SortParallel<T>(var values: array of T; const comparer: IComparer<T>);
+var
+  len: NativeUInt;
+  compare: TCompareMethod<T>;
+begin
+  {$R-}
+  len := Length(values);
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkLString, tkWString,
+    tkInterface, tkInt64, tkDynArray, tkUString, tkClassRef, tkPointer, tkProcedure:
+      case SizeOf(T) of
+        1: PatternDefeatingQuickSort_Int8(@values[0], @values[len], IComparer<Int8>(comparer), 0);
+        2: PatternDefeatingQuickSort_Int16(@values[0], @values[len], IComparer<Int16>(comparer), 0);
+        4: PatternDefeatingQuickSort_Int32(@values[0], @values[len], IComparer<Int32>(comparer), 0);
+        8: PatternDefeatingQuickSort_Int64(@values[0], @values[len], IComparer<Int64>(comparer), 0);
+      end;
+    tkFloat:
+      case SizeOf(T) of
+        4: PatternDefeatingQuickSort_Single(@values[0], @values[len], IComparer<Single>(comparer), 0);
+        10,16: PatternDefeatingQuickSort_Extended(@values[0], @values[len], IComparer<Extended>(comparer), 0);
+      else
+        if GetTypeData(TypeInfo(T)).FloatType = ftDouble then
+          PatternDefeatingQuickSort_Double(@values[0], @values[len], IComparer<Double>(comparer), 0)
+        else
+          PatternDefeatingQuickSort_Int64(@values[0], @values[len], IComparer<Int64>(comparer), 0);
+      end;
+    tkString:
+    begin
+      TMethod(compare).Data := Pointer(comparer);
+      TMethod(compare).Code := PPVTable(comparer)^[3];
+      TSort_Ref.PatternDefeatingQuickSort(@values[0], @values[len], SizeOf(T), TSort_Ref.TCompareMethod(compare), 0);
+    end;
+    tkSet, tkVariant, tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
+      if not System.HasWeakRef(T) then
+        case SizeOf(T) of
+          1: PatternDefeatingQuickSort_Int8(@values[0], @values[len], IComparer<Int8>(comparer), 0);
+          2: PatternDefeatingQuickSort_Int16(@values[0], @values[len], IComparer<Int16>(comparer), 0);
+          3: PatternDefeatingQuickSort_Int24(@values[0], @values[len], IComparer<Int24>(comparer), 0);
+          4: PatternDefeatingQuickSort_Int32(@values[0], @values[len], IComparer<Int32>(comparer), 0);
+        {$IFDEF PASS_64BIT_VALUE_REGISTER}
+          8: PatternDefeatingQuickSort_Int64(@values[0], @values[len], IComparer<Int64>(comparer), 0);
+        {$ENDIF}
+        else
+          TMethod(compare).Data := Pointer(comparer);
+          TMethod(compare).Code := PPVTable(comparer)^[3];
+          TSort_Ref.PatternDefeatingQuickSort(@values[0], @values[len], SizeOf(T), TSort_Ref.TCompareMethod(compare), 0);
+        end
+      else
+      begin
+        TMethod(compare).Data := Pointer(comparer);
+        TMethod(compare).Code := PPVTable(comparer)^[3];
+        TSort.PatternDefeatingQuickSort<T>(@values[0], @values[len], compare, 0);
+      end;
+    tkMethod:
+      PatternDefeatingQuickSort_Method(@values[0], @values[len], IComparer<TMethodPointer>(comparer), 0);
+  else{$ELSE}begin{$ENDIF}
+    TMethod(compare).Data := Pointer(comparer);
+    TMethod(compare).Code := PPVTable(comparer)^[3];
+    TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), compare, 0);
   end;
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;

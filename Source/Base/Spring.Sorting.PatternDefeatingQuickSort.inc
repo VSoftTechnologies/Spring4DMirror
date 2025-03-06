@@ -1,3 +1,18 @@
+
+  procedure PatternDefeatingQuickSort_Async(lo, pivotPos, hi: PDataType;
+    threads, depthLimit: Integer; leftMost, branchless: Boolean);
+  var
+    task: IInterface;
+  begin
+    task := ParallelAPI.RunTask(
+      procedure
+      begin
+        PatternDefeatingQuickSort(lo, pivotPos, threads, depthLimit, leftMost, branchless);
+      end);
+    PatternDefeatingQuickSort(pivotPos + 1, hi, threads, depthLimit, False, branchless);
+    ParallelAPI.WaitFor(task);
+  end;
+
 const
   PartitionRightFuncs: array[Boolean] of function(lo, hi: PDataType; out pivotPos: PDataType): Boolean = (
     PartitionRight,
@@ -14,6 +29,8 @@ begin
   begin
     depthLimit := Log2(partitionSize);
     branchless := partitionSize > 1000;
+    if threads = 0 then
+      threads := CPUCount;
   end;
 
   repeat
@@ -263,7 +280,13 @@ begin
           and PartialInsertionSort(pivotPos + 1, hi) then Exit;
       end;
 
-      PatternDefeatingQuickSort(lo, pivotPos, depthLimit, leftMost, branchless);
+      if (threads > 1) and ((leftSize > SequentialThreshold) or (rightSize > SequentialThreshold)) then
+      begin
+        PatternDefeatingQuickSort_Async(lo, pivotPos, hi, threads shr 1, depthLimit, leftMost, branchless);
+        Exit;
+      end;
+
+      PatternDefeatingQuickSort(lo, pivotPos, threads, depthLimit, leftMost, branchless);
       lo := pivotPos + 1;
       leftMost := False;
       partitionSize := (NativeUInt(hi) - NativeUInt(lo)) shr Shift;

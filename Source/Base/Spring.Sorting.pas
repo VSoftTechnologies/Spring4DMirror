@@ -43,8 +43,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_UInt8 = record
@@ -61,8 +61,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_Int16 = record
@@ -79,8 +79,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_UInt16 = record
@@ -97,8 +97,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_Int32 = record
@@ -115,8 +115,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_UInt32 = record
@@ -133,8 +133,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_Int64 = record
@@ -151,8 +151,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_UInt64 = record
@@ -169,8 +169,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_Single = record
@@ -187,8 +187,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_Double = record
@@ -205,8 +205,8 @@ type
     class function PartitionLeft(lo, hi: PDataType): PDataType; static;
     class function PartitionRight(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
     class function PartitionRightBranchless(lo, hi: PDataType; out pivotPos: PDataType): Boolean; static;
-    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; depthLimit: Integer = -1;
-      leftMost: Boolean = True; branchless: Boolean = False); static;
+    class procedure PatternDefeatingQuickSort(lo, hi: PDataType; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True; branchless: Boolean = False); static;
   end;
 
   TSort_Ref = record
@@ -240,9 +240,11 @@ type
       const compare: TLessThanFunc; out pivotPos: PByte): Boolean; overload; static;
   public
     class procedure PatternDefeatingQuickSort(lo, hi: PByte; size: NativeUInt;
-      const compare: TCompareMethod; depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
+      const compare: TCompareMethod; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
     class procedure PatternDefeatingQuickSort(lo, hi: PByte; size: NativeUInt;
-      const compare: TLessThanFunc; depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
+      const compare: TLessThanFunc; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
   end;
 
   TLessThanFunc<T> = function(const left, right: T): Boolean;
@@ -260,7 +262,12 @@ type
       {$POINTERMATH OFF}
       public type Slice = ^TSlice;
     end;
-  public
+  private{$IFNDEF DELPHIXE4_UP}{$HINTS OFF}{$ENDIF}
+    class procedure PatternDefeatingQuickSort_Async<T>(lo, pivotPos, hi: Pointer<T>.Idx;
+      const compare: TCompareMethod<T>; threads, depthLimit: Integer; leftMost: Boolean); overload; static;
+    class procedure PatternDefeatingQuickSort_Async<T>(lo, pivotPos, hi: Pointer<T>.Idx;
+      const compare: TLessThanFunc<T>; threads, depthLimit: Integer; leftMost: Boolean); overload; static;
+  public{$IFNDEF DELPHIXE4_UP}{$HINTS ON}{$ENDIF}
     class procedure SiftDown<T>(lo: Pointer<T>.Idx; hi, i: NativeUInt; const compare: TCompareMethod<T>);  overload; static;
     class procedure HeapSort<T>(lo, hi: Pointer<T>.Idx; const compare: TCompareMethod<T>); overload; static;
     class procedure InsertionSort<T>(lo, hi: Pointer<T>.Idx; const compare: TCompareMethod<T>); overload; static;
@@ -269,7 +276,8 @@ type
     class function PartitionLeft<T>(lo, hi: Pointer<T>.Idx; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>): Pointer<T>.Idx; overload; static;
     class function PartitionRight<T>(lo, hi: Pointer<T>.Idx; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; out pivotPos: Pointer<T>.Idx): Boolean; overload; static;
     class procedure PatternDefeatingQuickSort<T>(lo, hi: Pointer<T>.Idx;
-      const compare: TCompareMethod<T>; depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
+      const compare: TCompareMethod<T>; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
 
     class procedure SiftDown<T>(lo: Pointer<T>.Idx; hi, i: NativeUInt; const compare: TLessThanFunc<T>);  overload; static;
     class procedure HeapSort<T>(lo, hi: Pointer<T>.Idx; const compare: TLessThanFunc<T>); overload; static;
@@ -279,13 +287,15 @@ type
     class function PartitionLeft<T>(lo, hi: Pointer<T>.Idx; const compare: TLessThanFunc<T>): Pointer<T>.Idx; overload; static;
     class function PartitionRight<T>(lo, hi: Pointer<T>.Idx; const compare: TLessThanFunc<T>; out pivotPos: Pointer<T>.Idx): Boolean; overload; static;
     class procedure PatternDefeatingQuickSort<T>(lo, hi: Pointer<T>.Idx;
-      const compare: TLessThanFunc<T>; depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
+      const compare: TLessThanFunc<T>; threads: Integer = 1;
+      depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
   end;
 
 implementation
 
 uses
-  Spring;
+  Spring,
+  Spring.Threading;
 
 const
   InsertionSortThreshold = 24;
@@ -293,6 +303,7 @@ const
   NintherThreshold = 128;
   BlockSize = 64;
   CacheLineSize = 64;
+  SequentialThreshold = 2000;
 
 function AlignCacheLine(p: Pointer): Pointer; inline;
 begin
@@ -784,14 +795,33 @@ begin
 end;
 
 class procedure TSort_Ref.PatternDefeatingQuickSort(lo, hi: PByte; size: NativeUInt;
-  const compare: TCompareMethod; depthLimit: Integer; leftMost: Boolean);
+  const compare: TCompareMethod; threads, depthLimit: Integer; leftMost: Boolean);
+
+  procedure PatternDefeatingQuickSort_Async(lo, pivotPos, hi: PByte; size: NativeUInt;
+    const compare: TCompareMethod; threads, depthLimit: Integer; leftMost: Boolean);
+  var
+    task: IInterface;
+  begin
+    task := ParallelAPI.RunTask(
+      procedure
+      begin
+        PatternDefeatingQuickSort(lo, pivotPos, size, compare, threads, depthLimit, leftMost);
+      end);
+    PatternDefeatingQuickSort(pivotPos + size, hi, size, compare, threads, depthLimit, False);
+    ParallelAPI.WaitFor(task);
+  end;
+
 var
   partitionSize, leftSize, rightSize, i: NativeUInt;
   alreadyPartitioned: Boolean;
   left, right, mid, pivotPos: PByte;
 begin
   if depthLimit < 0 then
+  begin
     depthLimit := Log2((NativeUInt(hi) - NativeUInt(lo)) div size);
+    if threads = 0 then
+      threads := CPUCount;
+  end;
 
   repeat
     partitionSize := (NativeUInt(hi) - NativeUInt(lo)) div size;
@@ -865,7 +895,13 @@ begin
           and PartialInsertionSort(pivotPos + size, hi, size, compare) then Exit;
       end;
 
-      PatternDefeatingQuickSort(lo, pivotPos, size, compare, depthLimit, leftMost);
+      if (threads > 1) and ((leftSize > SequentialThreshold) or (rightSize > SequentialThreshold)) then
+      begin
+        PatternDefeatingQuickSort_Async(lo, pivotPos, hi, size, compare, threads shr 1, depthLimit, leftMost);
+        Exit;
+      end;
+
+      PatternDefeatingQuickSort(lo, pivotPos, size, compare, 0, depthLimit, leftMost);
       lo := pivotPos + size;
       leftMost := False;
     end;
@@ -1054,14 +1090,33 @@ begin
 end;
 
 class procedure TSort_Ref.PatternDefeatingQuickSort(lo, hi: PByte; size: NativeUInt;
-  const compare: TLessThanFunc; depthLimit: Integer; leftMost: Boolean);
+  const compare: TLessThanFunc; threads, depthLimit: Integer; leftMost: Boolean);
+
+  procedure PatternDefeatingQuickSort_Async(lo, pivotPos, hi: PByte; size: NativeUInt;
+    const compare: TLessThanFunc; threads, depthLimit: Integer; leftMost: Boolean);
+  var
+    task: IInterface;
+  begin
+    task := ParallelAPI.RunTask(
+      procedure
+      begin
+        PatternDefeatingQuickSort(lo, pivotPos, size, compare, threads, depthLimit, leftMost);
+      end);
+    PatternDefeatingQuickSort(pivotPos + size, hi, size, compare, threads, depthLimit, False);
+    ParallelAPI.WaitFor(task);
+  end;
+
 var
   partitionSize, leftSize, rightSize, i: NativeUInt;
   alreadyPartitioned: Boolean;
   left, right, mid, pivotPos: PByte;
 begin
   if depthLimit < 0 then
+  begin
     depthLimit := Log2((NativeUInt(hi) - NativeUInt(lo)) div size);
+    if threads = 0 then
+      threads := CPUCount;
+  end;
 
   repeat
     partitionSize := (NativeUInt(hi) - NativeUInt(lo)) div size;
@@ -1135,7 +1190,13 @@ begin
           and PartialInsertionSort(pivotPos + size, hi, size, compare) then Exit;
       end;
 
-      PatternDefeatingQuickSort(lo, pivotPos, size, compare, depthLimit, leftMost);
+      if (threads > 1) and ((leftSize > SequentialThreshold) or (rightSize > SequentialThreshold)) then
+      begin
+        PatternDefeatingQuickSort_Async(lo, pivotPos, hi, size, compare, threads shr 1, depthLimit, leftMost);
+        Exit;
+      end;
+
+      PatternDefeatingQuickSort(lo, pivotPos, size, compare, 0, depthLimit, leftMost);
       lo := pivotPos + size;
       leftMost := False;
     end;
@@ -1393,8 +1454,22 @@ begin
   pivotPos := first;
 end;
 
+class procedure TSort.PatternDefeatingQuickSort_Async<T>(lo, pivotPos, hi: Pointer<T>.Idx;
+  const compare: TCompareMethod<T>; threads, depthLimit: Integer; leftMost: Boolean);
+var
+  task: IInterface;
+begin
+  task := ParallelAPI.RunTask(
+    procedure
+    begin
+      PatternDefeatingQuickSort<T>(lo, pivotPos, compare, threads, depthLimit, leftMost);
+    end);
+  PatternDefeatingQuickSort<T>(pivotPos + 1, hi, compare, threads, depthLimit, False);
+  ParallelAPI.WaitFor(task);
+end;
+
 class procedure TSort.PatternDefeatingQuickSort<T>(lo, hi: Pointer<T>.Idx;
-  const compare: TCompareMethod<T>; depthLimit: Integer; leftMost: Boolean);
+  const compare: TCompareMethod<T>; threads, depthLimit: Integer; leftMost: Boolean);
 var
   partitionSize, leftSize, rightSize, i: NativeInt;
   alreadyPartitioned: Boolean;
@@ -1402,7 +1477,11 @@ var
   temp: T;
 begin
   if depthLimit < 0 then
+  begin
     depthLimit := Log2((NativeUInt(hi) - NativeUInt(lo)) div NativeUInt(SizeOf(T)));
+    if threads = 0 then
+      threads := CPUCount;
+  end;
 
   repeat
     partitionSize := (NativeUInt(hi) - NativeUInt(lo)) div NativeUInt(SizeOf(T));
@@ -1500,7 +1579,13 @@ begin
           and PartialInsertionSort<T>(pivotPos + 1, hi, compare) then Exit;
       end;
 
-      PatternDefeatingQuickSort<T>(lo, pivotPos, compare, depthLimit, leftMost);
+      if (threads > 1) and ((leftSize > SequentialThreshold) or (rightSize > SequentialThreshold)) then
+      begin
+        PatternDefeatingQuickSort_Async<T>(lo, pivotPos, hi, compare, threads shr 1, depthLimit, leftMost);
+        Exit;
+      end;
+
+      PatternDefeatingQuickSort<T>(lo, pivotPos, compare, threads, depthLimit, leftMost);
       lo := pivotPos + 1;
       leftMost := False;
     end;
@@ -1750,8 +1835,22 @@ begin
   pivotPos := first;
 end;
 
+class procedure TSort.PatternDefeatingQuickSort_Async<T>(lo, pivotPos, hi: Pointer<T>.Idx;
+  const compare: TLessThanFunc<T>; threads, depthLimit: Integer; leftMost: Boolean);
+var
+  task: IInterface;
+begin
+  task := ParallelAPI.RunTask(
+    procedure
+    begin
+      PatternDefeatingQuickSort<T>(lo, pivotPos, compare, threads, depthLimit, leftMost);
+    end);
+  PatternDefeatingQuickSort<T>(pivotPos + 1, hi, compare, threads, depthLimit, False);
+  ParallelAPI.WaitFor(task);
+end;
+
 class procedure TSort.PatternDefeatingQuickSort<T>(lo, hi: Pointer<T>.Idx;
-  const compare: TLessThanFunc<T>; depthLimit: Integer; leftMost: Boolean);
+  const compare: TLessThanFunc<T>; threads, depthLimit: Integer; leftMost: Boolean);
 var
   partitionSize, leftSize, rightSize, i: NativeInt;
   alreadyPartitioned: Boolean;
@@ -1759,7 +1858,11 @@ var
   temp: T;
 begin
   if depthLimit < 0 then
+  begin
     depthLimit := Log2((NativeUInt(hi) - NativeUInt(lo)) div NativeUInt(SizeOf(T)));
+    if threads = 0 then
+      threads := CPUCount;
+  end;
 
   repeat
     partitionSize := (NativeUInt(hi) - NativeUInt(lo)) div NativeUInt(SizeOf(T));
@@ -1857,7 +1960,13 @@ begin
           and PartialInsertionSort<T>(pivotPos + 1, hi, compare) then Exit;
       end;
 
-      PatternDefeatingQuickSort<T>(lo, pivotPos, compare, depthLimit, leftMost);
+      if (threads > 1) and ((leftSize > SequentialThreshold) or (rightSize > SequentialThreshold)) then
+      begin
+        PatternDefeatingQuickSort_Async<T>(lo, pivotPos, hi, compare, threads shr 1, depthLimit, leftMost);
+        Exit;
+      end;
+
+      PatternDefeatingQuickSort<T>(lo, pivotPos, compare, threads, depthLimit, leftMost);
       lo := pivotPos + 1;
       leftMost := False;
     end;
