@@ -110,6 +110,7 @@
         <DCCReference Include="..\..\Source\Base\Spring.Span.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.SystemUtils.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.Times.pas"/>
+        <DCCReference Include="..\..\Source\Base\Spring.Threading.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.ValueConverters.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.VirtualClass.pas"/>
         <DCCReference Include="..\..\Source\Base\Spring.VirtualInterface.pas"/>
