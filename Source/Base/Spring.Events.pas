@@ -451,33 +451,32 @@ end;
 procedure TEvent.InvokeEventHandlerStub;
 {$IFNDEF CPUX64}
 asm
-  bt [eax].fRefCount,30                 // if Enabled then
-  jc @@exit
-
   // push registers - order is important, they are part of the TParameters record
   push eax
   push ecx
   push edx
 
+  // IMPORTANT: don't move this up before the push
+  // Because that will cause the debugger to not properly show the call stack
+  bt [eax].fRefCount,30                 // if Enabled then
+  jc @@skipCall
+
   mov edx,esp                           // put address to stack into Params
   mov ecx,[eax].fMethodInfo.StackSize   // put StackSize
   call [eax].fMethodInvoke
 
+@@skipCall:
   // pop registers - don't care for preserving EAX as we don't support result
   pop edx
   pop ecx
   pop eax
 
-  mov ecx,[eax].fMethodInfo.StackSize
-  test ecx,ecx        // if StackSize > 0
-  jz @@exit
-
   // clean up the stack - like the "ret n" instruction does
-  mov eax,[esp]       // load the return address
-  mov [esp+ecx],eax   // write return address for ret
-  add esp,ecx         // pop from the stack
-
-@@exit:
+  // if StackSize = 0 this is basically a no op but not worth a conditional jump
+  mov ecx,[eax].fMethodInfo.StackSize   // load the StackSize
+  mov edx,[esp]                         // load the return address
+  mov [esp+ecx],edx                     // write return address for ret
+  add esp,ecx                           // pop from the stack
 end;
 {$ELSE}
 

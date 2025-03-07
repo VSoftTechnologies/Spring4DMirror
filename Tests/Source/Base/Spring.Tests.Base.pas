@@ -155,6 +155,7 @@ type
       TEventNotifyEventVar = procedure(var Value: TNotifyEvent) of object;
       TEventWithStackParams = procedure(const Value1: Int64; const Value2: Single;
         const Value3: Double; const Value4: Extended; const Value5: TEventArgs) of object;
+      TEventWithStackParams2 = procedure(const Value1, Value2, Value3, Value4, Value5, Value6, Value7: NativeInt) of object;
       TEventWithRegisterParams = procedure(const Value1, Value2, Value3: NativeInt) of object;
       TEventWithFloatParams = procedure(const Value1, Value2, Value3: Double) of object;
     const
@@ -190,6 +191,7 @@ type
     procedure HandlerNotifyEventVar(var value: TNotifyEvent);
     procedure HandlerWithStackParams(const value1: Int64; const value2: Single;
       const value3: Double; const value4: Extended; const value5: TEventArgs);
+    procedure HandlerWithStackParams2(const value1, value2, value3, value4, value5, value6, value7: NativeInt);
     procedure HandlerWithRegisterParams(const value1, value2, value3: NativeInt);
     procedure HandlerWithFloatParams(const value1, value2, value3: Double);
     procedure HandleChanged(Sender: TObject);
@@ -202,6 +204,7 @@ type
     procedure TestDelegate;
     procedure TestCorrectParameterPassing;
     procedure TestStackParams;
+    procedure TestStackParams2;
     procedure TestRegisterParams;
     procedure TestFloatParams;
     procedure TestNotify;
@@ -1136,6 +1139,19 @@ begin
   Inc(fHandlerInvokeCount);
 end;
 
+procedure TTestMulticastEvent.HandlerWithStackParams2(const value1, value2,
+  value3, value4, value5, value6, value7: NativeInt);
+begin
+  CheckEquals(42, value1);
+  CheckEquals(43, value2);
+  CheckEquals(44, value3);
+  CheckEquals(45, value4);
+  CheckEquals(46, value5);
+  CheckEquals(47, value6);
+  CheckEquals(48, value7);
+  Inc(fHandlerInvokeCount);
+end;
+
 procedure TTestMulticastEvent.TestAddNil;
 var
   e: Event<TNotifyEvent>;
@@ -1325,16 +1341,22 @@ begin
 
   eventInt32.Invoke(42); Inc(expected);
   valueInt32 := 42; eventInt32Var.Invoke(valueInt32); Inc(expected); CheckEquals(43, valueInt32);
+  eventInt32.Enabled := False; eventInt32.Invoke(42);
   eventInt64.Invoke(42); Inc(expected);
   valueInt64 := 42; eventInt64Var.Invoke(valueInt64); Inc(expected); CheckEquals(43, valueInt64);
+  eventInt64.Enabled := False; eventInt64.Invoke(42);
   eventSingle.Invoke(42); Inc(expected);
   valueSingle := 42; eventSingleVar.Invoke(valueSingle); Inc(expected); CheckEquals(43, valueSingle);
+  eventSingle.Enabled := False; eventSingle.Invoke(42);
   eventDouble.Invoke(42); Inc(expected);
   valueDouble := 42; eventDoubleVar.Invoke(valueDouble); Inc(expected); CheckEquals(43, valueDouble);
+  eventDouble.Enabled := False; eventDouble.Invoke(42);
   eventExtended.Invoke(42); Inc(expected);
   valueExtended := 42; eventExtendedVar.Invoke(valueExtended); Inc(expected); CheckEquals(43, valueExtended);
+  eventExtended.Enabled := False; eventExtended.Invoke(42);
   eventNotifyEvent.Invoke(HandleChanged); Inc(expected);
   valueNotifyEvent := HandleChanged; eventNotifyEventVar.Invoke(valueNotifyEvent); Inc(expected); Check(not Assigned(valueNotifyEvent));
+  eventNotifyEvent.Enabled := False; eventNotifyEvent.Invoke(HandleChanged);
 
   CheckEquals(expected, fHandlerInvokeCount);
 end;
@@ -1457,6 +1479,24 @@ begin
   event.Add(HandlerWithStackParams);
   HandlerWithStackParams(42, 43, 44, 45, args);
   event.Invoke(42, 43, 44, 45, args); Inc(expected);
+  event.Enabled := False;
+  event.Invoke(42, 43, 44, 45, args);
+
+  CheckEquals(expected, fHandlerInvokeCount);
+end;
+
+procedure TTestMulticastEvent.TestStackParams2;
+var
+  event: Event<TEventWithStackParams2>;
+  expected: Integer;
+begin
+  expected := 1;
+
+  event.Add(HandlerWithStackParams2);
+  HandlerWithStackParams2(42, 43, 44, 45, 46, 47, 48);
+  event.Invoke(42, 43, 44, 45, 46, 47, 48); Inc(expected);
+  event.Enabled := False;
+  event.Invoke(42, 43, 44, 45, 46, 47, 48);
 
   CheckEquals(expected, fHandlerInvokeCount);
 end;
@@ -1471,6 +1511,8 @@ begin
   event.Add(HandlerWithRegisterParams);
   HandlerWithRegisterParams(42, 43, 44);
   event.Invoke(42, 43, 44); Inc(expected);
+  event.Enabled := False;
+  event.Invoke(42, 43, 44);
 
   CheckEquals(expected, fHandlerInvokeCount);
 end;
@@ -1485,6 +1527,8 @@ begin
   event.Add(HandlerWithFloatParams);
   HandlerWithFloatParams(42, 43, 44);
   event.Invoke(42, 43, 44); Inc(expected);
+  event.Enabled := False;
+  event.Invoke(42, 43, 44);
 
   CheckEquals(expected, fHandlerInvokeCount);
 end;
