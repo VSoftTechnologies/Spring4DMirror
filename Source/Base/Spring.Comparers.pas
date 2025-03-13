@@ -1266,34 +1266,39 @@ end;
 
 function Compare_UString(const inst: Pointer; left, right: PByte): Integer;
 label
-  foundMismatch;
+  immediateMismatch, foundMismatch;
 var
+  lenDiff: Integer;
   i: NativeInt;
 begin
   if left <> right then
     if Assigned(left) then
       if Assigned(right) then
       begin
-        i := 0;
         if PInteger(@left[0])^ <> PInteger(@right[0])^ then
-          goto foundMismatch;
-        Result := PInteger(@left[-4])^ - PInteger(@right[-4])^;
-        // set i to -Min(Length(S1), Length(S2) * 2
-        i := (((Result shr 31 - 1) and Result) - PInteger(@left[-4])^) * 2;
+          goto immediateMismatch;
+        lenDiff := PInteger(@left[-4])^ - PInteger(@right[-4])^;
+        // set i to -Min(Length(left), Length(right)) * 2
+        // this is a slight modification of the algorithm shown here:
+        // https://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax
+        i := (((lenDiff shr 31 - 1) and lenDiff) - PInteger(@left[-4])^) * 2;
         left := left - i;
         right := right - i;
         repeat
           Inc(i, 4);
-          if i >= 0 then Exit;
+          if i >= 0 then Break;
           if PInteger(@left[i])^ <> PInteger(@right[i])^ then
           begin
           foundMismatch:
-            Result := PWord(@left[i])^ - PWord(@right[i])^;
-            if Result = 0 then
-              Result := PWord(@left[i+2])^ - PWord(@right[i+2])^;
+            left := left + i;
+            right := right + i;
+          immediateMismatch:
+            Result := (PWord(@left[0])^ shl 16) or PWord(@left[2])^;
+            Result := Result - ((PWord(@right[0])^ shl 16) or PWord(@right[2])^);
             Exit;
           end;
         until False;
+        Result := lenDiff;
       end
       else
         Result := 1
