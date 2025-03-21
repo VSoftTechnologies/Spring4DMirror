@@ -2656,7 +2656,6 @@ type
   TArray = class
   private public type
     TCompareMethodRef = function(const left, right): Integer of object;
-    TCompareMethod<T> = function(const left, right: T): Integer of object;
     TQuickSortPartitionHelper<T> = record
       compare: TCompareMethod<T>;
       pivotIndex: NativeInt;
@@ -12686,8 +12685,12 @@ end;
 
 {$IFDEF DELPHIXE7_UP}
 class procedure TArray.PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const comparer: IComparer<Int8>);
+var
+  compare: TCompareMethod<Int8>;
 begin
-  TSort.PatternDefeatingQuickSort<Int8>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<Int8>(lo, hi, compare);
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int8(lo, hi: Pointer; const compare: TLessThanFunc<Int8>);
@@ -12696,8 +12699,12 @@ begin
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const comparer: IComparer<Int16>);
+var
+  compare: TCompareMethod<Int16>;
 begin
-  TSort.PatternDefeatingQuickSort<Int16>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<Int16>(lo, hi, compare);
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int16(lo, hi: Pointer; const compare: TLessThanFunc<Int16>);
@@ -12706,8 +12713,12 @@ begin
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const comparer: IComparer<Int24>);
+var
+  compare: TCompareMethod<Int24>;
 begin
-  TSort.PatternDefeatingQuickSort<Int24>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<Int24>(lo, hi, compare);
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int24(lo, hi: Pointer; const compare: TLessThanFunc<Int24>);
@@ -12716,8 +12727,12 @@ begin
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const comparer: IComparer<Int32>);
+var
+  compare: TCompareMethod<Int32>;
 begin
-  TSort.PatternDefeatingQuickSort<Int32>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<Int32>(lo, hi, compare);
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int32(lo, hi: Pointer; const compare: TLessThanFunc<Int32>);
@@ -12726,8 +12741,12 @@ begin
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const comparer: IComparer<Int64>);
+var
+  compare: TCompareMethod<Int64>;
 begin
-  TSort.PatternDefeatingQuickSort<Int64>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<Int64>(lo, hi, compare);
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Int64(lo, hi: Pointer; const compare: TLessThanFunc<Int64>);
@@ -12736,23 +12755,39 @@ begin
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Single(lo, hi: Pointer; const comparer: IComparer<Single>);
+var
+  compare: TCompareMethod<Single>;
 begin
-  TSort.PatternDefeatingQuickSort<Single>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<Single>(lo, hi, compare);
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Double(lo, hi: Pointer; const comparer: IComparer<Double>);
+var
+  compare: TCompareMethod<Double>;
 begin
-  TSort.PatternDefeatingQuickSort<Double>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<Double>(lo, hi, compare);
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Extended(lo, hi: Pointer; const comparer: IComparer<Extended>);
+var
+  compare: TCompareMethod<Extended>;
 begin
-  TSort.PatternDefeatingQuickSort<Extended>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<Extended>(lo, hi, compare);
 end;
 
 class procedure TArray.PatternDefeatingQuickSort_Method(lo, hi: Pointer; const comparer: IComparer<TMethodPointer>);
+var
+  compare: TCompareMethod<TMethodPointer>;
 begin
-  TSort.PatternDefeatingQuickSort<TMethodPointer>(lo, hi, comparer);
+  TMethod(compare).Data := Pointer(comparer);
+  TMethod(compare).Code := PPVTable(comparer)^[3];
+  TSort.PatternDefeatingQuickSort<TMethodPointer>(lo, hi, compare);
 end;
 
 class procedure TArray.IntroSort_Int8(const values: Span<Int8>; const compare: TMethod);
@@ -12920,14 +12955,14 @@ begin
   begin
     if partitionSize <= IntrosortSizeThreshold then
     begin
-      TSort.InsertionSort<T>(TSort.Pointer<T>.Idx(values.Data), TSort.Pointer<T>.Idx(values[partitionsize]), TSort.TCompareMethod<T>(compare));
+      TSort.InsertionSort<T>(TSort.Pointer<T>.Idx(values.Data), TSort.Pointer<T>.Idx(values[partitionsize]), compare);
       Exit;
     end
     else
     begin
       if depthLimit = 0 then
       begin
-        TSort.HeapSort<T>(TSort.Pointer<T>.Idx(values.Data), TSort.Pointer<T>.Idx(values[partitionSize]), TSort.TCompareMethod<T>(compare));
+        TSort.HeapSort<T>(TSort.Pointer<T>.Idx(values.Data), TSort.Pointer<T>.Idx(values[partitionSize]), compare);
         Exit;
       end;
 
@@ -13188,7 +13223,9 @@ begin
       else
       begin
         comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
-        TSort.PatternDefeatingQuickSort<T>(@values[0], @values[len], IComparer<T>(comparer));
+        TMethod(compare).Data := Pointer(comparer);
+        TMethod(compare).Code := PPVTable(comparer)^[3];
+        TSort.PatternDefeatingQuickSort<T>(@values[0], @values[len], compare);
       end;
     tkClass, tkLString, tkWString, tkDynArray, tkUString:
     begin
@@ -13210,7 +13247,9 @@ begin
       end;
   else{$ELSE}begin{$ENDIF}
     comparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
-    TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), IComparer<T>(comparer));
+    TMethod(compare).Data := Pointer(comparer);
+    TMethod(compare).Code := PPVTable(comparer)^[3];
+    TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), compare);
   end;
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
@@ -13264,11 +13303,17 @@ begin
           TSort_Ref.PatternDefeatingQuickSort(@values[0], @values[len], SizeOf(T), TSort_Ref.TCompareMethod(compare));
         end
       else
-        TSort.PatternDefeatingQuickSort<T>(@values[0], @values[len], IComparer<T>(comparer));
+      begin
+        TMethod(compare).Data := Pointer(comparer);
+        TMethod(compare).Code := PPVTable(comparer)^[3];
+        TSort.PatternDefeatingQuickSort<T>(@values[0], @values[len], compare);
+      end;
     tkMethod:
       PatternDefeatingQuickSort_Method(@values[0], @values[len], IComparer<TMethodPointer>(comparer));
   else{$ELSE}begin{$ENDIF}
-    TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), IComparer<T>(comparer));
+    TMethod(compare).Data := Pointer(comparer);
+    TMethod(compare).Code := PPVTable(comparer)^[3];
+    TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), compare);
   end;
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
@@ -13326,11 +13371,17 @@ begin
             TSort_Ref.PatternDefeatingQuickSort(@values[index], @values[hi], SizeOf(T), TSort_Ref.TCompareMethod(compare));
           end
         else
-          TSort.PatternDefeatingQuickSort<T>(@values[index], @values[hi], comparer);
+        begin
+          TMethod(compare).Data := Pointer(comparer);
+          TMethod(compare).Code := PPVTable(comparer)^[3];
+          TSort.PatternDefeatingQuickSort<T>(@values[index], @values[hi], compare);
+        end;
       tkMethod:
         PatternDefeatingQuickSort_Method(@values[index], @values[hi], IComparer<TMethodPointer>(comparer));
     else{$ELSE}begin{$ENDIF}
-      TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[index]), TSort.Pointer<T>.Idx(@values[hi]), comparer);
+      TMethod(compare).Data := Pointer(comparer);
+      TMethod(compare).Code := PPVTable(comparer)^[3];
+      TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[index]), TSort.Pointer<T>.Idx(@values[hi]), compare);
     end;
     {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   end;
@@ -13385,11 +13436,17 @@ begin
           TSort_Ref.PatternDefeatingQuickSort(@values[0], @values[len], SizeOf(T), TSort_Ref.TCompareMethod(compare));
         end
       else
-        TSort.PatternDefeatingQuickSort<T>(@values[0], @values[len], IComparer<T>(PPointer(@comparison)^));
+      begin
+        TMethod(compare).Data := PPointer(@comparison)^;
+        TMethod(compare).Code := PPVTable(PPointer(@comparison)^)^[3];
+        TSort.PatternDefeatingQuickSort<T>(@values[0], @values[len], compare);
+      end;
     tkMethod:
       PatternDefeatingQuickSort_Method(@values[0], @values[len], IComparer<TMethodPointer>(PPointer(@comparison)^));
   else{$ELSE}begin{$ENDIF}
-    TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), IComparer<T>(PPointer(@comparison)^));
+    TMethod(compare).Data := PPointer(@comparison)^;
+    TMethod(compare).Code := PPVTable(PPointer(@comparison)^)^[3];
+    TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[0]), TSort.Pointer<T>.Idx(@values[len]), compare);
   end;
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
@@ -13447,9 +13504,15 @@ begin
             TSort_Ref.PatternDefeatingQuickSort(@values[index], @values[hi], SizeOf(T), TSort_Ref.TCompareMethod(compare));
           end
         else
-          TSort.PatternDefeatingQuickSort<T>(@values[index], @values[hi], IComparer<T>(PPointer(@comparison)^));
+        begin
+          TMethod(compare).Data := PPointer(@comparison)^;
+          TMethod(compare).Code := PPVTable(PPointer(@comparison)^)^[3];
+          TSort.PatternDefeatingQuickSort<T>(@values[index], @values[hi], compare);
+        end;
     else{$ELSE}begin{$ENDIF}
-      TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[index]), TSort.Pointer<T>.Idx(@values[hi]), IComparer<T>(PPointer(@comparison)^));
+      TMethod(compare).Data := PPointer(@comparison)^;
+      TMethod(compare).Code := PPVTable(PPointer(@comparison)^)^[3];
+      TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@values[index]), TSort.Pointer<T>.Idx(@values[hi]), compare);
     end;
     {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   end;

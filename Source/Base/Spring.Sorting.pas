@@ -249,6 +249,7 @@ type
   end;
 
   TLessThanFunc<T> = function(const left, right: T): Boolean;
+  TCompareMethod<T> = function(const left, right: T): Integer of object;
   TSort = record
   public type
     Pointer<T> = record
@@ -262,7 +263,6 @@ type
       {$POINTERMATH OFF}
       public type Slice = ^TSlice;
     end;
-    TCompareMethod<T> = function(const left, right: T): Integer of object;
   public
     class procedure SiftDown<T>(lo: Pointer<T>.Idx; hi, i: NativeUInt; const compare: TCompareMethod<T>);  overload; static;
     class procedure HeapSort<T>(lo, hi: Pointer<T>.Idx; const compare: TCompareMethod<T>); overload; static;
@@ -272,7 +272,7 @@ type
     class function PartitionLeft<T>(lo, hi: Pointer<T>.Idx; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>): Pointer<T>.Idx; overload; static;
     class function PartitionRight<T>(lo, hi: Pointer<T>.Idx; {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}const compare: TCompareMethod<T>; out pivotPos: Pointer<T>.Idx): Boolean; overload; static;
     class procedure PatternDefeatingQuickSort<T>(lo, hi: Pointer<T>.Idx;
-      const comparer: IComparer<T>; depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
+      const compare: TCompareMethod<T>; depthLimit: Integer = -1; leftMost: Boolean = True); overload; static;
 
     class procedure SiftDown<T>(lo: Pointer<T>.Idx; hi, i: NativeUInt; const compare: TLessThanFunc<T>);  overload; static;
     class procedure HeapSort<T>(lo, hi: Pointer<T>.Idx; const compare: TLessThanFunc<T>); overload; static;
@@ -1397,17 +1397,13 @@ begin
 end;
 
 class procedure TSort.PatternDefeatingQuickSort<T>(lo, hi: Pointer<T>.Idx;
-  const comparer: IComparer<T>; depthLimit: Integer; leftMost: Boolean);
+  const compare: TCompareMethod<T>; depthLimit: Integer; leftMost: Boolean);
 var
   partitionSize, leftSize, rightSize, i: NativeInt;
   alreadyPartitioned: Boolean;
-  compare: TCompareMethod<T>;
   left, right, mid, pivotPos: Pointer<T>.Idx;
   temp: T;
 begin
-  TMethod(compare).Data := Pointer(comparer);
-  TMethod(compare).Code := PPVTable(comparer)^[3];
-
   if depthLimit < 0 then
     depthLimit := Log2((NativeUInt(hi) - NativeUInt(lo)) div NativeUInt(SizeOf(T)));
 
@@ -1507,7 +1503,7 @@ begin
           and PartialInsertionSort<T>(pivotPos + 1, hi, compare) then Exit;
       end;
 
-      PatternDefeatingQuickSort<T>(lo, pivotPos, IComparer<T>(TMethod(compare).Data), depthLimit, leftMost);
+      PatternDefeatingQuickSort<T>(lo, pivotPos, compare, depthLimit, leftMost);
       lo := pivotPos + 1;
       leftMost := False;
     end;

@@ -1380,7 +1380,9 @@ begin
           tkMethod:
             TArray.PatternDefeatingQuickSort_Method(@fItems[index], @fItems[hi], IComparer<TMethodPointer>(comparer));
         else{$ELSE}begin{$ENDIF}
-          TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@fItems[index]), TSort.Pointer<T>.Idx(@fItems[hi]), comparer);
+          compare.Data := Pointer(comparer);
+          compare.Code := PPVTable(comparer)^[3];
+          TSort.PatternDefeatingQuickSort<T>(TSort.Pointer<T>.Idx(@fItems[index]), TSort.Pointer<T>.Idx(@fItems[hi]), TCompareMethod<T>(compare));
         end;
         {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
       end;
