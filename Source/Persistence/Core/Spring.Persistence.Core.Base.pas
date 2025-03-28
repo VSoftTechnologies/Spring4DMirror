@@ -195,7 +195,8 @@ type
   end;
 
   /// <summary>
-  ///   Base <see cref="Spring.Persistence.Core.Interfaces|IDBPage&lt;T&gt;" />
+  ///   Base <see
+  ///   cref="Spring.Persistence.Criteria.Interfaces|IDBPage&lt;T&gt;" />
   ///   adapter which descendents must override.
   /// </summary>
   TDriverPageAdapter<T: class> = class(TInterfacedObject, IDBPage<T>)

@@ -91,16 +91,16 @@ type
   /// </summary>
   /// <remarks>
   ///   Use the static <see cref="Spring.Utils.IO|TDriveInfo.GetDrives" />
-  ///   method to retrieve all drives of the computer.
-  ///   <note type="caller">
+  ///   method to retrieve all drives of the computer.<note type="caller">
   ///     Caller must use the <see cref="Spring.Utils.IO|TDriveInfo.IsReady">
   ///     IsReady</see> property to check whether the drive is ready before
-  ///     accessing other members. Otherwise, an <see cref="Spring|EIOException" />
-  ///      exception will be raised if it is not ready.
+  ///     accessing other members. Otherwise, an <see
+  ///     cref="Spring.Utils|EIOException" /> exception will be raised if it is not
+  ///     ready.
   ///   </note>
   /// </remarks>
-  /// <threadsafety static="true" instance="false" />
-  /// <seealso href="http://msdn.microsoft.com/en-us/library/system.io.driveinfo.aspx">
+  /// <threadsafety static="true" instance="false" /><seealso
+  /// href="http://msdn.microsoft.com/en-us/library/system.io.driveinfo.aspx">
   ///   System.IO.DriveInfo (.Net Framework)
   /// </seealso>
   TDriveInfo = record

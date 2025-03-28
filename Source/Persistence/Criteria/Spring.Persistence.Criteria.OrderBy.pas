@@ -34,7 +34,7 @@ uses
 
 type
   /// <summary>
-  ///   Implementation of <see cref="Spring.Persistence.Core.Interfaces|IOrderBy" />
+  ///   Implementation of <see cref="Spring.Persistence.Criteria.Interfaces|IOrderBy" />
   ///    interface.
   /// </summary>
   TOrderBy = class(TInterfacedObject, IOrderBy)

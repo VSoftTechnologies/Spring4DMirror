@@ -1022,7 +1022,7 @@ type
   ///   Represents a procedure that has a single parameter and does not return
   ///   a value.
   /// </summary>
-  /// <seealso cref="TAction&lt;T&gt;" />
+  /// <seealso cref="Action&lt;T&gt;" />
   /// <seealso cref="TActionMethod&lt;T&gt;" />
   TActionProc<T> = procedure(const arg: T);
 
@@ -1030,7 +1030,7 @@ type
   ///   Represents a instance method that has a single parameter and does not
   ///   return a value.
   /// </summary>
-  /// <seealso cref="TAction&lt;T&gt;" />
+  /// <seealso cref="Action&lt;T&gt;" />
   /// <seealso cref="TActionProc&lt;T&gt;" />
   TActionMethod<T> = procedure(const arg: T) of object;
 
@@ -1762,18 +1762,18 @@ type
     ///   object, or the specified default value.
     /// </summary>
     /// <param name="defaultValue">
-    ///   A value to return if the <see cref="HasValue" /> property is <c>False</c>
-    ///    .
+    ///   A value to return if the <see cref="HasValue" /> property is <c>False
+    ///   </c> .
     /// </param>
     /// <returns>
-    ///   The value of the <see cref="Value" /> property if the <see cref="HasValue" />
-    ///    property is true; otherwise, the <paramref name="defaultValue" />
-    ///   parameter.
+    ///   The value of the <see cref="Value" /> property if the <see
+    ///   cref="HasValue" /> property is true; otherwise, the <c>defaultValue
+    ///   </c> parameter.
     /// </returns>
     /// <remarks>
     ///   The <see cref="GetValueOrDefault" /> method returns a value even if
-    ///   the <see cref="HasValue" /> property is false (unlike the <see cref="Value" />
-    ///    property, which throws an exception).
+    ///   the <see cref="HasValue" /> property is false (unlike the <see
+    ///   cref="Value" /> property, which throws an exception).
     /// </remarks>
     function GetValueOrDefault(const defaultValue: T): T; overload;
 
@@ -3277,14 +3277,14 @@ procedure DynArrayCopyRange(var Result: Pointer; A: Pointer; TypeInfo: Pointer; 
 procedure PlatformNotImplemented;
 
 /// <summary>
-///   Raises an <see cref="Spring|EArgumentNilException" /> if the <paramref name="value" />
-///    is nil.
+///   Raises an <see cref="Spring|EArgumentNilException" /> if the <c>value</c>
+///   is nil.
 /// </summary>
 procedure CheckArgumentNotNull(const value: IInterface; const argumentName: string); overload; deprecated 'Use Guard.CheckNotNull instead';
 
 /// <summary>
-///   Raises an <see cref="Spring|EArgumentNilException" /> if the <paramref name="value" />
-///    is nil.
+///   Raises an <see cref="Spring|EArgumentNilException" /> if the <c>value</c>
+///   is nil.
 /// </summary>
 procedure CheckArgumentNotNull(value: Pointer; const argumentName: string); overload; deprecated 'Use Guard.CheckNotNull instead';
 
@@ -3357,8 +3357,8 @@ function GetSetSize(typeInfo: PTypeInfo): Integer;
 ///   Compares two TValue instances.
 /// </summary>
 /// <remarks>
-///   A value that returns <c>True</c> from <see cref="IsEmpty" />
-///   it is considered greater than a non empty value.
+///   A value that returns <c>True</c> from <c>IsEmpty</c> it is considered
+///   greater than a non empty value.
 /// </remarks>
 function CompareValue(const left, right: TValue): Integer; overload;
 

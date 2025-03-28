@@ -341,7 +341,7 @@ type
     /// <exception cref="Spring|EInvalidOperationException">
     ///   The sequence is empty.
     /// </exception>
-    /// <exception cref="Spring|EIntOverflow">
+    /// <exception cref="SysUtils|EIntOverflow">
     ///   The sum of the elements in the sequence is larger than Int64.MaxValue.
     /// </exception>
     function Average(const selector: Func<T, Integer>): Double; overload;
@@ -363,7 +363,7 @@ type
     /// <exception cref="Spring|EInvalidOperationException">
     ///   The sequence is empty.
     /// </exception>
-    /// <exception cref="Spring|EIntOverflow">
+    /// <exception cref="SysUtils|EIntOverflow">
     ///   The sum of the elements in the sequence is larger than Int64.MaxValue.
     /// </exception>
     function Average(const selector: Func<T, Int64>): Double; overload;
@@ -1478,7 +1478,7 @@ type
     /// <exception cref="Spring|EArgumentNilException">
     ///   <c>selector</c> is <c>nil</c>.
     /// </exception>
-    /// <exception cref="Spring|EIntOverflow">
+    /// <exception cref="SysUtils|EIntOverflow">
     ///   The sum of the elements in the sequence is larger than Int32.MaxValue.
     /// </exception>
     function Sum(const selector: Func<T, Integer>): Integer; overload;
@@ -1497,7 +1497,7 @@ type
     /// <exception cref="Spring|EArgumentNilException">
     ///   <c>selector</c> is <c>nil</c>.
     /// </exception>
-    /// <exception cref="Spring|EIntOverflow">
+    /// <exception cref="SysUtils|EIntOverflow">
     ///   The sum of the elements in the sequence is larger than Int64.MaxValue.
     /// </exception>
     function Sum(const selector: Func<T, Int64>): Int64; overload;

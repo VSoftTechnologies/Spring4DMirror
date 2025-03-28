@@ -180,7 +180,7 @@ type
     /// <summary>
     ///   Gets the file version info of the specified file.
     /// </summary>
-    /// <exception cref="Spring|EFileNotFoundException">
+    /// <exception cref="Spring.Utils|EFileNotFoundException">
     ///   Raised if the file doesn't exist.
     /// </exception>
     class function GetVersionInfo(const fileName: string): TFileVersionInfo; static;

@@ -33,7 +33,8 @@ uses
 
 type
   /// <summary>
-  ///   Base class for all <see cref="TContainer" /> extension objects.
+  ///   Base class for all <see cref="Spring.Container|TContainer" /> extension
+  ///   objects.
   /// </summary>
   TContainerExtension = class(TInterfacedObject, IContainerExtension)
   private
