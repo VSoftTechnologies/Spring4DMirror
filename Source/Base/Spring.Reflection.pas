@@ -470,11 +470,11 @@ type
 
   {$REGION 'TNameFilter<T>'}
 
-  TNameFilter<T: TRttiNamedObject> = class(TSpecification<T>)
+  TNameFilter<T: TRttiNamedObject> = class(TRefCountedObject, ISpecification<T>)
   private
     fName: string;
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   public
     constructor Create(const name: string);
   end;
@@ -484,9 +484,9 @@ type
 
   {$REGION 'TInvokableFilter<T>'}
 
-  TInvokableFilter<T: TRttiMember> = class(TSpecification<T>)
+  TInvokableFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   end;
 
   {$ENDREGION}
@@ -494,12 +494,12 @@ type
 
   {$REGION 'THasAttributeFilter<T>'}
 
-  THasAttributeFilter<T: TRttiObject> = class(TSpecification<T>)
+  THasAttributeFilter<T: TRttiObject> = class(TRefCountedObject, ISpecification<T>)
   private
     fAttributeClass: TAttributeClass;
     fInherit: Boolean;
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   public
     constructor Create(attributeClass: TAttributeClass; inherit: Boolean = False);
   end;
@@ -509,11 +509,11 @@ type
 
   {$REGION 'TTypeFilter<T>'}
 
-  TTypeFilter<T: TRttiMember> = class(TSpecification<T>)
+  TTypeFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   private
     fTypeInfo: PTypeInfo;
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   public
     constructor Create(const typeInfo: PTypeInfo);
   end;
@@ -523,11 +523,11 @@ type
 
   {$REGION 'THasParameterTypesFilter<T>'}
 
-  THasParameterTypesFilter<T: TRttiMember> = class(TSpecification<T>)
+  THasParameterTypesFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   private
     fTypes: TArray<PTypeInfo>;
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   public
     constructor Create(const types: array of PTypeInfo);
   end;
@@ -537,11 +537,11 @@ type
 
   {$REGION 'TContainsParameterTypeFilter<T>'}
 
-  TContainsParameterTypeFilter<T: TRttiMember> = class(TSpecification<T>)
+  TContainsParameterTypeFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   private
     fTypeInfo: PTypeInfo;
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   public
     constructor Create(const typeInfo: PTypeInfo);
   end;
@@ -554,11 +554,11 @@ type
 
   {$REGION 'TMemberTypeFilter<T>'}
 
-  TMemberTypeFilter<T: TRttiMember> = class(TSpecification<T>)
+  TMemberTypeFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   private
     fMemberClass: TRttiMemberClass;
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   public
     constructor Create(memberClass: TRttiMemberClass);
   end;
@@ -568,9 +568,9 @@ type
 
   {$REGION 'TConstructorFilter<T>'}
 
-  TConstructorFilter<T: TRttiMember> = class(TSpecification<T>)
+  TConstructorFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   end;
 
   {$ENDREGION}
@@ -578,9 +578,9 @@ type
 
   {$REGION 'TInstanceMethodFilter<T>'}
 
-  TInstanceMethodFilter<T: TRttiMember> = class(TSpecification<T>)
+  TInstanceMethodFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   end;
 
   {$ENDREGION}
@@ -588,9 +588,9 @@ type
 
   {$REGION 'TClassMethodFilter<T>'}
 
-  TClassMethodFilter<T: TRttiMember> = class(TSpecification<T>)
+  TClassMethodFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   end;
 
   {$ENDREGION}
@@ -598,11 +598,11 @@ type
 
   {$REGION 'THasParameterFlagsFilter<T>'}
 
-  THasParameterFlagsFilter<T: TRttiMember> = class(TSpecification<T>)
+  THasParameterFlagsFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   private
     fFlags: TParamFlags;
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   public
     constructor Create(const flags: TParamFlags);
   end;
@@ -612,11 +612,11 @@ type
 
   {$REGION 'TMethodKindFilter<T>'}
 
-  TMethodKindFilter<T: TRttiMember> = class(TSpecification<T>)
+  TMethodKindFilter<T: TRttiMember> = class(TRefCountedObject, ISpecification<T>)
   private
     fFlags: TMethodKinds;
   protected
-    function IsSatisfiedBy(const member: T): Boolean; override;
+    function IsSatisfiedBy(const member: T): Boolean;
   public
     constructor Create(const flags: TMethodKinds);
   end;
@@ -626,9 +626,9 @@ type
 
   {$REGION 'TIsClassFilter'}
 
-  TIsClassFilter = class(TSpecification<TRttiType>)
+  TIsClassFilter = class(TRefCountedObject, ISpecification<TRttiType>)
   protected
-    function IsSatisfiedBy(const member: TRttiType): Boolean; override;
+    function IsSatisfiedBy(const member: TRttiType): Boolean;
   end;
 
   {$ENDREGION}
@@ -636,9 +636,9 @@ type
 
   {$REGION 'TIsInterfaceFilter'}
 
-  TIsInterfaceFilter = class(TSpecification<TRttiType>)
+  TIsInterfaceFilter = class(TRefCountedObject, ISpecification<TRttiType>)
   protected
-    function IsSatisfiedBy(const member: TRttiType): Boolean; override;
+    function IsSatisfiedBy(const member: TRttiType): Boolean;
   end;
 
   {$ENDREGION}
@@ -646,11 +646,11 @@ type
 
   {$REGION 'THasFlagsFilter'}
 
-  THasFlagsFilter = class(TSpecification<TRttiParameter>)
+  THasFlagsFilter = class(TRefCountedObject, ISpecification<TRttiParameter>)
   private
     fFlags: TParamFlags;
   protected
-    function IsSatisfiedBy(const parameter: TRttiParameter): Boolean; override;
+    function IsSatisfiedBy(const parameter: TRttiParameter): Boolean;
   public
     constructor Create(flags: TParamFlags);
   end;

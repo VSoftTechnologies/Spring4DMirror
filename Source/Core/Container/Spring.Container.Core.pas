@@ -434,7 +434,7 @@ type
 
   EActivatorException = class(EContainerException);
 
-  TInjectableMethodFilter = class(TSpecification<TRttiMethod>)
+  TInjectableMethodFilter = class(TRefCountedObject, ISpecification<TRttiMethod>)
   private
     fKernel: TKernel;
     fModel: TComponentModel;
@@ -442,15 +442,15 @@ type
   public
     constructor Create(const kernel: TKernel; const model: TComponentModel;
       const arguments: TArray<TValue>);
-    function IsSatisfiedBy(const method: TRttiMethod): Boolean; override;
+    function IsSatisfiedBy(const method: TRttiMethod): Boolean;
   end;
 
-  TContainsMemberFilter = class(TSpecification<IInjection>)
+  TContainsMemberFilter = class(TRefCountedObject, ISpecification<IInjection>)
   private
     fMember: TRttiMember;
   public
     constructor Create(const member: TRttiMember);
-    function IsSatisfiedBy(const injection: IInjection): Boolean; override;
+    function IsSatisfiedBy(const injection: IInjection): Boolean;
   end;
 
   TInjectionFilters = class
