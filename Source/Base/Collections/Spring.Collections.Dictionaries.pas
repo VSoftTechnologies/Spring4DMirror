@@ -576,13 +576,31 @@ begin
   valueType := pairType.ValueType^;
   if not Assigned(fValueComparer) then
     fValueComparer := IEqualityComparer<TValue>(_LookupVtableInfo(giEqualityComparer, valueType, SizeOf(TValue)));
-  fHashTable.Initialize(TComparerThunks<TKey>.Equals, TComparerThunks<TKey>.GetHashCode, keyType);
+  {$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(TKey) of
+    tkClass: fHashTable.Initialize(TComparerThunks<TObject>.Equals, TComparerThunks<TObject>.GetHashCode, keyType);
+    tkInterface: fHashTable.Initialize(TComparerThunks<IInterface>.Equals, TComparerThunks<IInterface>.GetHashCode, keyType);
+  else{$ELSE}begin{$ENDIF}
+    fHashTable.Initialize(TComparerThunks<TKey>.Equals, TComparerThunks<TKey>.GetHashCode, keyType);
+  end;
+
   {$IFDEF DELPHIXE7_UP}
   if fHashTable.DefaultComparer then
-    fHashTable.Find := @THashTable<TKey>.FindWithoutComparer
+    case GetTypeKind(TKey) of
+      tkClass: fHashTable.Find := @THashTable<TObject>.FindWithoutComparer;
+      tkInterface: fHashTable.Find := @THashTable<IInterface>.FindWithoutComparer;
+    else
+      fHashTable.Find := @THashTable<TKey>.FindWithoutComparer;
+    end
   else
   {$ENDIF}
-    fHashTable.Find := @THashTable<TKey>.FindWithComparer;
+    {$IFDEF DELPHIXE7_UP}
+    case GetTypeKind(TKey) of
+      tkClass: fHashTable.Find := @THashTable<TObject>.FindWithComparer;
+      tkInterface: fHashTable.Find := @THashTable<IInterface>.FindWithComparer;
+    else{$ELSE}begin{$ENDIF}
+      fHashTable.Find := @THashTable<TKey>.FindWithComparer;
+    end;
 
   {$IFDEF DELPHIXE7_UP}
   case GetTypeKind(TKey) of
