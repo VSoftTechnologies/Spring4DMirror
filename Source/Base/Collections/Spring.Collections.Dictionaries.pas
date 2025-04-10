@@ -566,12 +566,14 @@ end;
 
 procedure TDictionary<TKey, TValue>.AfterConstruction;
 var
+  pairType: PPairFieldTable;
   keyType, valueType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
-  keyType := GetKeyType;
-  valueType := GetValueType;
+  pairType := GetPairFieldTable(fElementType);
+  keyType := pairType.KeyType^;
+  valueType := pairType.ValueType^;
   if not Assigned(fValueComparer) then
     fValueComparer := IEqualityComparer<TValue>(_LookupVtableInfo(giEqualityComparer, valueType, SizeOf(TValue)));
   fHashTable.Initialize(TComparerThunks<TKey>.Equals, TComparerThunks<TKey>.GetHashCode, keyType);
@@ -1116,12 +1118,14 @@ end;
 
 procedure TBidiDictionary<TKey, TValue>.AfterConstruction;
 var
+  pairType: PPairFieldTable;
   keyType, valueType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
-  keyType := GetKeyType;
-  valueType := GetValueType;
+  pairType := GetPairFieldTable(fElementType);
+  keyType := pairType.KeyType^;
+  valueType := pairType.ValueType^;
   if not Assigned(fKeyComparer) then
     fKeyComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, keyType, SizeOf(TKey)));
   if not Assigned(fValueComparer) then
@@ -1135,7 +1139,7 @@ begin
   TPairComparer.Create(@fInverse.fComparer,
     @TValueKeyPairComparer.Comparer_Vtable,
     @TValueKeyPairComparer.Compare,
-    valueType, keyType);
+    fInverse.fElementType);
 end;
 
 procedure TBidiDictionary<TKey, TValue>.BeforeDestruction;
@@ -2529,12 +2533,14 @@ end;
 
 procedure TSortedDictionary<TKey, TValue>.AfterConstruction;
 var
+  pairType: PPairFieldTable;
   keyType, valueType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
-  keyType := GetKeyType;
-  valueType := GetValueType;
+  pairType := GetPairFieldTable(fElementType);
+  keyType := pairType.KeyType^;
+  valueType := pairType.ValueType^;
   if not Assigned(fKeyComparer) then
     fKeyComparer := IComparer<TKey>(_LookupVtableInfo(giComparer, keyType, SizeOf(TKey)));
   if not Assigned(fValueComparer) then

@@ -41,6 +41,8 @@ uses
   Spring.Comparers,
   Spring.Span;
 
+{$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(DefaultFieldRttiVisibility)}{$ENDIF}
+
 const
   doOwnsKeys = Spring.doOwnsKeys;
   doOwnsValues = Spring.doOwnsValues;
@@ -7356,29 +7358,16 @@ type
     function AsList<T: TCollectionItem>: IList<T>; overload;
   end;
 
+  {$RTTI INHERIT
+    METHODS(DefaultMethodRttiVisibility)
+    FIELDS(DefaultFieldRttiVisibility)
+    PROPERTIES(DefaultPropertyRttiVisibility)}
+
   AutoInitAttribute = class(ManagedAttribute)
     constructor Create(ownsObjects: Boolean = True);
   end;
 
-  // special struct for quickly getting the typeInfo of TPair<TKey,TValue> fields
-  PPairFieldTable = ^TPairFieldTable;
-  TPairFieldTable = packed record
-    NumOps: Byte;           // always 0
-    RecFldCnt: Integer;     // always 2
-    KeyType: PPTypeInfo;
-    KeyOffset: NativeInt;   // always 0
-    KeyFlags: Byte;
-    KeyName: string[3];     // 'Key'
-    KeyAttrData: TAttrData;
-    ValueType: PPTypeInfo;
-    ValueOffset: NativeInt;
-    ValueFlags: Byte;
-    ValueName: string[5];   // 'Value'
-    ValueAttrData: TAttrData;
-  end;
-
 function GetElementType(typeInfo: PTypeInfo): PTypeInfo;
-function GetPairFieldTable(typeInfo: PTypeInfo): PPairFieldTable;
 
 implementation
 
@@ -7418,25 +7407,6 @@ begin
         Exit(item.Handle);
     Result := nil;
   end;
-end;
-
-function GetPairFieldTable(typeInfo: PTypeInfo): PPairFieldTable;
-type
-  PFieldTable = ^TFieldTable;
-  TFieldTable = packed record
-    X: Word;
-    RecSize: Cardinal;
-    Count: Cardinal;
-    Fields: array[0..0] of TManagedField;
-  end;
-var
-  FT: PFieldTable;
-begin
-  FT := PFieldTable(@PByte(typeInfo)[Byte(PTypeInfo(typeInfo).Name[0])]);
-  {$R-,Q-}
-  Result := @FT.Fields[FT.Count];
-  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
-  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
 end;
 
 type

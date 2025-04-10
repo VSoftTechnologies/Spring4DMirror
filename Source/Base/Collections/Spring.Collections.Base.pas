@@ -81,7 +81,7 @@ type
     KeyComparer, ValueComparer: IInterface;
     function _Release: Integer; stdcall;
     class function Create(comparer: PPointer; vtable: PComparerVtable;
-      compare: Pointer; keyType, valueType: PTypeInfo): Pointer; static;
+      compare: Pointer; typeInfo: PTypeInfo): Pointer; static;
   end;
 
   TPairComparer<TKey, TValue> = record
@@ -1121,6 +1121,23 @@ type
     function Contains(const item: TKeyValuePair): Boolean; overload;
   end;
 
+  // special struct for quickly getting the typeInfo of TPair<TKey,TValue> fields
+  PPairFieldTable = ^TPairFieldTable;
+  TPairFieldTable = packed record
+    NumOps: Byte;           // always 0
+    RecFldCnt: Integer;     // always 2
+    KeyType: PPTypeInfo;
+    KeyOffset: NativeInt;   // always 0
+    KeyFlags: Byte;
+    KeyName: string[3];     // 'Key'
+    KeyAttrData: TAttrData;
+    ValueType: PPTypeInfo;
+    ValueOffset: NativeInt;
+    ValueFlags: Byte;
+    ValueName: string[5];   // 'Value'
+    ValueAttrData: TAttrData;
+  end;
+
 const
   OwnsObjectsBitIndex = 31;
   OwnsObjectsMask     = 1 shl OwnsObjectsBitIndex;
@@ -1150,6 +1167,7 @@ procedure EnsureEventInstance(var event: TEventBase; var result;
 function SupportsIndexedAccess(const source: IInterface): Boolean;
 procedure UpdateNotify(instance: TObject; baseClass: TClass; var notify);
 function DynArrayGrow(var items: Pointer; typeInfo: PTypeInfo; capacity: NativeInt): NativeInt;
+function GetPairFieldTable(typeInfo: PTypeInfo): PPairFieldTable;
 
 implementation
 
@@ -1271,6 +1289,25 @@ begin
   DynArraySetLength(items, typeInfo, 1, @Result);
 end;
 
+function GetPairFieldTable(typeInfo: PTypeInfo): PPairFieldTable;
+type
+  PFieldTable = ^TFieldTable;
+  TFieldTable = packed record
+    X: Word;
+    RecSize: Cardinal;
+    Count: Cardinal;
+    Fields: array[0..0] of TManagedField;
+  end;
+var
+  FT: PFieldTable;
+begin
+  FT := PFieldTable(@PByte(typeInfo)[Byte(PTypeInfo(typeInfo).Name[0])]);
+  {$R-,Q-}
+  Result := @FT.Fields[FT.Count];
+  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
+  {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
+end;
+
 
 {$REGION 'TEnumeratorBlock'}
 
@@ -1321,7 +1358,9 @@ end;
 {$REGION 'TPairComparer'}
 
 class function TPairComparer.Create(comparer: PPointer; vtable: PComparerVtable;
-  compare: Pointer; keyType, valueType: PTypeInfo): Pointer;
+  compare: Pointer; typeInfo: PTypeInfo): Pointer;
+var
+  pairType: PPairFieldTable;
 begin
   vtable[0] := @NopQueryInterface;
   vtable[1] := @RecAddRef;
@@ -1332,8 +1371,9 @@ begin
   Result := AllocMem(SizeOf(TPairComparer));
   PPairComparer(Result).Vtable := vtable;
   PPairComparer(Result).RefCount := 1;
-  PPairComparer(Result).KeyComparer := IInterface(_LookupVtableInfo(giComparer, keyType, GetTypeSize(keyType)));
-  PPairComparer(Result).ValueComparer := IInterface(_LookupVtableInfo(giComparer, valueType, GetTypeSize(valueType)));
+  pairType := GetPairFieldTable(typeInfo);
+  PPairComparer(Result).KeyComparer := IInterface(_LookupVtableInfo(giComparer, pairType.KeyType^, GetTypeSize(pairType.KeyType^)));
+  PPairComparer(Result).ValueComparer := IInterface(_LookupVtableInfo(giComparer, pairType.ValueType^, GetTypeSize(pairType.ValueType^)));
   comparer^ := Result;
 end;
 
@@ -1363,7 +1403,7 @@ end;
 class function TPairComparer<TKey, TValue>.Default: IComparer<TPair<TKey, TValue>>;
 begin
   TPairComparer.Create(@Result, @Comparer_Vtable,
-    @TPairComparer<TKey, TValue>.Compare, TypeInfo(TKey), TypeInfo(TValue));
+    @TPairComparer<TKey, TValue>.Compare, TypeInfo(TPair<TKey, TValue>));
 end;
 
 {$ENDREGION}
@@ -4707,7 +4747,7 @@ begin
   TPairComparer.Create(@fComparer,
     @TKeyValuePairComparer.Comparer_Vtable,
     @TKeyValuePairComparer.Compare,
-    GetKeyType, GetValueType);
+    fElementType);
   fOnKeyChanged := TCollectionChangedEventImpl<TKey>.Create;
   fOnValueChanged := TCollectionChangedEventImpl<TValue>.Create;
 end;

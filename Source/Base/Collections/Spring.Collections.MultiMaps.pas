@@ -589,12 +589,14 @@ end;
 
 procedure TMultiMap<TKey, TValue>.AfterConstruction;
 var
+  pairType: PPairFieldTable;
   keyType, valueType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
-  keyType := GetKeyType;
-  valueType := GetValueType;
+  pairType := GetPairFieldTable(fElementType);
+  keyType := pairType.KeyType^;
+  valueType := pairType.ValueType^;
   fHashTable.ItemsInfo := TypeInfo(TItems);
   fHashTable.Initialize(TComparerThunks<TKey>.Equals, TComparerThunks<TKey>.GetHashCode, keyType);
   {$IFDEF DELPHIXE7_UP}
@@ -1038,12 +1040,14 @@ end;
 
 procedure TSortedMultiMap<TKey, TValue>.AfterConstruction;
 var
+  pairType: PPairFieldTable;
   keyType, valueType: PTypeInfo;
 begin
   inherited AfterConstruction;
 
-  keyType := GetKeyType;
-  valueType := GetValueType;
+  pairType := GetPairFieldTable(fElementType);
+  keyType := pairType.KeyType^;
+  valueType := pairType.ValueType^;
   fTree := TRedBlackTreeBase<TKey,IInterface>.Create(fKeyComparer);
 
   {$IFDEF DELPHIXE7_UP}
