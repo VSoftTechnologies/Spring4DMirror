@@ -517,6 +517,7 @@ type
     function TryGetLast(var value; getCurrent: TGetCurrent;
       default: TGetDefault; assign: TAssign): Boolean;
     function TryGetLast_PartitionEnumerator(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
+    procedure Where(const predicate: IInterface; var result; combinePredicates: Pointer);
   end;
 
   // For internal use only - this is for implementing the IReadOnlyList methods in
@@ -574,6 +575,7 @@ type
     function TryGetFirst(var value: T): Boolean; overload;
     function TryGetLast(var value: T): Boolean; overload;
     function TryGetSpan(var span: Span<T>): Boolean;
+    function Where(const predicate: Predicate<T>): IEnumerable<T>; overload;
   end;
 
   PIteratorBlock = ^TIteratorBlock;
@@ -721,6 +723,23 @@ type
 
   TCollectionThunks<T1, T2> = record
     class function GetCurrentWithSelector(const enumerator, selector: IInterface): T2; static;
+  end;
+
+  TPredicateThunk = record
+    VTable: Pointer;
+    RefCount: Integer;
+    Predicate1, Predicate2: IInterface;
+    QueryInterface, AddRef, Release, Invoke: Pointer;
+    function _AddRef: Integer; stdcall;
+    function _Release: Integer; stdcall;
+  end;
+
+  TPredicateThunk<T> = record
+    VTable: Pointer;
+    RefCount: Integer;
+    Predicate1, Predicate2: Predicate<T>;
+    QueryInterface, AddRef, Release, Invoke: Pointer;
+    function CombinePredicates(const arg: T): Boolean;
   end;
 
   TIterator<T> = class abstract(TEnumerableBase<T>, IInterface, IEnumerator<T>)
@@ -5890,6 +5909,39 @@ end;
 {$ENDREGION}
 
 
+{$REGION 'TPredicateThunk'}
+
+function TPredicateThunk._AddRef: Integer;
+begin
+  Result := AtomicIncrement(RefCount);
+end;
+
+function TPredicateThunk._Release: Integer;
+begin
+  Result := AtomicDecrement(RefCount);
+  if Result = 0 then
+  begin
+    Predicate1 := nil;
+    Predicate2 := nil;
+    FreeMem(@Self);
+  end;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TPredicateThunk<T>'}
+
+function TPredicateThunk<T>.CombinePredicates(const arg: T): Boolean;
+begin
+  Result := Predicate1(arg);
+  if Result then
+    Result := Predicate2(arg);
+end;
+
+{$ENDREGION}
+
+
 {$REGION 'TEnumerableExtension'}
 
 function TEnumerableExtension.ClassType: TClass;
@@ -6671,6 +6723,29 @@ begin
   Result := False;
 end;
 
+procedure TEnumerableExtension.Where(const predicate: IInterface; var result;
+  combinePredicates: Pointer);
+var
+  predicateThunk: ^TPredicateThunk;
+begin
+  case fKind of
+    TExtensionKind.Where:
+    begin
+      predicateThunk := AllocMem(SizeOf(TPredicateThunk));
+      predicateThunk.VTable := @predicateThunk.QueryInterface;
+      predicateThunk.QueryInterface := @NopQueryInterface;
+      predicateThunk.AddRef := @TPredicateThunk._AddRef;
+      predicateThunk.Release := @TPredicateThunk._Release;
+      predicateThunk.Invoke := combinePredicates;
+      predicateThunk.Predicate1 := fPredicate;
+      predicateThunk.Predicate2 := predicate;
+      IInterface(result) := IEnumerable<Pointer>(fSource).Where(Predicate<Pointer>(predicateThunk));
+    end;
+  else
+    inherited Where(predicate, result, ClassType);
+  end;
+end;
+
 {$ENDREGION}
 
 
@@ -6925,6 +7000,12 @@ end;
 function TEnumerableExtension<T>.TryGetSpan(var span: Span<T>): Boolean;
 begin
   Result := TEnumerableExtension(Self).TryGetSpan(Span<Pointer>(span));
+end;
+
+function TEnumerableExtension<T>.Where(const predicate: Predicate<T>): IEnumerable<T>;
+begin
+  TEnumerableExtension(Self).Where(PInterface(@predicate)^, Result,
+    @TPredicateThunk<T>.CombinePredicates);
 end;
 
 {$ENDREGION}
