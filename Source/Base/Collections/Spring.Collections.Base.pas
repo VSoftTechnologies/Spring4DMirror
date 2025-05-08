@@ -500,7 +500,6 @@ type
 
     function Any(var value; getCurrent: TGetCurrent; default: TGetDefault;
       assign: TAssign; elSize: NativeInt): Boolean;
-    function GetIsEmpty: Boolean;
     function GetNonEnumeratedCount: Integer;
     procedure GetEnumerator(var result; var enumeratorVTables: TExtensionEnumeratorVtables;
       typeInfo, getCurrent: Pointer);
@@ -554,7 +553,6 @@ type
     fEqualityComparer: IEqualityComparer<T>;
     fKind: TExtensionKind;
 
-    function GetIsEmpty: Boolean;
     function GetNonEnumeratedCount: Integer;
 
   {$REGION 'Implements IReadOnlyList<T>'}
@@ -1917,14 +1915,9 @@ begin
 end;
 
 function TEnumerableBase.GetIsEmpty: Boolean;
-var
-  count: Integer;
 begin
-  count := IEnumerable(this).GetNonEnumeratedCount;
-  if count >= 0 then
-    Result := count = 0
-  else
-    Result := not HasAnyItems(IEnumerable(this));
+  Result := IEnumerable<Pointer>(this).Any;
+  Result := not Result;
 end;
 
 function TEnumerableBase.GetNonEnumeratedCount: Integer;
@@ -6041,18 +6034,6 @@ begin
   end;
 end;
 
-function TEnumerableExtension.GetIsEmpty: Boolean;
-begin
-  case fKind of
-    TExtensionKind.Empty,
-    TExtensionKind.DefaultIfEmpty,
-    TExtensionKind.Repeated,
-    TExtensionKind.Items: Result := fKind = TExtensionKind.Empty;
-  else
-    Result := inherited;
-  end;
-end;
-
 function TEnumerableExtension.GetNonEnumeratedCount: Integer;
 var
   count: Integer;
@@ -6798,11 +6779,6 @@ begin
     TIteratorBlock.Create(@Result, TEnumerableExtension(Self), SizeOf(TIteratorBlock<T>),
       @TIteratorBlock<T>.Finalize, @TIteratorBlock<T>.Initialize)
   end;
-end;
-
-function TEnumerableExtension<T>.GetIsEmpty: Boolean;
-begin
-  Result := TEnumerableExtension(Self).GetIsEmpty;
 end;
 
 function TEnumerableExtension<T>.GetItem(index: Integer): T;
