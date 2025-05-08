@@ -499,7 +499,7 @@ type
       classType: TClass; typeInfo: PTypeInfo); static;
 
     function Any(var value; getCurrent: TGetCurrent; default: TGetDefault;
-      assign: TAssign; elSize: NativeInt): Boolean;
+      assign: TAssign): Boolean;
     function GetNonEnumeratedCount: Integer;
     procedure GetEnumerator(var result; var enumeratorVTables: TExtensionEnumeratorVtables;
       typeInfo, getCurrent: Pointer);
@@ -514,7 +514,7 @@ type
     function TryGetFirst(var value; getCurrent: TGetCurrent;
       default: TGetDefault; assign: TAssign): Boolean;
     function TryGetLast(var value; getCurrent: TGetCurrent;
-      default: TGetDefault; assign: TAssign; elSize: NativeInt): Boolean;
+      default: TGetDefault; assign: TAssign): Boolean;
     function TryGetLast_PartitionEnumerator(var value; getCurrent: TGetCurrent; default: TGetDefault): Boolean;
   end;
 
@@ -5897,7 +5897,7 @@ begin
 end;
 
 function TEnumerableExtension.Any(var value; getCurrent: TGetCurrent;
-  default: TGetDefault; assign: TAssign; elSize: NativeInt): Boolean;
+  default: TGetDefault; assign: TAssign): Boolean;
 var
   count: Integer;
 begin
@@ -5915,7 +5915,7 @@ begin
         and (fIndex < 0)) then
         Result := TryGetFirst(value, getCurrent, default, assign)
       else
-        Result := TryGetLast(value, getCurrent, default, assign, elSize);
+        Result := TryGetLast(value, getCurrent, default, assign);
   end;
 end;
 
@@ -6524,9 +6524,9 @@ begin
 end;
 
 function TEnumerableExtension.TryGetLast(var value; getCurrent: TGetCurrent;
-  default: TGetDefault; assign: TAssign; elSize: NativeInt): Boolean;
+  default: TGetDefault; assign: TAssign): Boolean;
 var
-  count, lastIndex: NativeInt;
+  lastIndex, elSize, count: NativeInt;
 begin
   case fKind of
     TExtensionKind.Empty:
@@ -6545,7 +6545,12 @@ begin
       lastIndex := fCount - 1;
       if lastIndex >= 0 then
       begin
-        assign(value, PByte(fItems)[lastIndex*elSize]);
+        case fElementType.Kind of
+          tkString: elSize := GetTypeInfoData(fElementType).MaxLength;
+        else
+          elSize := GetTypeSize(fElementType);
+        end;
+        assign(value, PByte(fItems)[lastIndex * elSize]);
         Exit(True);
       end;
       default(value);
@@ -6670,7 +6675,7 @@ var
 begin
   Result := TEnumerableExtension(Self).Any(value,
     TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault,
-    TCollectionThunks<T>.Assign, SizeOf(T));
+    TCollectionThunks<T>.Assign);
 end;
 
 function TEnumerableExtension<T>.Contains(const value: T): Boolean;
@@ -6884,7 +6889,7 @@ function TEnumerableExtension<T>.TryGetLast(var value: T): Boolean;
 begin
   Result := TEnumerableExtension(Self).TryGetLast(value,
     TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault,
-    TCollectionThunks<T>.Assign, SizeOf(T));
+    TCollectionThunks<T>.Assign);
 end;
 
 function TEnumerableExtension<T>.TryGetSpan(var span: Span<T>): Boolean;

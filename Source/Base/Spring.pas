@@ -3568,6 +3568,7 @@ type
     case TTypeKind of
       tkInteger, tkChar, tkEnumeration, tkWChar: (OrdType: TOrdType);
       tkFloat: (FloatType: TFloatType);
+      tkString: (MaxLength: Byte);
       tkClass: (
         ClassType: TClass;
         ParentInfo: PPTypeInfo;
