@@ -510,7 +510,8 @@ type
     procedure Skip(count: Integer; var result; typeInfo: PTypeInfo);
     procedure Take(count: Integer; var result; typeInfo: PTypeInfo);
     function TryGetElementAt(var value; index: Integer; getCurrent: TGetCurrent;
-      default: TGetDefault; assign: TAssign; typeInfo: PTypeInfo): Boolean; overload;
+      getCurrentWithPredicate: TGetCurrentWithPredicate; default: TGetDefault;
+      assign: TAssign; typeInfo: PTypeInfo): Boolean; overload;
     function TryGetFirst(var value; getCurrent: TGetCurrent;
       default: TGetDefault; assign: TAssign): Boolean;
     function TryGetLast(var value; getCurrent: TGetCurrent;
@@ -6323,14 +6324,15 @@ begin
 end;
 
 function TEnumerableExtension.TryGetElementAt(var value; index: Integer;
-  getCurrent: TGetCurrent; default: TGetDefault; assign: TAssign; typeInfo: PTypeInfo): Boolean;
+  getCurrent: TGetCurrent; getCurrentWithPredicate: TGetCurrentWithPredicate;
+  default: TGetDefault; assign: TAssign; typeInfo: PTypeInfo): Boolean;
 type
   TSources = array[0..1] of Pointer;
   PSources = ^TSources;
 var
   items: Pointer;
   count, offset, elSize: NativeInt;
-  source: Pointer;
+  source, predicate: Pointer;
   enumerator: {$IFDEF MSWINDOWS}Pointer{$ELSE}IEnumerator{$ENDIF};
 begin
   case fKind of
@@ -6468,6 +6470,34 @@ begin
           DynArrayClear(items, typeInfo);
         end;
       end;
+    end;
+    TExtensionKind.Where:
+    begin
+      if index >= 0 then
+      begin
+        predicate := Pointer(fPredicate);
+        {$IFDEF MSWINDOWS}
+        enumerator := nil;
+        IEnumerableInternal(fSource).GetEnumerator(enumerator);
+        try
+        {$ELSE}
+        enumerator := fSource.GetEnumerator;
+        {$ENDIF}
+        while IEnumerator(enumerator).MoveNext do
+          if getCurrentWithPredicate(IEnumerator(enumerator), IInterface(predicate), value) then
+          begin
+            if index = 0 then
+              Exit(True);
+            Dec(index);
+          end;
+        {$IFDEF MSWINDOWS}
+        finally
+          IEnumerator(enumerator) := nil;
+        end;
+        {$ENDIF}
+      end;
+      default(value);
+      Exit(False);
     end;
   end;
   Result := inherited TryGetElementAt(value, index, getCurrent, default);
@@ -6874,8 +6904,8 @@ end;
 function TEnumerableExtension<T>.TryGetElementAt(var value: T; index: Integer): Boolean;
 begin
   Result := TEnumerableExtension(Self).TryGetElementAt(value, index,
-    TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetDefault,
-    TCollectionThunks<T>.Assign, TypeInfo(TArray<T>));
+    TCollectionThunks<T>.GetCurrent, TCollectionThunks<T>.GetCurrentWithPredicate,
+    TCollectionThunks<T>.GetDefault, TCollectionThunks<T>.Assign, TypeInfo(TArray<T>));
 end;
 
 function TEnumerableExtension<T>.TryGetFirst(var value: T): Boolean;
