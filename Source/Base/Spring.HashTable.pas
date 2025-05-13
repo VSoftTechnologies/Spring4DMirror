@@ -192,7 +192,6 @@ implementation
 uses
   SysUtils,
   Spring.Comparers,
-  Spring.Hash,
   Spring.ResourceStrings;
 
 {$IF defined(DELPHIXE6) or defined(DELPHIXE7)}

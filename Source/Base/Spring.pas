@@ -3386,6 +3386,8 @@ function StreamToVariant(const stream: TStream): Variant;
 
 function GetGenericTypeParameters(const typeName: string): TArray<string>;
 
+function SameGuid(const left, right: TGUID): Boolean;
+
 /// <summary>
 ///   Indicates whether two Variant values are equal. Unlike using the equals
 ///   operator this function also supports variant arrays.
@@ -3466,6 +3468,7 @@ procedure CheckIndex(index, size: Integer); inline;
 procedure CheckRange(index, count, size: Integer); inline;
 
 procedure BinarySwap(left, right: Pointer; size: NativeInt);
+function BinaryCompare(left, right: Pointer; size: NativeInt): Integer;
 
 {$IFNDEF MSWINDOWS}
 function RegisterExpectedMemoryLeak(P: Pointer): Boolean;
@@ -4448,6 +4451,30 @@ function TVarArrayBoundHelper.GetHighBound: Integer;
 begin
   Result := LowBound + ElementCount - 1;
 end;
+
+function SameGuid(const left, right: TGUID): Boolean;
+{$IFDEF ASSEMBLER}
+asm
+  movdqu   xmm0, [left]
+  movdqu   xmm1, [right]
+  pcmpeqb  xmm0, xmm1
+  pmovmskb eax, xmm0
+  cmp      ax, 65535
+  sete     al
+end;
+{$ELSE}
+begin
+{$IFDEF CPU32BITS}
+  Result := (left.D1 = right.D1)
+    and (PInteger(@left.D2)^ = PInteger(@right.D2)^)
+    and (PInteger(@left.D4[0])^ = PInteger(@right.D4[0])^)
+    and (PInteger(@left.D4[4])^ = PInteger(@right.D4[4])^);
+{$ELSE}
+  Result := (PInt64(@left)^ = PInt64(@right)^)
+    and (PInt64(@left.D4[0])^ = PInt64(@right.D4[0])^);
+{$ENDIF}
+end;
+{$ENDIF}
 
 function SameValue(const left, right: Variant): Boolean;
 
@@ -11728,6 +11755,191 @@ begin
   until size = 0;
 end;
 {$ENDIF}
+
+function BinaryCompare(left, right: Pointer; size: NativeInt): Integer;
+{$IF Defined(ASSEMBLER)}
+{$IFDEF CPUX86}
+asm
+  cmp       eax, edx
+  je        @@equalNoPop
+
+  push      esi
+  push      edi
+  lea       esi, [eax+ecx]
+  lea       edi, [edx+ecx]
+  neg       ecx
+  jnl       @@equal
+
+  mov       edx, $FFFF
+  cmp       ecx, -16
+  ja        @@lessThan16
+
+@@loop:
+  movdqu    xmm1, [esi+ecx]
+  movdqu    xmm2, [edi+ecx]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, edx
+  jnz       @@notEqual
+  add       ecx, 16
+  jz        @@equal
+  cmp       ecx, -16
+  jna       @@loop
+
+@@lessThan16:
+  cmp       ecx, -8
+  ja        @@lessThan8
+  movq      xmm1, [esi+ecx]
+  movq      xmm2, [edi+ecx]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, edx
+  jnz       @@notEqual
+  add       ecx, 8
+  jz        @@equal
+
+@@lessThan8:
+  cmp       ecx, -4
+  ja        @@lessThan4
+  movd      xmm1, [esi+ecx]
+  movd      xmm2, [edi+ecx]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, edx
+  jnz       @@notEqual
+  add       ecx, 4
+  jz        @@equal
+
+@@lessThan4:
+  cmp       ecx, -2
+  ja        @@lessThan2
+  movzx     eax, word ptr [esi+ecx]
+  movzx     edx, word ptr [edi+ecx]
+  sub       eax, edx
+  jnz       @@notEqual2Bytes
+  add       ecx, 2
+  jz        @@equal
+
+@@lessThan2:
+  test      ecx, ecx
+  jz        @@equal
+  jmp       @@compareByte
+
+@@notEqual2Bytes:
+  neg       al
+  sbb       size, -1
+  jmp       @@compareByte
+
+@@notEqual:
+  bsf       eax, eax
+  add       ecx, eax
+@@compareByte:
+  movzx     eax, byte ptr [esi+ecx]
+  movzx     edx, byte ptr [edi+ecx]
+  sub       eax, edx
+  pop       edi
+  pop       esi
+  ret
+
+@@equal:
+  pop       edi
+  pop       esi
+@@equalNoPop:
+  xor       eax, eax
+end;
+{$ELSE}
+asm
+  cmp       left, right
+  je        @@equal
+
+  add       left, size
+  add       right, size
+  neg       size
+  jnl       @@equal
+
+  mov       r9d, $FFFF
+  cmp       size, -16
+  ja        @@lessThan16
+
+@@loop:
+  movdqu    xmm1, dqword [left+size]
+  movdqu    xmm2, dqword [right+size]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, r9d
+  jnz       @@notEqual
+  add       size, 16
+  jz        @@equal
+  cmp       size, -16
+  jna       @@loop
+
+@@lessThan16:
+  cmp       size, -8
+  ja        @@lessThan8
+  movq      xmm1, qword [left+size]
+  movq      xmm2, qword [right+size]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, r9d
+  jnz       @@notEqual
+  add       size, 8
+  jz        @@equal
+
+@@lessThan8:
+  cmp       size, -4
+  ja        @@lessThan4
+  movd      xmm1, dword [left+size]
+  movd      xmm2, dword [right+size]
+  pcmpeqb   xmm1, xmm2
+  pmovmskb  eax, xmm1
+  xor       eax, r9d
+  jnz       @@notEqual
+  add       size, 4
+  jz        @@equal
+
+@@lessThan4:
+  cmp       size, -2
+  ja        @@lessThan2
+  movzx     eax, word [left+size]
+  movzx     r9d, word [right+size]
+  sub       eax, r9d
+  jnz       @@notEqual2Bytes
+  add       size, 2
+  jz        @@equal
+
+@@lessThan2:
+  test      size, size
+  jz        @@equal
+  jmp       @@compareByte
+
+@@notEqual2Bytes:
+  neg       al
+  sbb       size, -1
+  jmp       @@compareByte
+
+@@notEqual:
+  bsf       eax, eax
+  add       size, rax
+@@compareByte:
+  movzx     eax, byte [left+size]
+  movzx     r9d, byte [right+size]
+  sub       eax, r9d
+  ret
+
+@@equal:
+  xor       eax, eax
+end;
+{$ENDIF}
+{$ELSEIF Defined(POSIX)}
+begin
+  if size > 0 then
+    Result := memcmp(left^, right^, size)
+  else
+    Result := 0;
+end;
+{$ELSE}
+  {$MESSAGE ERROR 'Missing platform support'}
+{$IFEND}
 
 class procedure TArray.Swap<T>(left, right: Pointer);
 {$IFDEF DELPHIXE7_UP}
