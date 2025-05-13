@@ -111,14 +111,14 @@ type
   PMethodPointer = ^TMethodPointer;
   TMethodPointer = procedure of object;
 
-  PInt8 = ^Int8;
-  PInt16 = ^Int16;
-  PInt32 = ^Int32;
-  PInt64 = ^Int64;
-  PUInt8 = ^UInt8;
-  PUInt16 = ^UInt16;
-  PUInt32 = ^UInt32;
-  PUInt64 = ^UInt64;
+  PInt8 = System.PShortInt;
+  PInt16 = System.PSmallInt;
+  PInt32 = System.PInteger;
+  PInt64 = System.PInt64;
+  PUInt8 = System.PByte;
+  PUInt16 = System.PWord;
+  PUInt32 = System.PCardinal;
+  PUInt64 = System.PUInt64;
 
 {$POINTERMATH ON}
   PMethodArray = ^TMethod;
