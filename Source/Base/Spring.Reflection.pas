@@ -68,7 +68,6 @@ type
     class function GetInterfaces: IEnumerable<TRttiInterfaceType>; static;
     class function GetTypes: IEnumerable<TRttiType>; static;
 
-    class function FindType(const qualifiedName: string): TRttiType; static;
     class function TryGetType(typeInfo: PTypeInfo; out rttiType: TRttiType): Boolean; static;
 
     /// <summary>
@@ -736,17 +735,6 @@ end;
 class function TType.GetTypes: IEnumerable<TRttiType>;
 begin
   Result := TRttiTypeIterator<TRttiType>.Create;
-end;
-
-class function TType.FindType(const qualifiedName: string): TRttiType;
-var
-  item: TRttiType;
-begin
-  Result := Context.FindType(qualifiedName);
-  if not Assigned(Result) then
-    for item in Context.GetTypes do
-      if item.HasName(qualifiedName) then
-        Exit(item);
 end;
 
 class function TType.IsAssignable(typeFrom, typeTo: PTypeInfo): Boolean;

@@ -156,6 +156,8 @@ type
     class constructor Create;
     class destructor Destroy;
 
+    class function FindType(const name: string): TRttiType; static;
+
     class function HasWeakRef<T>: Boolean; static; inline;
     class function IsManaged<T>: Boolean; static; inline;
     class function Kind<T>: TTypeKind; static; inline;
@@ -300,6 +302,8 @@ type
   private
     class var ConstructorCache: TDictionary<PTypeInfo,TConstructor>;
     class var CacheLock: ReadWriteLock;
+    class var NameToClassLookup: TDictionary<string,TClass>;
+    class var LookupLock: ReadWriteLock;
     class function FindConstructor(const classType: TRttiInstanceType;
       const arguments: array of TValue): TRttiMethod; overload; static;
     class procedure RaiseNoConstructorFound(classType: TClass); static;
@@ -316,7 +320,7 @@ type
       const constructorMethod: TRttiMethod; const arguments: array of TValue): TValue; overload; static;
 
     class function CreateInstance(typeInfo: PTypeInfo): TObject; overload; static; inline;
-    class function CreateInstance(const typeName: string): TObject; overload; static; inline;
+    class function CreateInstance(const typeName: string): TObject; overload; static;
     class function CreateInstance(const typeName: string;
       const arguments: array of TValue): TObject; overload; static;
 
@@ -5267,6 +5271,33 @@ end;
 class destructor TType.Destroy;
 begin
   fContext.Free;
+end;
+
+class function TType.FindType(const name: string): TRttiType;
+var
+  packages: TArray<TRttiPackage>;
+  types: TArray<TRttiType>;
+  packageIndex, typeIndex: NativeInt;
+begin
+  packages := fContext.GetPackages;
+  for packageIndex := 0 to High(packages) do
+  begin
+    Result := packages[packageIndex].FindType(name);
+    if Assigned(Result) then Exit;
+  end;
+
+  for packageIndex := 0 to High(packages) do
+  begin
+    types := packages[packageIndex].GetTypes;
+    for typeIndex := 0 to High(types) do
+    begin
+      Result := types[typeIndex];
+      if Result.HasName(name) then
+        Exit;
+    end;
+  end;
+
+  Result := nil;
 end;
 
 class function TType.GetType(typeInfo: PTypeInfo): TRttiType;
@@ -10681,11 +10712,13 @@ end;
 class constructor TActivator.Create;
 begin
   ConstructorCache := TDictionary<PTypeInfo,TConstructor>.Create;
+  NameToClassLookup := TDictionary<string,TClass>.Create(TStringComparer.OrdinalIgnoreCase);
 end;
 
 class destructor TActivator.Destroy;
 begin
   ConstructorCache.Free;
+  NameToClassLookup.Free;
 end;
 
 class procedure TActivator.ClearCache;
@@ -10696,12 +10729,18 @@ begin
   finally
     CacheLock.LeaveWrite;
   end;
+  LookupLock.EnterWrite;
+  try
+    NameToClassLookup.Clear;
+  finally
+    LookupLock.LeaveWrite;
+  end;
 end;
 
 class function TActivator.CreateInstance(
   const classType: TRttiInstanceType): TValue;
 begin
-  Result := CreateInstance(classType, []);
+  Result := CreateInstance(classType.MetaclassType);
 end;
 
 class function TActivator.CreateInstance(const classType: TRttiInstanceType;
@@ -10723,12 +10762,37 @@ end;
 
 class function TActivator.CreateInstance(typeInfo: PTypeInfo): TObject;
 begin
-  Result := CreateInstance(typeInfo.TypeData.ClassType);
+  Result := CreateInstance(GetTypeInfoData(typeInfo).ClassType);
 end;
 
 class function TActivator.CreateInstance(const typeName: string): TObject;
+var
+  rttiType: TRttiType;
+  classType: TClass;
 begin
-  Result := CreateInstance(typeName, []);
+  LookupLock.EnterRead;
+  try
+    NameToClassLookup.TryGetValue(typeName, classType);
+  finally
+    LookupLock.LeaveRead;
+  end;
+
+  if classType = nil then
+  begin
+    rttiType := TType.FindType(typeName);
+    if Assigned(rttiType) and (rttiType is TRttiInstanceType) then
+    begin
+      classType := TRttiInstanceType(rttiType).MetaclassType;
+      LookupLock.EnterWrite;
+      try
+        NameToClassLookup.AddOrSetValue(typeName, classType);
+      finally
+        LookupLock.LeaveWrite;
+      end;
+    end;
+  end;
+
+  Result := CreateInstance(classType);
 end;
 
 class function TActivator.CreateInstance(const typeName: string;
