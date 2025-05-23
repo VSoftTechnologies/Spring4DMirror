@@ -3571,6 +3571,9 @@ uses
 {$ENDIF}
   Spring.Comparers,
   Spring.Events,
+{$IFNDEF DELPHIX_RIO_UP}
+  Spring.Patches.RSP9815,
+{$ENDIF}
   Spring.ResourceStrings,
   Spring.VirtualClass;
 
