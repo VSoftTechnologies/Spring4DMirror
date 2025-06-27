@@ -613,7 +613,7 @@ type
 
     class function &&op_Implicit(const value: TGUID): TValue; overload; static;
 
-    class function From(const value; typeInfo: PTypeInfo): TValue; overload; static;
+    class function From(typeInfo: PTypeInfo; const value): TValue; overload; static;
     class function From(instance: TObject; classType: TClass): TValue; overload; static;
     class function FromFloat(typeInfo: PTypeInfo; value: Extended): TValue; overload; static;
     class function FromVariant(const value: Variant): TValue; static;
@@ -6798,7 +6798,7 @@ begin
     AsObject.Free;
 end;
 
-class function TValueHelper.From(const value; typeInfo: PTypeInfo): TValue;
+class function TValueHelper.From(typeInfo: PTypeInfo; const value): TValue;
 begin
   TValue.Make(@value, typeInfo, Result);
 end;
@@ -6892,9 +6892,9 @@ begin
     varCurrency: Result := TVarData(value).VCurrency;
     varDate: Result := TVarData(value).VDate;
     varOleStr: Result := string(TVarData(value).VOleStr);
-    varDispatch: Result := From(TVarData(value).VDispatch, System.TypeInfo(IDispatch));
-    varError: Result := From(TVarData(value).VError, System.TypeInfo(HRESULT));
-    varUnknown: Result := From(TVarData(value).VUnknown, System.TypeInfo(IInterface));
+    varDispatch: Result := From(System.TypeInfo(IDispatch), TVarData(value).VDispatch);
+    varError: Result := From(System.TypeInfo(HRESULT), TVarData(value).VError);
+    varUnknown: Result := From(System.TypeInfo(IInterface), TVarData(value).VUnknown);
     varByte: Result := TVarData(value).VByte;
     varWord: Result := TVarData(value).VWord;
     varLongWord: Result := TVarData(value).VLongWord;
@@ -6949,7 +6949,7 @@ begin
 {$IF Declared(ShortString)}
     vtString: Result := string(value.VString^);
 {$IFEND}
-    vtPointer: Result := TValue.From(value.VPointer, System.TypeInfo(Pointer));
+    vtPointer: Result := TValue.From(System.TypeInfo(Pointer), value.VPointer);
 {$IF Declared(PAnsiChar)}
     vtPChar: Result := string(value.VPChar);
 {$IFEND}
@@ -6962,7 +6962,7 @@ begin
 {$IFEND}
     vtCurrency: Result := value.VCurrency^;
     vtVariant: Result := TValue.FromVariant(value.VVariant^);
-    vtInterface: Result := TValue.From(value.VInterface, System.TypeInfo(IInterface));
+    vtInterface: Result := TValue.From(System.TypeInfo(IInterface), value.VInterface);
 {$IF Declared(WideString)}
     vtWideString: Result := WideString(value.VWideString);
 {$IFEND}
@@ -7479,7 +7479,7 @@ begin
   Result := source.TypeInfo = TypeInfo(TMethod);
   if Result then
   begin
-    value := TValue.From(source.GetReferenceToRawData^, target);
+    value := TValue.From(target, source.GetReferenceToRawData^);
     Result := True;
   end
 end;
@@ -7507,19 +7507,19 @@ begin
   begin
     Result := TryStrToDateTime(s, d, formatSettings);
     if Result then
-      value := TValue.From(d, TypeInfo(TDateTime));
+      value := TValue.From(TypeInfo(TDateTime), d);
   end else
   if target = TypeInfo(TDate) then
   begin
     Result := TryStrToDate(s, d, formatSettings);
     if Result then
-      value := TValue.From(d, TypeInfo(TDate));
+      value := TValue.From(TypeInfo(TDate), d);
   end else
   if target = TypeInfo(TTime) then
   begin
     Result := TryStrToTime(s, d, formatSettings);
     if Result then
-      value := TValue.From(d, TypeInfo(TTime));
+      value := TValue.From(TypeInfo(TTime), d);
   end else
   begin
     Result := TryStrToFloat(s, f, formatSettings);
@@ -7682,7 +7682,7 @@ begin
   if TVarData(v).VType <> varBoolean then
     Exit(False);
 
-  temp := TValue.From(TVarData(v).VBoolean, TypeInfo(Boolean));
+  temp := TValue.From(TypeInfo(Boolean), TVarData(v).VBoolean);
   Result := temp.TryCast(target, value);
 end;
 
@@ -8031,7 +8031,7 @@ begin
       Exit(True);
 
     Result := Assigned(fValueConverterCallback)
-      and fValueConverterCallback(Self, targetType, targetValue, TValue.From(formatSettings, System.TypeInfo(TFormatSettings)));
+      and fValueConverterCallback(Self, targetType, targetValue, TValue.From(System.TypeInfo(TFormatSettings), formatSettings));
     if not Result then
       Finalize(targetValue);
   end;
@@ -8395,13 +8395,13 @@ end;
 class function TNamedValue.From<T>(const value: T;
   const name: string): TNamedValue;
 begin
-  Result.fValue := TValue.From(value, System.TypeInfo(T));
+  Result.fValue := TValue.From(System.TypeInfo(T), value);
   Result.fName := name;
 end;
 
 class operator TNamedValue.Implicit(const value: TNamedValue): TValue;
 begin
-  Result := TValue.From(value, TypeInfo(TNamedValue));
+  Result := TValue.From(TypeInfo(TNamedValue), value);
 end;
 
 class operator TNamedValue.Implicit(const value: TValue): TNamedValue;
@@ -8422,14 +8422,14 @@ end;
 
 class function TTypedValue.From<T>(const value: T): TTypedValue;
 begin
-  Result.fValue := TValue.From(value, System.TypeInfo(T));
+  Result.fValue := TValue.From(System.TypeInfo(T), value);
   Result.fTypeInfo := System.TypeInfo(T);
 end;
 
 class function TTypedValue.From<T>(const value: T;
   const typeInfo: PTypeInfo): TTypedValue;
 begin
-  Result.fValue := TValue.From(value, System.TypeInfo(T));
+  Result.fValue := TValue.From(System.TypeInfo(T), value);
   Result.fTypeInfo := typeInfo;
 end;
 
@@ -9263,7 +9263,7 @@ var
 begin
   if HasValue then
   begin
-    v := TValue.From(fValue, TypeInfo(T));
+    v := TValue.From(TypeInfo(T), fValue);
     Result := v.ToString;
   end
   else
@@ -9276,7 +9276,7 @@ var
 begin
   if HasValue then
   begin
-    v := TValue.From(fValue, TypeInfo(T));
+    v := TValue.From(TypeInfo(T), fValue);
     if v.IsType(TypeInfo(Boolean)) then
       Result := v.AsBoolean
     else
@@ -9397,7 +9397,7 @@ function Lazy.TLazy<T>.GetValue: TValue;
 begin
   if fValueFactory <> nil then
     CreateValue;
-  Result := TValue.From(fValue, TypeInfo(T));
+  Result := TValue.From(TypeInfo(T), fValue);
 end;
 
 function Lazy.TLazy<T>.GetValueT: T;
@@ -9775,7 +9775,7 @@ function Lazy.TInterfaceReference.GetValue: TValue;
 begin
   if Factory <> nil then
     CreateValue;
-  Result := TValue.From(Value, TypeInfo);
+  Result := TValue.From(TypeInfo, Value);
 end;
 
 function Lazy.TInterfaceReference.GetInterface: IInterface;
@@ -11041,8 +11041,8 @@ class operator Tuple<T1, T2>.Implicit(
   const values: Tuple<T1, T2>): TArray<TValue>;
 begin
   SetLength(Result, 2);
-  Result[0] := TValue.From(values.Value1, TypeInfo(T1));
-  Result[1] := TValue.From(values.Value2, TypeInfo(T2));
+  Result[0] := TValue.From(TypeInfo(T1), values.Value1);
+  Result[1] := TValue.From(TypeInfo(T2), values.Value2);
 end;
 
 class operator Tuple<T1, T2>.Implicit(
@@ -11110,9 +11110,9 @@ class operator Tuple<T1, T2, T3>.Implicit(
   const values: Tuple<T1, T2, T3>): TArray<TValue>;
 begin
   SetLength(Result, 3);
-  Result[0] := TValue.From(values.Value1, TypeInfo(T1));
-  Result[1] := TValue.From(values.Value2, TypeInfo(T2));
-  Result[2] := TValue.From(values.Value3, TypeInfo(T3));
+  Result[0] := TValue.From(TypeInfo(T1), values.Value1);
+  Result[1] := TValue.From(TypeInfo(T2), values.Value2);
+  Result[2] := TValue.From(TypeInfo(T3), values.Value3);
 end;
 
 class operator Tuple<T1, T2, T3>.Implicit(
@@ -11202,10 +11202,10 @@ class operator Tuple<T1, T2, T3, T4>.Implicit(
   const values: Tuple<T1, T2, T3, T4>): TArray<TValue>;
 begin
   SetLength(Result, 4);
-  Result[0] := TValue.From(values.Value1, TypeInfo(T1));
-  Result[1] := TValue.From(values.Value2, TypeInfo(T2));
-  Result[2] := TValue.From(values.Value3, TypeInfo(T3));
-  Result[3] := TValue.From(values.Value4, TypeInfo(T4));
+  Result[0] := TValue.From(TypeInfo(T1), values.Value1);
+  Result[1] := TValue.From(TypeInfo(T2), values.Value2);
+  Result[2] := TValue.From(TypeInfo(T3), values.Value3);
+  Result[3] := TValue.From(TypeInfo(T4), values.Value4);
 end;
 
 class operator Tuple<T1, T2, T3, T4>.Implicit(

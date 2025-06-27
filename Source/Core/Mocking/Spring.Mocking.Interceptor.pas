@@ -332,13 +332,13 @@ begin
       Result :=
         function(const callInfo: TCallInfo): TValue
         begin
-          Result := TValue.From(EventMock_MethodPointer, returnType);
+          Result := TValue.From(returnType, EventMock_MethodPointer);
         end;
     tkInterface:
       Result :=
         function(const callInfo: TCallInfo): TValue
         begin
-          Result := TValue.From(EventMock_MethodReference, returnType);
+          Result := TValue.From(returnType, EventMock_MethodReference);
         end;
   end;
 end;
