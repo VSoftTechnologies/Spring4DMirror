@@ -613,7 +613,9 @@ type
 
     class function &&op_Implicit(const value: TGUID): TValue; overload; static;
 
+{$IF RTLVersion < 37}
     class function From(typeInfo: PTypeInfo; const value): TValue; overload; static;
+{$IFEND}
     class function From(instance: TObject; classType: TClass): TValue; overload; static;
     class function FromFloat(typeInfo: PTypeInfo; value: Extended): TValue; overload; static;
     class function FromVariant(const value: Variant): TValue; static;
@@ -6798,10 +6800,12 @@ begin
     AsObject.Free;
 end;
 
+{$IF RTLVersion < 37}
 class function TValueHelper.From(typeInfo: PTypeInfo; const value): TValue;
 begin
   TValue.Make(@value, typeInfo, Result);
 end;
+{$IFEND}
 
 class function TValueHelper.From(instance: TObject; classType: TClass): TValue;
 begin
