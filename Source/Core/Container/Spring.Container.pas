@@ -305,7 +305,7 @@ begin
       instance: T;
     begin
       instance := delegate();
-      Result := TValue.From(instance, TypeInfo(T));
+      Result := TValue.From(TypeInfo(T), instance);
     end;
 end;
 
@@ -319,7 +319,7 @@ begin
       instance: IInterface;
     begin
       instance := TActivatorDelegate<IInterface>(delegate)();
-      Result := TValue.From(instance, typeInfo);
+      Result := TValue.From(typeInfo, instance);
     end;
 end;
 
@@ -332,7 +332,7 @@ begin
       instance: TObject;
     begin
       instance := TActivatorDelegate<TObject>(delegate)();
-      Result := TValue.From(instance, typeInfo);
+      Result := TValue.From(typeInfo, instance);
     end;
 end;
 {$ENDIF}

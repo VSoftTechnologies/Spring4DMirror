@@ -596,7 +596,7 @@ end;
 function TRegistration.InjectParameter<TParameterType>(
   const value: TParameterType): TRegistration;
 begin
-  Result := InjectParameter(TypeInfo(TParameterType), TValue.From(value, TypeInfo(TParameterType)));
+  Result := InjectParameter(TypeInfo(TParameterType), TValue.From(TypeInfo(TParameterType), value));
 end;
 
 function TRegistration.InjectParameter<TParameterType>(

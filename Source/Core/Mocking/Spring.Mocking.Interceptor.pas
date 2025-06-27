@@ -293,7 +293,7 @@ begin
   Result :=
     function(const callInfo: TCallInfo): TValue
     begin
-      Result := TValue.From(event, returnType);
+      Result := TValue.From(returnType, event);
     end;
 end;
 
