@@ -1513,9 +1513,9 @@ type
   /// </remarks>
   Guard = record
   private
-    class procedure RaiseArgumentException(typeKind: TTypeKind; const argumentName: string); overload; static;
-    class procedure RaiseNullableHasNoValue; static;
-    class procedure RaiseNoDelegateAssigned; static;
+    class procedure RaiseArgumentException(typeKind: TTypeKind; const argumentName: string); overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure RaiseNullableHasNoValue; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure RaiseNoDelegateAssigned; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
   public
     class procedure CheckTrue(condition: Boolean; const msg: string = ''); static; inline;
     class procedure CheckFalse(condition: Boolean; const msg: string = ''); static; inline;
@@ -1603,29 +1603,29 @@ type
     /// <param name="msg">
     ///   The general error message.
     /// </param>
-    class procedure RaiseArgumentException(const msg: string); overload; static;
+    class procedure RaiseArgumentException(const msg: string); overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 
     /// <summary>
     ///   Raises an <see cref="EFormatException" /> exception.
     /// </summary>
-    class procedure RaiseArgumentFormatException(const argumentName: string); overload; static;
+    class procedure RaiseArgumentFormatException(const argumentName: string); overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 
     /// <summary>
     ///   Raises an <see cref="EArgumentNilException" /> exception.
     /// </summary>
-    class procedure RaiseArgumentNullException(const argumentName: string); overload; static;
+    class procedure RaiseArgumentNullException(const argumentName: string); overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 
     /// <summary>
     ///   Raises an <see cref="EArgumentOutOfRangeException" /> exception.
     /// </summary>
-    class procedure RaiseArgumentOutOfRangeException(const argumentName: string); overload; static;
+    class procedure RaiseArgumentOutOfRangeException(const argumentName: string); overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 
     /// <summary>
     ///   Raises an <see cref="EInvalidEnumArgumentException" /> exception.
     /// </summary>
-    class procedure RaiseInvalidEnumArgumentException(const argumentName: string); overload; static;
+    class procedure RaiseInvalidEnumArgumentException(const argumentName: string); overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 
-    class function RaiseInvalidTypeCast(sourceType, targetType: PTypeInfo): Boolean; static;
+    class function RaiseInvalidTypeCast(sourceType, targetType: PTypeInfo): Boolean; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
   end;
 
   TArgument = Guard deprecated 'Use Guard instead';
@@ -1690,24 +1690,24 @@ type
     class function GetArgumentOutOfRangeException(argument: ExceptionArgument; resource: ExceptionResource): EArgumentException; overload; static;
     class function GetArgumentOutOfRangeException(resource: ExceptionResource): EArgumentException; overload; static;
   public
-    class function ArgumentNil(argument: ExceptionArgument): NativeInt; static;
-    class function ArgumentOutOfRange(argument: ExceptionArgument): NativeInt; overload; static;
-    class function ArgumentOutOfRange(argument: ExceptionArgument; resource: ExceptionResource): NativeInt; overload; static;
-    class function ArgumentOutOfRange(resource: ExceptionResource): NativeInt; overload; static;
+    class function ArgumentNil(argument: ExceptionArgument): NativeInt; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class function ArgumentOutOfRange(argument: ExceptionArgument): NativeInt; overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class function ArgumentOutOfRange(argument: ExceptionArgument; resource: ExceptionResource): NativeInt; overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class function ArgumentOutOfRange(resource: ExceptionResource): NativeInt; overload; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 
-    class function ArgumentOutOfRange_Count: NativeInt; static;
-    class function ArgumentOutOfRange_Index: NativeInt; static;
+    class function ArgumentOutOfRange_Count: NativeInt; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class function ArgumentOutOfRange_Index: NativeInt; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 
-    class procedure DuplicateKey; static;
-    class procedure KeyNotFound; static;
-    class procedure MoreThanOneElement; static;
-    class procedure MoreThanOneMatch; static;
-    class procedure NoClassType(t: PTypeInfo); static;
-    class procedure NoElements; static;
-    class procedure NoMatch; static;
-    class procedure NotSupported; static;
+    class procedure DuplicateKey; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure KeyNotFound; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure MoreThanOneElement; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure MoreThanOneMatch; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure NoClassType(t: PTypeInfo); static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure NoElements; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure NoMatch; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
+    class procedure NotSupported; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 
-    class function EnumFailedVersion: Boolean; static;
+    class function EnumFailedVersion: Boolean; static; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
   end;
 
   {$ENDREGION}
@@ -5058,10 +5058,12 @@ begin
   Result := nil;
 end;
 
-function OutOfMemoryError: Integer;
+function OutOfMemoryError: Integer; {$IFDEF SUPPORTS_NORETURN}noreturn;{$ENDIF}
 begin
   SysUtils.OutOfMemoryError;
+  {$IFNDEF SUPPORTS_NORETURN}
   Result := 0;
+  {$ENDIF}
 end;
 
 function GrowCapacity(oldCapacity: Integer): Integer;

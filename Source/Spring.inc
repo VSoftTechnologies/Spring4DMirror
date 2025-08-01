@@ -128,6 +128,12 @@
   {$DEFINE HAS_BITCOUNTING_INTRINSICS}
 {$ENDIF}
 
+{$IFDEF DELPHI_ATHENS_UP}
+  {$IFNDEF DELPHI_ATHENS}
+    {$DEFINE SUPPORTS_NORETURN}
+  {$ENDIF}
+{$ENDIF}
+
 // If we are running on Android or iOS, we are sure we are running using FMX.
 // If FMX is to be used on x86/x64 FMX conditional should be defined
 // in the project settings by hand

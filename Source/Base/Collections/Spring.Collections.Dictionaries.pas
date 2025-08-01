@@ -1858,7 +1858,9 @@ function TBidiDictionary<TKey, TValue>.GetValueRefOrAddDefault(const key: TKey;
 begin
   // TODO implement
   RaiseHelper.NotSupported;
+  {$IFNDEF SUPPORTS_NORETURN}
   Result := nil;
+  {$ENDIF}
 end;
 
 function TBidiDictionary<TKey, TValue>.GetValueOrDefault(const key: TKey;
@@ -2103,15 +2105,17 @@ function TBidiDictionary<TKey, TValue>.TInverse.GetValueRefOrAddDefault(
 var
   exists: Boolean;
 begin
-  // TODO implement
   Result := GetValueRefOrAddDefault(value, defaultKey, exists);
 end;
 
 function TBidiDictionary<TKey, TValue>.TInverse.GetValueRefOrAddDefault(
   const value: TValue; const defaultKey: TKey; out exists: Boolean): Ref<TKey>.PT;
 begin
+  // TODO implement
   RaiseHelper.NotSupported;
+  {$IFNDEF SUPPORTS_NORETURN}
   Result := nil;
+  {$ENDIF}
 end;
 
 function TBidiDictionary<TKey, TValue>.TInverse.GetValueOrDefault(
