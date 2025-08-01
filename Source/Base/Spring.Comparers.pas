@@ -2318,29 +2318,26 @@ const
       if method.CallingConvention <> ccReg then
         Continue;
 
-      if method.HasName(EqualsOperatorName) then
+      if method.MethodKind = mkOperatorOverload then
       begin
-        if method.MethodKind <> mkOperatorOverload then
-          Continue;
-
-        parameters := method.GetParameters;
-        if (Length(parameters) = 2)
-          and (parameters[0].ParamType.Handle = typeInfo) and (parameters[1].ParamType.Handle = typeInfo)
-          and (pfConst in parameters[0].Flags) and (pfConst in parameters[1].Flags) then
-         equals := method.CodeAddress;
-      end else
-      if method.HasName(LessThanOperatorName) then
-      begin
-        if method.MethodKind <> mkOperatorOverload then
-          Continue;
-
-        parameters := method.GetParameters;
-        if (Length(parameters) = 2)
-          and (parameters[0].ParamType.Handle = typeInfo) and (parameters[1].ParamType.Handle = typeInfo)
-          and (pfConst in parameters[0].Flags) and (pfConst in parameters[1].Flags) then
-         lessThan := method.CodeAddress;
-      end else
-      if method.HasName(GetHashCodeName) then
+        if method.HasName(EqualsOperatorName) then
+        begin
+          parameters := method.GetParameters;
+          if (Length(parameters) = 2)
+            and (parameters[0].ParamType.Handle = typeInfo) and (parameters[1].ParamType.Handle = typeInfo)
+            and (pfConst in parameters[0].Flags) and (pfConst in parameters[1].Flags) then
+           equals := method.CodeAddress;
+        end else
+        if method.HasName(LessThanOperatorName) then
+        begin
+          parameters := method.GetParameters;
+          if (Length(parameters) = 2)
+            and (parameters[0].ParamType.Handle = typeInfo) and (parameters[1].ParamType.Handle = typeInfo)
+            and (pfConst in parameters[0].Flags) and (pfConst in parameters[1].Flags) then
+           lessThan := method.CodeAddress;
+        end
+      end
+      else if method.HasName(GetHashCodeName) then
       begin
         if method.MethodKind <> mkFunction then
           Continue;

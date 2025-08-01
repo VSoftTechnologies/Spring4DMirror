@@ -1717,14 +1717,31 @@ type
 
 {$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(DefaultFieldRttiVisibility)}{$ENDIF}
 
+{$IFNDEF NULLABLE_CMR}
+const
+  HasValueVTable: array[0..3] of Pointer = (
+    @HasValueVTable[1],
+    @NopQueryInterface,
+    @NopRef,
+    @NopRef
+  );
+{$ENDIF}
+
+type
   Nullable = record
-  private
-    class var HasValue: string;
-    type Null = interface end;
-  public
+  private type
+    Null = interface end;
     {$IFNDEF NULLABLE_CMR}
-    class constructor Create;
+    INullableHasValue = interface end;
+    const HasValue: Pointer = @HasValueVTable;
+    const IsEmpty = nil;
+    {$ELSE}
+    const HasValue = True;
+    const IsEmpty = False;
     {$ENDIF}
+    class procedure Init(var equals: TMethod; typeInfo: PTypeInfo); static;
+    class function ToString(const value; const hasValue: {$IFNDEF NULLABLE_CMR}INullableHasValue{$ELSE}Boolean{$ENDIF}; typeInfo: PTypeInfo): string; static;
+    class function ToVariant(const value; const hasValue: {$IFNDEF NULLABLE_CMR}INullableHasValue{$ELSE}Boolean{$ENDIF}; typeInfo: PTypeInfo): Variant; static;
   end;
 
   /// <summary>
@@ -1736,17 +1753,29 @@ type
   ///   generic type.
   /// </typeparam>
   Nullable<T> = {$IFDEF NULLABLE_PACKED}packed {$ENDIF}record
+  private type
+    CompareHelper = record
+    strict private type
+      TCompareMethod = function(const left, right: T): Boolean of object;
+      TEqualsFunc = function(const left, right: T): Boolean;
+    strict private class var
+      Method: TMethod;
+    public
+      class function Equals(const left, right: T): Boolean; static;
+    end;
   private
     fValue: T;
-    fHasValue: {$IFNDEF NULLABLE_CMR}string{$ELSE}Boolean{$ENDIF};
-    class var
-      fComparer: Pointer;
-      fEquals: function(const left, right: T): Boolean;
-    class function EqualsComparer(const left, right: T): Boolean; static;
-    class function EqualsInternal(const left, right: T): Boolean; static; inline;
-    class procedure InitEquals; static;
+    fHasValue: {$IFNDEF NULLABLE_CMR}Nullable.INullableHasValue{$ELSE}Boolean{$ENDIF};
+    {$IFNDEF DELPHIXE7_UP}
+    class function EqualsInternal(const left, right: T): Boolean; static;
+    {$ENDIF}
+    {$IFDEF DELPHIXE7_UP}
+    class procedure __SuppressWarning(var value); static; inline;
+    {$ENDIF}
     function GetValue: T;
+    {$IFNDEF NULLABLE_CMR}
     function GetHasValue: Boolean; inline;
+    {$ENDIF}
   public
     /// <summary>
     ///   Initializes a new instance of the <see cref="Nullable&lt;T&gt;" />
@@ -1800,7 +1829,17 @@ type
     ///     else compares their values as usual.
     ///   </para>
     /// </remarks>
-    function Equals(const other: Nullable<T>): Boolean;
+    function Equals(const other: Nullable<T>): Boolean; overload;
+
+    /// <summary>
+    ///   Determines whether nullable is equal to a given value.
+    /// </summary>
+    /// <remarks>
+    ///   <para>
+    ///     If the nullable is null, return false;
+    ///   </para>
+    /// </remarks>
+    function Equals(const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}other: T): Boolean; overload;
 
     function ToString: string;
 
@@ -1822,7 +1861,7 @@ type
     ///   Gets a value indicating whether the current <see cref="Nullable&lt;T&gt;" />
     ///    structure has a value.
     /// </summary>
-    property HasValue: Boolean read GetHasValue;
+    property HasValue: Boolean read {$IFNDEF NULLABLE_CMR}GetHasValue{$ELSE}fHasValue{$ENDIF};
 
     /// <summary>
     ///   Gets the value of the current <see cref="Nullable&lt;T&gt;" /> value.
@@ -1847,12 +1886,12 @@ type
     class operator Explicit(const value: Variant): Nullable<T>;
     class operator Explicit(const value: Nullable<T>): T; inline;
 
-    class operator Equal(const left, right: Nullable<T>): Boolean; inline;
+    class operator Equal(const left, right: Nullable<T>): Boolean;
+    class operator Equal(const left: Nullable<T>; const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
     class operator Equal(const left: Nullable<T>; const right: Nullable.Null): Boolean; inline;
-    class operator Equal(const left: Nullable<T>; const right: T): Boolean; inline;
-    class operator NotEqual(const left, right: Nullable<T>): Boolean; inline;
+    class operator NotEqual(const left, right: Nullable<T>): Boolean;
+    class operator NotEqual(const left: Nullable<T>; const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
     class operator NotEqual(const left: Nullable<T>; const right: Nullable.Null): Boolean; inline;
-    class operator NotEqual(const left: Nullable<T>; const right: T): Boolean; inline;
   end;
 
   TNullableString = Nullable<string>;
@@ -2676,7 +2715,6 @@ type
       hi: NativeInt;
       temp: T;
     end;
-    TLessThanFunc<T> = function(const left, right: T): Boolean;
     TPatternDefeatingQuickSort = procedure (lo, hi: Pointer; depthLimit: Integer = -1;
       leftMost: Boolean = True; branchless: Boolean = False);
   protected
@@ -5043,11 +5081,13 @@ var
   method: TRttiMethod;
   parameters: TArray<TRttiParameter>;
 begin
-  for method in TType.GetType(typeInfo).GetMethods(EqualsOperatorName) do
+  for method in TType.GetType(typeInfo).GetDeclaredMethods do
   begin
     if method.MethodKind <> mkOperatorOverload then
       Continue;
     if method.CallingConvention <> ccReg then
+      Continue;
+    if not method.HasName(EqualsOperatorName) then
       Continue;
     parameters := method.GetParameters;
     if (Length(parameters) = 2)
@@ -9052,18 +9092,67 @@ end;
 
 {$REGION 'Nullable<T>'}
 
-{$IFNDEF NULLABLE_CMR}
-class constructor Nullable.Create;
+class procedure Nullable.Init(var equals: TMethod; typeInfo: PTypeInfo);
+var
+  method: TRttiMethod;
+  comparer: Pointer;
 begin
-  HasValue := 'True';
-  UniqueString(HasValue);
+  method := GetEqualsOperator(typeInfo);
+  if Assigned(method) then
+    equals.Code := method.CodeAddress;
+  if not Assigned(equals.Code) then
+  begin
+    comparer := _LookupVtableInfo(giEqualityComparer, typeInfo, GetTypeSize(typeInfo));
+    equals.Data := comparer;
+    equals.Code := PPVTable(comparer)^[3];
+  end;
 end;
-{$ENDIF}
+
+class function Nullable.ToString(const value;
+  const hasValue: {$IFNDEF NULLABLE_CMR}INullableHasValue{$ELSE}Boolean{$ENDIF}; typeInfo: PTypeInfo): string;
+var
+  v: TValue;
+begin
+  if {$IFNDEF NULLABLE_CMR}hasValue <> nil{$ELSE}hasValue{$ENDIF} then
+  begin
+    v := TValue.From(typeInfo, value);
+    Result := v.ToString;
+  end
+  else
+    Result := 'Null';
+end;
+
+class function Nullable.ToVariant(const value;
+  const hasValue: {$IFNDEF NULLABLE_CMR}INullableHasValue{$ELSE}Boolean{$ENDIF}; typeInfo: PTypeInfo): Variant;
+var
+  v: TValue;
+begin
+  if {$IFNDEF NULLABLE_CMR}hasValue <> nil{$ELSE}hasValue{$ENDIF} then
+  begin
+    v := TValue.From(typeInfo, value);
+    if v.IsType(System.TypeInfo(Boolean)) then
+      Result := v.AsBoolean
+    else
+      Result := v.AsVariant;
+  end
+  else
+    Result := Variants.Null;
+end;
+
+class function Nullable<T>.CompareHelper.Equals(const left, right: T): Boolean;
+begin
+  if not Assigned(Method.Code) then
+    Nullable.Init(Method, TypeInfo(T));
+  if not Assigned(Method.Data) then
+    Result := TEqualsFunc(Method.Code)(left, right)
+  else
+    Result := TCompareMethod(Method)(left, right);
+end;
 
 constructor Nullable<T>.Create(const value: T);
 begin
   fValue := value;
-  fHasValue := {$IFNDEF NULLABLE_CMR}Nullable.HasValue{$ELSE}True{$ENDIF};
+  {$IFNDEF NULLABLE_CMR}Pointer(fHasValue){$ELSE}fHasValue{$ENDIF} := Nullable.HasValue;
 end;
 
 constructor Nullable<T>.Create(const value: Variant);
@@ -9074,23 +9163,36 @@ begin
   begin
     v := TValue.FromVariant(value);
     v.AsType(TypeInfo(T), fValue);
-    fHasValue := {$IFNDEF NULLABLE_CMR}Nullable.HasValue{$ELSE}True{$ENDIF};
+    {$IFNDEF NULLABLE_CMR}Pointer(fHasValue){$ELSE}fHasValue{$ENDIF} := Nullable.HasValue;
   end
   else
   begin
-    fHasValue := {$IFNDEF NULLABLE_CMR}''{$ELSE}False{$ENDIF};
+    {$IFNDEF NULLABLE_CMR}Pointer(fHasValue){$ELSE}fHasValue{$ENDIF} := Nullable.IsEmpty;
     fValue := Default(T);
   end;
 end;
 
+{$IFDEF DELPHIXE7_UP}
+class procedure Nullable<T>.__SuppressWarning(var value);
+begin
+  {$IFDEF CPUX86}{$IFDEF OPTIMIZATION_ON}
+  // cause the compiler to omit push instruction for types that return in eax
+  if GetTypeKind(T) in [tkInteger, tkChar, tkEnumeration, tkClass, tkWChar, tkClassRef, tkPointer, tkProcedure] then
+    T(value) := Default(T);
+  {$ENDIF}{$ENDIF}
+end;
+{$ENDIF}
+
+{$IFNDEF NULLABLE_CMR}
 function Nullable<T>.GetHasValue: Boolean;
 begin
-  Result := fHasValue{$IFNDEF NULLABLE_CMR} <> ''{$ENDIF};
+  Result := Pointer(fHasValue) <> nil;
 end;
+{$ENDIF}
 
 function Nullable<T>.GetValue: T; //FI:W521
 begin
-  if HasValue then
+  if {$IFNDEF NULLABLE_CMR}fHasValue <> nil{$ELSE}HasValue{$ENDIF} then
     Exit(fValue);
   Guard.RaiseNullableHasNoValue;
   __SuppressWarning(Result);
@@ -9098,7 +9200,7 @@ end;
 
 function Nullable<T>.GetValueOrDefault: T;
 begin
-  if HasValue then
+  if {$IFNDEF NULLABLE_CMR}fHasValue <> nil{$ELSE}HasValue{$ENDIF} then
     Result := fValue
   else
     Result := Default(T);
@@ -9106,78 +9208,138 @@ end;
 
 function Nullable<T>.GetValueOrDefault(const defaultValue: T): T;
 begin
-  if HasValue then
+  if {$IFNDEF NULLABLE_CMR}fHasValue <> nil{$ELSE}HasValue{$ENDIF} then
     Result := fValue
   else
     Result := defaultValue;
 end;
 
-class procedure Nullable<T>.InitEquals;
-var
-  method: TRttiMethod;
-begin
-  method := GetEqualsOperator(TypeInfo(T));
-  if Assigned(method) then
-    fEquals := method.CodeAddress;
-  if not Assigned(fEquals) then
-  begin
-    fComparer := _LookupVtableInfo(giEqualityComparer, TypeInfo(T), SizeOf(T));
-    fEquals := Nullable<T>.EqualsComparer;
-  end;
-end;
-
-class function Nullable<T>.EqualsComparer(const left, right: T): Boolean;
-begin
-  Result := IEqualityComparer<T>(fComparer).Equals(left, right);
-end;
-
+{$IFNDEF DELPHIXE7_UP}
 class function Nullable<T>.EqualsInternal(const left, right: T): Boolean;
 begin
   case TType.Kind<T> of
     tkInteger, tkChar, tkEnumeration, tkWChar:
       case SizeOf(T) of
-        1: Result := PByte(@left)^ = PByte(@right)^;
-        2: Result := PWord(@left)^ = PWord(@right)^;
-        4: Result := PCardinal(@left)^ = PCardinal(@right)^;
-      else
-        __SuppressWarning(Result);
+        1: Result := PInt8(@left)^ = PInt8(@right)^;
+        2: Result := PInt16(@left)^ = PInt16(@right)^;
+        4: Result := PInt32(@left)^ = PInt32(@right)^;
+        8: Result := PInt64(@left)^ = PInt64(@right)^;
+      end;
+    tkFloat:
+      case SizeOf(T) of
+        // ftSingle
+        4: Result := PSingle(@left)^ = PSingle(@right)^;
+        // ftDouble, ftCurrency, ftComp
+        8:
+          if TypeInfo(T) = TypeInfo(Double) then
+            Result := PDouble(@left)^ = PDouble(@right)^
+          else if TypeInfo(T) = TypeInfo(Currency) then
+            Result := PInt64(@left)^ = PInt64(@right)^
+          else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+            Result := PDouble(@left)^ = PDouble(@right)^
+          else
+            Result := PInt64(@left)^ = PInt64(@right)^;
+        // ftExtended
+        10, 16: Result := PExtended(@left)^ = PExtended(@right)^;
       end;
     tkString: Result := PShortString(@left)^ = PShortString(@right)^;
     tkLString: Result := PAnsiString(@left)^ = PAnsiString(@right)^;
     tkWString: Result := PWideString(@left)^ = PWideString(@right)^;
-    tkFloat:
-      if TypeInfo(T) = TypeInfo(Single) then
-        Result := Math.SameValue(PSingle(@left)^, PSingle(@right)^)
-      else if TypeInfo(T) = TypeInfo(Double) then
-        Result := Math.SameValue(PDouble(@left)^, PDouble(@right)^)
-      else if TypeInfo(T) = TypeInfo(Extended) then
-        Result := Math.SameValue(PExtended(@left)^, PExtended(@right)^)
-      else if TypeInfo(T) = TypeInfo(TDateTime) then
-        Result := SameDateTime(PDateTime(@left)^, PDateTime(@right)^)
-      else
-        case GetTypeData(TypeInfo(T)).FloatType of
-          ftSingle: Result := Math.SameValue(PSingle(@left)^, PSingle(@right)^);
-          ftDouble: Result := Math.SameValue(PDouble(@left)^, PDouble(@right)^);
-          ftExtended: Result := Math.SameValue(PExtended(@left)^, PExtended(@right)^);
-          ftComp: Result := PComp(@left)^ = PComp(@right)^;
-          ftCurr: Result := PCurrency(@left)^ = PCurrency(@right)^;
-        end;
-    tkInt64: Result := PInt64(@left)^ = PInt64(@right)^;
     tkUString: Result := PUnicodeString(@left)^ = PUnicodeString(@right)^;
   else
-    if not Assigned(fEquals) then
-      InitEquals;
-    Result := fEquals(left, right)
+    Result := CompareHelper.Equals(left, right);
   end;
 end;
+{$ENDIF}
 
 function Nullable<T>.Equals(const other: Nullable<T>): Boolean;
+var
+  hasValue: {$IFNDEF NULLABLE_CMR}Pointer{$ELSE}Boolean{$ENDIF};
 begin
-  if not HasValue then
-    Exit(not other.HasValue);
-  if not other.HasValue then
-    Exit(False);
-  Result := EqualsInternal(fValue, other.fValue);
+  hasValue := {$IFNDEF NULLABLE_CMR}Pointer(fHasValue){$ELSE}fHasValue{$ENDIF};
+  if {$IFNDEF NULLABLE_CMR}other.fHasValue <> nil{$ELSE}other.fHasValue{$ENDIF} then
+    if {$IFNDEF NULLABLE_CMR}hasValue <> nil{$ELSE}hasValue{$ENDIF} then
+      {$IFDEF DELPHIXE7_UP}
+      case GetTypeKind(T) of
+        tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64:
+          case SizeOf(T) of
+            1: Exit(PInt8(@fValue)^ = PInt8(@other.fValue)^);
+            2: Exit(PInt16(@fValue)^ = PInt16(@other.fValue)^);
+            4: Exit(PInt32(@fValue)^ = PInt32(@other.fValue)^);
+            8: Exit(PInt64(@fValue)^ = PInt64(@other.fValue)^);
+          end;
+        tkFloat:
+          case SizeOf(T) of
+            // ftSingle
+            4: Exit(PSingle(@fValue)^ = PSingle(@other.fValue)^);
+            // ftDouble, ftCurrency, ftComp
+            8:
+              if TypeInfo(T) = TypeInfo(Double) then
+                Exit(PDouble(@fValue)^ = PDouble(@other.fValue)^)
+              else if TypeInfo(T) = TypeInfo(Currency) then
+                Exit(PInt64(@fValue)^ = PInt64(@other.fValue)^)
+              else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+                Exit(PDouble(@fValue)^ = PDouble(@other.fValue)^)
+              else
+                Exit(PInt64(@fValue)^ = PInt64(@other.fValue)^);
+            // ftExtended
+            10, 16: Exit(PExtended(@fValue)^ = PExtended(@other.fValue)^);
+          end;
+        tkString: Exit(PShortString(@fValue)^ = PShortString(@other.fValue)^);
+        tkLString: Exit(PAnsiString(@fValue)^ = PAnsiString(@other.fValue)^);
+        tkWString: Exit(PWideString(@fValue)^ = PWideString(@other.fValue)^);
+        tkUString: Exit(PUnicodeString(@fValue)^ = PUnicodeString(@other.fValue)^);
+      else
+        Exit(CompareHelper.Equals(fValue, other.fValue));
+      end
+      {$ELSE}
+      Exit(EqualsInternal(fValue, other.fValue))
+      {$ENDIF}
+    else
+      Exit(False);
+  Result := {$IFNDEF NULLABLE_CMR}hasValue = nil{$ELSE}not hasValue{$ENDIF};
+end;
+
+function Nullable<T>.Equals(const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}other: T): Boolean;
+begin
+  if {$IFNDEF NULLABLE_CMR}fHasValue <> nil{$ELSE}fHasValue{$ENDIF} then
+    {$IFDEF DELPHIXE7_UP}
+    case GetTypeKind(T) of
+      tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64:
+        case SizeOf(T) of
+          1: Exit(PInt8(@fValue)^ = PInt8(@other)^);
+          2: Exit(PInt16(@fValue)^ = PInt16(@other)^);
+          4: Exit(PInt32(@fValue)^ = PInt32(@other)^);
+          8: Exit(PInt64(@fValue)^ = PInt64(@other)^);
+        end;
+      tkFloat:
+        case SizeOf(T) of
+          // ftSingle
+          4: Exit(PSingle(@fValue)^ = PSingle(@other)^);
+          // ftDouble, ftCurrency, ftComp
+          8:
+            if TypeInfo(T) = TypeInfo(Double) then
+              Exit(PDouble(@fValue)^ = PDouble(@other)^)
+            else if TypeInfo(T) = TypeInfo(Currency) then
+              Exit(PInt64(@fValue)^ = PInt64(@other)^)
+            else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+              Exit(PDouble(@fValue)^ = PDouble(@other)^)
+            else
+              Exit(PInt64(@fValue)^ = PInt64(@other)^);
+          // ftExtended
+          10, 16: Exit(PExtended(@fValue)^ = PExtended(@other)^);
+        end;
+      tkString: Exit(PShortString(@fValue)^ = PShortString(@other)^);
+      tkLString: Exit(PAnsiString(@fValue)^ = PAnsiString(@other)^);
+      tkWString: Exit(PWideString(@fValue)^ = PWideString(@other)^);
+      tkUString: Exit(PUnicodeString(@fValue)^ = PUnicodeString(@other)^);
+    else
+      Exit(CompareHelper.Equals(fValue, other));
+    end;
+    {$ELSE}
+    Exit(EqualsInternal(fValue, other));
+    {$ENDIF}
+  Result := False;
 end;
 
 {$IFDEF NULLABLE_CMR}
@@ -9190,13 +9352,16 @@ end;
 class operator Nullable<T>.Implicit(const value: T): Nullable<T>;
 begin
   Result.fValue := value;
-  Result.fHasValue := {$IFNDEF NULLABLE_CMR}Nullable.HasValue{$ELSE}True{$ENDIF};
+  {$IFNDEF NULLABLE_CMR}Pointer(Result.fHasValue){$ELSE}Result.fHasValue{$ENDIF} := Nullable.HasValue;
 end;
 
 {$IFDEF IMPLICIT_NULLABLE}
 class operator Nullable<T>.Implicit(const value: Nullable<T>): T;
 begin
-  Result := value.Value;
+  if {$IFNDEF NULLABLE_CMR}value.fHasValue <> nil{$ELSE}value.fHasValue{$ENDIF} then
+    Exit(value.fValue);
+  Guard.RaiseNullableHasNoValue;
+  __SuppressWarning(Result);
 end;
 {$ENDIF}
 
@@ -9208,95 +9373,265 @@ begin
   begin
     v := TValue.FromVariant(value);
     v.AsType(TypeInfo(T), Result.fValue);
-    Result.fHasValue := {$IFNDEF NULLABLE_CMR}Nullable.HasValue{$ELSE}True{$ENDIF};
+    {$IFNDEF NULLABLE_CMR}Pointer(Result.fHasValue){$ELSE}Result.fHasValue{$ENDIF} := Nullable.HasValue;
   end
   else
-    Result := Default(Nullable<T>);
+  begin
+    {$IFNDEF NULLABLE_CMR}Pointer(Result.fHasValue){$ELSE}Result.fHasValue{$ENDIF} := Nullable.IsEmpty;
+    Result.fValue := Default(T);
+  end;
 end;
 
 class operator Nullable<T>.Explicit(const value: Nullable<T>): T;
 begin
-  Result := value.Value;
+  if {$IFNDEF NULLABLE_CMR}value.fHasValue <> nil{$ELSE}value.fHasValue{$ENDIF} then
+    Exit(value.fValue);
+  Guard.RaiseNullableHasNoValue;
+  __SuppressWarning(Result);
 end;
 
 class operator Nullable<T>.Implicit(const value: Nullable.Null): Nullable<T>;
 begin
   Result.fValue := Default(T);
-  Result.fHasValue := {$IFNDEF NULLABLE_CMR}''{$ELSE}False{$ENDIF};
+  {$IFNDEF NULLABLE_CMR}Pointer(Result.fHasValue){$ELSE}Result.fHasValue{$ENDIF} := Nullable.IsEmpty;
 end;
 
 class operator Nullable<T>.Equal(const left, right: Nullable<T>): Boolean;
+{$IFDEF DELPHIXE7_UP}
+var
+  leftValue: ^Nullable<T>;
+  hasValue: {$IFNDEF NULLABLE_CMR}Pointer{$ELSE}Boolean{$ENDIF};
+begin
+  leftValue := @left.fValue;
+  hasValue := {$IFNDEF NULLABLE_CMR}Pointer(leftValue.fHasValue){$ELSE}leftValue.fHasValue{$ENDIF};
+  if {$IFNDEF NULLABLE_CMR}right.fHasValue <> nil{$ELSE}right.fHasValue{$ENDIF} then
+    if {$IFNDEF NULLABLE_CMR}hasValue <> nil{$ELSE}hasValue{$ENDIF} then
+      case GetTypeKind(T) of
+        tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64:
+          case SizeOf(T) of
+            1: Exit(PInt8(@leftValue.fValue)^ = PInt8(@right.fValue)^);
+            2: Exit(PInt16(@leftValue.fValue)^ = PInt16(@right.fValue)^);
+            4: Exit(PInt32(@leftValue.fValue)^ = PInt32(@right.fValue)^);
+            8: Exit(PInt64(@leftValue.fValue)^ = PInt64(@right.fValue)^);
+          end;
+        tkFloat:
+          case SizeOf(T) of
+            // ftSingle
+            4: Exit(PSingle(@leftValue.fValue)^ = PSingle(@right.fValue)^);
+            // ftDouble, ftCurrency, ftComp
+            8:
+              if TypeInfo(T) = TypeInfo(Double) then
+                Exit(PDouble(@leftValue.fValue)^ = PDouble(@right.fValue)^)
+              else if TypeInfo(T) = TypeInfo(Currency) then
+                Exit(PInt64(@leftValue.fValue)^ = PInt64(@right.fValue)^)
+              else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+                Exit(PDouble(@leftValue.fValue)^ = PDouble(@right.fValue)^)
+              else
+                Exit(PInt64(@leftValue.fValue)^ = PInt64(@right.fValue)^);
+            // ftExtended
+            10, 16: Exit(PExtended(@leftValue.fValue)^ = PExtended(@right.fValue)^);
+          end;
+        tkString: Exit(PShortString(@leftValue.fValue)^ = PShortString(@right.fValue)^);
+        tkLString: Exit(PAnsiString(@leftValue.fValue)^ = PAnsiString(@right.fValue)^);
+        tkWString: Exit(PWideString(@leftValue.fValue)^ = PWideString(@right.fValue)^);
+        tkUString: Exit(PUnicodeString(@leftValue.fValue)^ = PUnicodeString(@right.fValue)^);
+      else
+        Exit(CompareHelper.Equals(leftValue.fValue, right.fValue));
+      end
+    else
+      Exit(Boolean(hasValue));
+  Result := {$IFNDEF NULLABLE_CMR}hasValue = nil{$ELSE}not hasValue{$ENDIF};
+end;
+{$ELSE}
 begin
   Result := left.Equals(right);
 end;
+{$ENDIF}
 
 class operator Nullable<T>.Equal(const left: Nullable<T>;
-  const right: T): Boolean;
+  const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
+{$IFDEF DELPHIXE7_UP}
+var
+  leftValue: ^Nullable<T>;
+  hasValue: {$IFNDEF NULLABLE_CMR}Pointer{$ELSE}Boolean{$ENDIF};
 begin
-  if {$IFDEF NULLABLE_CMR}not {$ENDIF}left.fHasValue{$IFNDEF NULLABLE_CMR} = ''{$ENDIF} then
-    Exit(False);
-  Result := EqualsInternal(left.fValue, right);
+  leftValue := @left.fValue;
+  hasValue := {$IFNDEF NULLABLE_CMR}Pointer(leftValue.fHasValue){$ELSE}leftValue.fHasValue{$ENDIF};
+  if {$IFNDEF NULLABLE_CMR}hasValue <> nil{$ELSE}hasValue{$ENDIF} then
+    case GetTypeKind(T) of
+      tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64:
+        case SizeOf(T) of
+          1: Exit(PInt8(@leftValue.fValue)^ = PInt8(@right)^);
+          2: Exit(PInt16(@leftValue.fValue)^ = PInt16(@right)^);
+          4: Exit(PInt32(@leftValue.fValue)^ = PInt32(@right)^);
+          8: Exit(PInt64(@leftValue.fValue)^ = PInt64(@right)^);
+        end;
+      tkFloat:
+        case SizeOf(T) of
+          // ftSingle
+          4: Exit(PSingle(@leftValue.fValue)^ = PSingle(@right)^);
+          // ftDouble, ftCurrency, ftComp
+          8:
+            if TypeInfo(T) = TypeInfo(Double) then
+              Exit(PDouble(@leftValue.fValue)^ = PDouble(@right)^)
+            else if TypeInfo(T) = TypeInfo(Currency) then
+              Exit(PInt64(@leftValue.fValue)^ = PInt64(@right)^)
+            else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+              Exit(PDouble(@leftValue.fValue)^ = PDouble(@right)^)
+            else
+              Exit(PInt64(@leftValue.fValue)^ = PInt64(@right)^);
+          // ftExtended
+          10, 16: Exit(PExtended(@leftValue.fValue)^ = PExtended(@right)^);
+        end;
+      tkString: Exit(PShortString(@leftValue.fValue)^ = PShortString(@right)^);
+      tkLString: Exit(PAnsiString(@leftValue.fValue)^ = PAnsiString(@right)^);
+      tkWString: Exit(PWideString(@leftValue.fValue)^ = PWideString(@right)^);
+      tkUString: Exit(PUnicodeString(@leftValue.fValue)^ = PUnicodeString(@right)^);
+    else
+      Exit(CompareHelper.Equals(leftValue.fValue, right));
+    end;
+  Result := Boolean(hasValue);
 end;
-
-class operator Nullable<T>.Equal(const left: Nullable<T>;
-  const right: Nullable.Null): Boolean;
+{$ELSE}
 begin
-  Result := {$IFDEF NULLABLE_CMR}not {$ENDIF}left.fHasValue{$IFNDEF NULLABLE_CMR} = ''{$ENDIF};
+  Result := left.Equals(right);
+end;
+{$ENDIF}
+
+class operator Nullable<T>.Equal(const left: Nullable<T>; const right: Nullable.Null): Boolean;
+begin
+  Result := {$IFNDEF NULLABLE_CMR}left.fHasValue = nil{$ELSE}not left.fHasValue{$ENDIF};
 end;
 
 class operator Nullable<T>.NotEqual(const left, right: Nullable<T>): Boolean;
+{$IFDEF DELPHIXE7_UP}
+var
+  leftValue: ^Nullable<T>;
+  hasValue: {$IFNDEF NULLABLE_CMR}Pointer{$ELSE}Boolean{$ENDIF};
+begin
+  leftValue := @left.fValue;
+  hasValue := {$IFNDEF NULLABLE_CMR}Pointer(leftValue.fHasValue){$ELSE}leftValue.fHasValue{$ENDIF};
+  if {$IFNDEF NULLABLE_CMR}right.fHasValue <> nil{$ELSE}right.fHasValue{$ENDIF} then
+    if {$IFNDEF NULLABLE_CMR}hasValue <> nil{$ELSE}hasValue{$ENDIF} then
+      case GetTypeKind(T) of
+        tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64:
+          case SizeOf(T) of
+            1: Exit(PInt8(@leftValue.fValue)^ <> PInt8(@right.fValue)^);
+            2: Exit(PInt16(@leftValue.fValue)^ <> PInt16(@right.fValue)^);
+            4: Exit(PInt32(@leftValue.fValue)^ <> PInt32(@right.fValue)^);
+            8: Exit(PInt64(@leftValue.fValue)^ <> PInt64(@right.fValue)^);
+          end;
+        tkFloat:
+          case SizeOf(T) of
+            // ftSingle
+            4: Exit(PSingle(@leftValue.fValue)^ <> PSingle(@right.fValue)^);
+            // ftDouble, ftCurrency, ftComp
+            8:
+              if TypeInfo(T) = TypeInfo(Double) then
+                Exit(PDouble(@leftValue.fValue)^ <> PDouble(@right.fValue)^)
+              else if TypeInfo(T) = TypeInfo(Currency) then
+                Exit(PInt64(@leftValue.fValue)^ <> PInt64(@right.fValue)^)
+              else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+                Exit(PDouble(@leftValue.fValue)^ <> PDouble(@right.fValue)^)
+              else
+                Exit(PInt64(@leftValue.fValue)^ <> PInt64(@right.fValue)^);
+            // ftExtended
+            10, 16: Exit(PExtended(@leftValue.fValue)^ <> PExtended(@right.fValue)^);
+          end;
+        tkString: Exit(PShortString(@leftValue.fValue)^ <> PShortString(@right.fValue)^);
+        tkLString: Exit(PAnsiString(@leftValue.fValue)^ <> PAnsiString(@right.fValue)^);
+        tkWString: Exit(PWideString(@leftValue.fValue)^ <> PWideString(@right.fValue)^);
+        tkUString: Exit(PUnicodeString(@leftValue.fValue)^ <> PUnicodeString(@right.fValue)^);
+      else
+        Exit(not CompareHelper.Equals(leftValue.fValue, right.fValue));
+      end
+    else
+      Exit(Boolean(hasValue));
+  Result := {$IFNDEF NULLABLE_CMR}hasValue = nil{$ELSE}not hasValue{$ENDIF};
+end;
+{$ELSE}
 begin
   Result := not left.Equals(right);
 end;
+{$ENDIF}
 
 class operator Nullable<T>.NotEqual(const left: Nullable<T>;
-  const right: Nullable.Null): Boolean;
+  const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
+{$IFDEF DELPHIXE7_UP}
+var
+  leftValue: ^Nullable<T>;
+  hasValue: {$IFNDEF NULLABLE_CMR}Pointer{$ELSE}Boolean{$ENDIF};
 begin
-  Result := left.fHasValue{$IFNDEF NULLABLE_CMR} <> ''{$ENDIF};
+  leftValue := @left.fValue;
+  hasValue := {$IFNDEF NULLABLE_CMR}Pointer(leftValue.fHasValue){$ELSE}leftValue.fHasValue{$ENDIF};
+  if {$IFNDEF NULLABLE_CMR}hasValue <> nil{$ELSE}hasValue{$ENDIF} then
+    case GetTypeKind(T) of
+      tkInteger, tkChar, tkEnumeration, tkWChar, tkInt64:
+        case SizeOf(T) of
+          1: Exit(PInt8(@leftValue.fValue)^ <> PInt8(@right)^);
+          2: Exit(PInt16(@leftValue.fValue)^ <> PInt16(@right)^);
+          4: Exit(PInt32(@leftValue.fValue)^ <> PInt32(@right)^);
+          8: Exit(PInt64(@leftValue.fValue)^ <> PInt64(@right)^);
+        end;
+      tkFloat:
+        case SizeOf(T) of
+          // ftSingle
+          4: Exit(PSingle(@leftValue.fValue)^ <> PSingle(@right)^);
+          // ftDouble, ftCurrency, ftComp
+          8:
+            if TypeInfo(T) = TypeInfo(Double) then
+              Exit(PDouble(@leftValue.fValue)^ <> PDouble(@right)^)
+            else if TypeInfo(T) = TypeInfo(Currency) then
+              Exit(PInt64(@leftValue.fValue)^ <> PInt64(@right)^)
+            else if GetTypeInfoData(TypeInfo(T)).FloatType = ftDouble then
+              Exit(PDouble(@leftValue.fValue)^ <> PDouble(@right)^)
+            else
+              Exit(PInt64(@leftValue.fValue)^ <> PInt64(@right)^);
+          // ftExtended
+          10, 16: Exit(PExtended(@leftValue.fValue)^ <> PExtended(@right)^);
+        end;
+      tkString: Exit(PShortString(@leftValue.fValue)^ <> PShortString(@right)^);
+      tkLString: Exit(PAnsiString(@leftValue.fValue)^ <> PAnsiString(@right)^);
+      tkWString: Exit(PWideString(@leftValue.fValue)^ <> PWideString(@right)^);
+      tkUString: Exit(PUnicodeString(@leftValue.fValue)^ <> PUnicodeString(@right)^);
+    else
+      Exit(not CompareHelper.Equals(leftValue.fValue, right));
+    end;
+  Result := Boolean(hasValue);
 end;
-
-class operator Nullable<T>.NotEqual(const left: Nullable<T>;
-  const right: T): Boolean;
+{$ELSE}
 begin
-  if {$IFDEF NULLABLE_CMR}not {$ENDIF}left.fHasValue{$IFNDEF NULLABLE_CMR} = ''{$ENDIF} then
-    Exit(True);
-  Result := not EqualsInternal(left.fValue, right);
+  Result := not left.Equals(right);
+end;
+{$ELSE}
+
+{$ENDIF}
+
+class operator Nullable<T>.NotEqual(const left: Nullable<T>; const right: Nullable.Null): Boolean;
+begin
+  Result := {$IFNDEF NULLABLE_CMR}left.fHasValue <> nil{$ELSE}left.fHasValue{$ENDIF};
 end;
 
 function Nullable<T>.ToString: string;
-var
-  v: TValue;
 begin
-  if HasValue then
-  begin
-    v := TValue.From(TypeInfo(T), fValue);
-    Result := v.ToString;
-  end
-  else
-    Result := 'Null';
+  Result := Nullable.ToString(fValue, fHasValue, TypeInfo(T));
 end;
 
 function Nullable<T>.ToVariant: Variant;
-var
-  v: TValue;
 begin
-  if HasValue then
-  begin
-    v := TValue.From(TypeInfo(T), fValue);
-    if v.IsType(TypeInfo(Boolean)) then
-      Result := v.AsBoolean
-    else
-      Result := v.AsVariant;
-  end
-  else
-    Result := Null;
+  Result := Nullable.ToVariant(fValue, fHasValue, TypeInfo(T));
 end;
 
 function Nullable<T>.TryGetValue(out value: T): Boolean;
+var
+  this: ^Nullable<T>;
+  res: Boolean;
 begin
-  Result := fHasValue{$IFNDEF NULLABLE_CMR} <> ''{$ENDIF};
-  if Result then
-    value := fValue;
+  this := @Self.fValue;
+  res := {$IFNDEF NULLABLE_CMR}this.fHasValue <> nil{$ELSE}this.fHasValue{$ENDIF};
+  if res then
+    value := this.fValue;
+  Result := res;
 end;
 
 {$ENDREGION}
@@ -9333,7 +9668,7 @@ end;
 function TNullableHelper.HasValue(instance: Pointer): Boolean;
 begin
   case fHasValueKind of
-    tkUString: Result := PUnicodeString(PByte(instance) + fHasValueOffset)^ <> '';
+    tkInterface: Result := PPointer(PByte(instance) + fHasValueOffset)^ <> nil;
     tkEnumeration: Result := PBoolean(PByte(instance) + fHasValueOffset)^;
   else
     Result := False;
@@ -9351,11 +9686,13 @@ procedure TNullableHelper.SetValue(instance: Pointer; const value: TValue);
 begin
   value.Cast(fValueType).ExtractRawData(instance);
   case fHasValueKind of //FI:W535
-    tkUString:
+    {$IFNDEF NULLABLE_CMR}
+    tkInterface:
       if IsEmpty(value) then
-        PUnicodeString(PByte(instance) + fHasValueOffset)^ := ''
+        PPointer(PByte(instance) + fHasValueOffset)^ := nil
       else
-        PUnicodeString(PByte(instance) + fHasValueOffset)^ := Nullable.HasValue;
+        PPointer(PByte(instance) + fHasValueOffset)^ := Nullable.HasValue;
+    {$ENDIF}
     tkEnumeration:
       PBoolean(PByte(instance) + fHasValueOffset)^ := not IsEmpty(value);
   end;
