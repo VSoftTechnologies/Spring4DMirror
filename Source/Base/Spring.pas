@@ -1892,6 +1892,8 @@ type
     class operator NotEqual(const left, right: Nullable<T>): Boolean;
     class operator NotEqual(const left: Nullable<T>; const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
     class operator NotEqual(const left: Nullable<T>; const right: Nullable.Null): Boolean; inline;
+    class operator LogicalOr(const left, right: Nullable<T>): Nullable<T>;
+    class operator LogicalOr(const left: Nullable<T>; const right: T): T;
   end;
 
   TNullableString = Nullable<string>;
@@ -9610,6 +9612,29 @@ end;
 class operator Nullable<T>.NotEqual(const left: Nullable<T>; const right: Nullable.Null): Boolean;
 begin
   Result := {$IFNDEF NULLABLE_CMR}left.fHasValue <> nil{$ELSE}left.fHasValue{$ENDIF};
+end;
+
+class operator Nullable<T>.LogicalOr(const left, right: Nullable<T>): Nullable<T>;
+var
+  value: ^Nullable<T>;
+begin
+  value := @left.fValue;
+  if {$IFNDEF NULLABLE_CMR}value.fHasValue = nil{$ELSE}not value.fHasValue{$ENDIF} then
+    value := @right.fValue;
+  Result.fValue := value.fValue;
+  {$IFNDEF NULLABLE_CMR}
+  Pointer(Result.fHasValue) := Pointer(value.fHasValue);
+  {$ELSE}
+  Result.fHasValue := value.fHasValue;
+  {$ENDIF}
+end;
+
+class operator Nullable<T>.LogicalOr(const left: Nullable<T>; const right: T): T;
+begin
+  if {$IFNDEF NULLABLE_CMR}left.fHasValue <> nil{$ELSE}left.fHasValue{$ENDIF} then
+    Result := left.fValue
+  else
+    Result := right;
 end;
 
 function Nullable<T>.ToString: string;
