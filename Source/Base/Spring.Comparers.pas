@@ -677,15 +677,15 @@ end;
 
 function GetHashCode_Single(const inst: Pointer; const value: Single): Integer;
 var
-  bits: Int32;
+  bits: UInt32;
 begin
-  bits := PInt32(@value)^;
+  bits := UInt32(LongRec(value));
 
   if ((bits - 1) and $7FFFFFFF) >= $7F800000 then
     // Ensure that all NaNs and both zeros have the same hash code
     bits := bits and $7F800000;
 
-  Result := DefaultHashFunction(bits, SizeOf(Int32));
+  Result := Integer(bits);
 end;
 
 {$IFDEF ASSEMBLER}
@@ -718,12 +718,12 @@ asm
   movsd   xmm1, qword ptr [esp+12]
   movsd   xmm2, qword ptr [esp+4]
   {$ENDIF}
-  mov     al, 1
   ucomisd xmm1, xmm2
   jne     @@not_equal
   jp      @@not_equal
+  mov     al, 1
   {$IFDEF CPUX86}
-  ret     $10
+  ret     16
   {$ELSE}
   ret
   {$ENDIF}
@@ -734,7 +734,7 @@ asm
   setp    al
   and     al, cl
   {$IFDEF CPUX86}
-  ret 16
+  ret     16
   {$ENDIF}
 end;
 {$ELSE}
@@ -744,18 +744,30 @@ begin
 end;
 {$ENDIF}
 
+{$IFDEF CPUX86}
+function GetHashCode_Double(const inst: Pointer; const bits: UInt64): Integer;
+var
+  hi: Integer;
+begin
+  hi := Int64Rec(bits).Hi;
+  if Int64Rec(bits - 1).Hi and $7FFFFFFF >= $7FF00000 then
+    // Ensure that all NaNs and both zeros have the same hash code
+    Exit(hi and $7FF00000);
+  Result := hi xor Integer(bits);
+end;
+{$ELSE}
 function GetHashCode_Double(const inst: Pointer; const value: Double): Integer;
 var
-  bits: Int64;
+  bits: UInt64;
 begin
-  bits := PInt64(@value)^;
-
-  if ((bits - 1) and $7FFFFFFFFFFFFFFF) >= $7FF0000000000000 then
+  bits := UInt64(Int64Rec(value));
+  Result := Integer(Int64Rec(value).Hi);
+  if Int64Rec(bits - 1).Hi and $7FFFFFFF >= $7FF00000 then
     // Ensure that all NaNs and both zeros have the same hash code
-    bits := bits and $7FF0000000000000;
-
-  Result := DefaultHashFunction(bits, SizeOf(Int64));
+    Exit(Result and $7FF00000);
+  Result := Result xor Integer(bits);
 end;
+{$ENDIF}
 
 function Compare_Extended(const inst: Pointer; const left, right: Extended): Integer;
 begin
@@ -1547,7 +1559,7 @@ begin
     varSingle:
       Exit(GetHashCode_Single(nil, value.VSingle));
     varDouble, varDate:
-      Exit(GetHashCode_Double(nil, value.VDouble));
+      Exit(GetHashCode_Double(nil, {$IFDEF CPUX86}value.VUInt64{$ELSE}value.VDouble{$ENDIF}));
     varString:
       with PShortString(value.VPointer)^ do
         Exit(DefaultHashFunction(Data, Length));
