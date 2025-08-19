@@ -265,6 +265,7 @@ type
 
   {$REGION 'Implements IEnumerable<Integer>'}
     function Contains(const item: Integer): Boolean; overload; inline;
+    function Distinct: IEnumerable<Integer>; overload;
     function GetEnumerator: IEnumerator<Integer>;
     procedure ForEach(const action: Action<Integer>);
     function Ordered: IEnumerable<Integer>; overload;
@@ -1618,6 +1619,11 @@ begin
 
   fStart := start;
   fCount := count;
+end;
+
+function TRangeIterator.Distinct: IEnumerable<Integer>;
+begin
+  Result := Self;
 end;
 
 class procedure TRangeIterator.Empty(var result);
