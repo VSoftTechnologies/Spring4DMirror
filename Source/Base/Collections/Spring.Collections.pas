@@ -6729,6 +6729,31 @@ type
     class function Repeated<T>(const element: T; count: Integer): IReadOnlyList<T>; static;
 
     /// <summary>
+    ///   Projects each element of a sequence into a new form.
+    /// </summary>
+    /// <typeparam name="T">
+    ///   The type of the elements of <c>source</c>.
+    /// </typeparam>
+    /// <typeparam name="TResult">
+    ///   The type of the value returned by <c>selector</c>.
+    /// </typeparam>
+    /// <param name="source">
+    ///   A sequence of values to invoke a transform function on.
+    /// </param>
+    /// <param name="selector">
+    ///   A transform function to apply to each element.
+    /// </param>
+    /// <returns>
+    ///   A sequence whose elements are the result of invoking the transform
+    ///   function on each element of <c>source</c>.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>source</c> or <c>selector</c> is <c>nil</c>.
+    /// </exception>
+    class function Select<T, TResult>(const source: IEnumerable<T>;
+      const selector: Func<T, TResult>): IEnumerable<TResult>; overload; static;
+
+    /// <summary>
     ///   Projects each element of a sequence into a new form by incorporating
     ///   the element's index.
     /// </summary>
@@ -6748,31 +6773,6 @@ type
     /// <returns>
     ///   A sequence whose elements are the result of invoking the transform
     ///   function on each element of <c>source</c>.
-    /// </returns>
-    /// <exception cref="Spring|EArgumentNilException">
-    ///   <c>source</c> or <c>selector</c> is <c>nil</c>.
-    /// </exception>
-    class function Select<T, TResult>(const source: IEnumerable<T>;
-      const selector: Func<T, TResult>): IEnumerable<TResult>; overload; static;
-
-    /// <summary>
-    ///   Projects each element of a sequence into a new form.
-    /// </summary>
-    /// <typeparam name="T">
-    ///   The type of the elements of <c>source</c>.
-    /// </typeparam>
-    /// <typeparam name="TResult">
-    ///   The type of the value returned by <c>selector</c>.
-    /// </typeparam>
-    /// <param name="source">
-    ///   A sequence of values to invoke a transform function on.
-    /// </param>
-    /// <param name="selector">
-    ///   A transform function to apply to each element.
-    /// </param>
-    /// <returns>
-    ///   A sequence whose elements are the result of invoking the transform
-    ///   function on each element of source.
     /// </returns>
     /// <exception cref="Spring|EArgumentNilException">
     ///   <c>source</c> or <c>selector</c> is <c>nil</c>.
