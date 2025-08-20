@@ -11290,7 +11290,13 @@ class function TCollections.CreateQueue<T>(const values: array of T): IQueue<T>;
 var
   i: NativeInt;
 begin // TODO: optimization
-  Result := TQueue<T>.Create(TypeInfo(T), nil);
+{$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkClass: CreateQueue_Object(0, nil, False, Result, TypeInfo(T));
+    tkInterface: CreateQueue_Interface(0, nil, Result, TypeInfo(T));
+  else{$ELSE}begin{$ENDIF}
+    Result := TQueue<T>.Create(TypeInfo(T), nil);
+  end;
   for i := 0 to High(values) do
     Result.Enqueue(values[i]);
 end;
@@ -11299,7 +11305,13 @@ class function TCollections.CreateQueue<T>(const values: IEnumerable<T>): IQueue
 var
   enumerator: IEnumerator<T>;
 begin // TODO: optimization
-  Result := TQueue<T>.Create(TypeInfo(T), nil);
+{$IFDEF DELPHIXE7_UP}
+  case GetTypeKind(T) of
+    tkClass: CreateQueue_Object(0, nil, False, Result, TypeInfo(T));
+    tkInterface: CreateQueue_Interface(0, nil, Result, TypeInfo(T));
+  else{$ELSE}begin{$ENDIF}
+    Result := TQueue<T>.Create(TypeInfo(T), nil);
+  end;
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
     Result.Enqueue(enumerator.Current);
