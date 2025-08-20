@@ -102,9 +102,6 @@ uses
   {$IFDEF MSWINDOWS}
   Windows,
   {$ENDIF}
-  {$IFDEF POSIX}
-  Posix.String_,
-  {$ENDIF}
   Spring,
   Spring.HashTable;
 

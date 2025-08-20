@@ -41,6 +41,9 @@ uses
 {$IFDEF MSWINDOWS}
   Windows,
 {$ENDIF}
+{$IFDEF POSIX}
+  Posix.String_,
+{$ENDIF}
   Classes,
   Diagnostics,
   Generics.Collections,
