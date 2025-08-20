@@ -584,7 +584,7 @@ procedure TEvent.InternalInvokeMethod(UserData: Pointer;
   const Args: TArray<TValue>;
   out Result: TValue); //FI:O804
 var
-  argsWithoutSelf: TArray<TValue>;
+  argCountWithoutSelf: Integer;
   guard: GuardedPointer;
   handlers: PMethodArray;
   i: Integer;
@@ -592,14 +592,17 @@ var
 begin
   if CanInvoke then
   begin
-    argsWithoutSelf := Copy(Args, 1);
+    argCountWithoutSelf := Length(Args) - 1;
     guard := AcquireGuard(fHandlers);
     handlers := guard;
     try
       for i := 0 to DynArrayHigh(handlers) do
       begin
         TValue.Make(@TMethod(handlers[i]), TRttiInvokableType(UserData).Handle, value);
-        TRttiInvokableType(UserData).Invoke(value, argsWithoutSelf);
+        {$R-}
+        // we want to directly pass the given Args further without the first one
+        TRttiInvokableType(UserData).Invoke(value, Slice(TSlice<TValue>((@Args[1])^), argCountWithoutSelf));
+        {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
       end;
     finally
       guard.Release;
