@@ -307,6 +307,7 @@ type
     /// </summary>
     property IsGenericType: Boolean read GetIsGenericType;
 
+    property DeclaringUnitName: string read GetDeclaringUnitName;
     property DefaultName: string read GetDefaultName;
     property AncestorCount: Integer read GetAncestorCount;
   end;
@@ -1033,15 +1034,18 @@ begin
   end;
 end;
 
+type
+  TRttiPackageAccess = class(TRttiNamedObject)
+    function GetNameFromType(AType: TRttiType): string; virtual; abstract;
+  end;
+
 function TRttiTypeHelper.GetDefaultName: string;
 begin
-  if IsPublicType then
-    Result := QualifiedName
-  else
+  Result := TRttiPackageAccess(Package).GetNameFromType(Self);
+  if Result = '' then
     case TypeKind of
-      tkClass: Result := TRttiInstanceType(Self).DeclaringUnitName + '.' + Name;
-      tkInterface: Result := TRttiInterfaceType(Self).DeclaringUnitName + '.' + Name;
-      tkDynArray: Result := TRttiDynamicArrayType(Self).DeclaringUnitName + '.' + Name;
+      tkClass, tkInterface, tkDynArray:
+        Result := DeclaringUnitName + '.' + Name;
     else
       Result := Name;
     end;
@@ -1213,8 +1217,20 @@ begin
 end;
 
 function TRttiTypeHelper.GetIsGenericType: Boolean;
+const
+  OpenBracket: string[1] = '<';
+var
+  handle: PTypeInfo;
+  idx: Integer;
 begin
-  Result := (Pos('<', Name) > 0) and (Pos('>', Name) > 0);
+  handle := TRttiObject(Self).Handle;
+  if handle.Name[Length(handle.Name)] = '>' then
+  begin
+    idx := Pos(OpenBracket, handle.Name);
+    Result := idx > 0;
+  end
+  else
+    Result := False;
 end;
 
 function TRttiTypeHelper.GetIsInterface: Boolean;

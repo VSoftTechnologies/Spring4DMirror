@@ -3396,6 +3396,7 @@ function Pos(const SubStr, Str: UnicodeString; Offset: Integer): Integer; overlo
 {$IFNDEF DELPHIXE7_UP}
 procedure DynArrayAssign(var Dest: Pointer; Source: Pointer; typeInfo: Pointer);
 procedure DynArrayCopyRange(var Result: Pointer; A: Pointer; TypeInfo: Pointer; Index, Count: NativeInt);
+procedure DynArrayUnique(var A: Pointer; typeInfo: Pointer);
 {$ENDIF}
 
 procedure PlatformNotImplemented;
@@ -3749,6 +3750,26 @@ asm
 {$ENDIF}
 end;
 
+procedure DynArrayUnique(var A: Pointer; typeInfo: Pointer);
+asm
+{$IFDEF CPUX64}
+  mov r8,rdx
+  mov rdx,[rcx]
+  cmp rdx,0
+  jz @done
+  cmp [rdx-12],1
+  jle @done
+{$ELSE}
+  mov ecx,eax
+  mov eax,[eax]
+  cmp eax,0
+  jz @done
+  cmp [eax-8],1
+  jle @done
+{$ENDIF}
+  jmp System.@DynArrayCopy
+@done:
+end;
 {$ENDIF}
 
 {$IFNDEF DELPHIXE2_UP}{$IFNDEF STACKFRAMES_ON}{$W+}{$ENDIF}{$ENDIF}
@@ -4201,27 +4222,58 @@ begin
     Result := nil;
 end;
 
-const
-  LazyPrefixStrings: array[lkFunc..High(TLazyKind)] of string = (
-    'Func<', 'Lazy<', 'ILazy<');
+function GetGenericTypeParameterCount(const typeName: TSymbolName): Integer;
+var
+  index: NativeInt;
+  level: Integer;
+begin
+  Result := 0;
+  if typeName[Length(typeName)] = '>' then
+  begin
+    level := 0;
+    index := 1;
+    while index <= Length(typeName) do
+    begin
+      case typeName[index] of
+        ',': if level = 1 then Inc(Result);
+        '<': Inc(level);
+        '>': if level = 1 then Inc(Result) else Dec(level);
+      end;
+      Inc(index);
+    end;
+  end;
+end;
 
 function GetLazyKind(typeInfo: PTypeInfo): TLazyKind;
+const
+  SupportedTypes: array[0..3] of record Name: AnsiString; Kind: TLazyKind end = (
+    (Name: 'Lazy<'; Kind: lkRecord),
+    (Name: 'Func<'; Kind: lkFunc),
+    (Name: 'TFunc<'; Kind: lkFunc),
+    (Name: 'ILazy<'; Kind: lkInterface)
+  );
 var
-  name: string;
+  i: NativeInt;
+  len: Integer;
 begin
-  if Assigned(typeInfo) then
-  begin
-    name := typeInfo.TypeName;
-    for Result := lkFunc to High(TLazyKind) do
-      if (StartsText(LazyPrefixStrings[Result], name)
-        or ((Result = lkFunc) and StartsText('T' + LazyPrefixStrings[Result], name)))
-        and (Length(GetGenericTypeParameters(name)) = 1) then
-        Exit;
-  end;
+  if Assigned(typeInfo) and (typeInfo.Kind in [tkRecord, tkInterface])
+    and (GetGenericTypeParameterCount(typeInfo.Name) = 1) then
+    for i := 0 to High(SupportedTypes) do
+    begin
+      {$POINTERMATH ON}
+      len := PInteger(SupportedTypes[i].Name)[-1];
+      {$POINTERMATH OFF}
+      if (len < Length(typeInfo.Name))
+        and (BinaryCompare(Pointer(SupportedTypes[i].Name), @typeInfo.Name[1], len) = 0) then
+        Exit(SupportedTypes[i].Kind);
+    end;
   Result := lkNone;
 end;
 
 function GetLazyTypeName(typeInfo: PTypeInfo): string;
+const
+  LazyPrefixStrings: array[lkFunc..High(TLazyKind)] of string = (
+    'Func<', 'Lazy<', 'ILazy<');
 var
   lazyKind: TLazyKind;
   name: string;
