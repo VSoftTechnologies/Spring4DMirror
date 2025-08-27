@@ -316,11 +316,10 @@ begin
     enumerator := other.GetEnumerator;
     while enumerator.MoveNext do
     begin
-      {$IFDEF RSP31615}
+      {$IFDEF MANAGED_TYPE_RVO_BROKEN}
       if IsManagedType(T) then
         IEnumeratorInternal(enumerator).GetCurrent(item)
-      else
-      {$ENDIF}
+      else{$ENDIF}
       item := enumerator.Current;
       entry.HashCode := IEqualityComparer<T>(fHashTable.Comparer).GetHashCode(item);
       if fHashTable.FindEntry(item, entry) then
@@ -469,11 +468,10 @@ begin
     enumerator := other.GetEnumerator;
     while enumerator.MoveNext do
     begin
-      {$IFDEF RSP31615}
+      {$IFDEF MANAGED_TYPE_RVO_BROKEN}
       if IsManagedType(T) then
         IEnumeratorInternal(enumerator).GetCurrent(current)
-      else
-      {$ENDIF}
+      else{$ENDIF}
       current := enumerator.Current;
       entry.HashCode := IEqualityComparer<T>(fHashTable.Comparer).GetHashCode(current);
       if fHashTable.FindEntry(current, entry) then
@@ -586,7 +584,7 @@ var
   count: Integer;
   find: TFindMethod<T>;
   enumerator: IEnumerator<T>;
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   item: T;
   {$ENDIF}
 begin
@@ -606,14 +604,12 @@ begin
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
     begin
       IEnumeratorInternal(enumerator).GetCurrent(item);
       Result := Assigned(find(item));
-    end
-    else
-    {$ENDIF}
+    end else{$ENDIF}
     Result := Assigned(find(enumerator.Current));
     if not Result then
       Exit;
@@ -650,7 +646,7 @@ function THashSet<T>.Overlaps(const other: IEnumerable<T>): Boolean;
 var
   find: TFindMethod<T>;
   enumerator: IEnumerator<T>;
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   item: T;
   {$ENDIF}
 begin
@@ -668,14 +664,12 @@ begin
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
     begin
       IEnumeratorInternal(enumerator).GetCurrent(item);
       Result := Assigned(find(item));
-    end
-    else
-    {$ENDIF}
+    end else{$ENDIF}
     Result := Assigned(find(enumerator.Current));
     if Result then
       Exit;
@@ -906,11 +900,10 @@ begin
   begin
     if count >= capacity then
       capacity := DynArrayGrow(Pointer(items), TypeInfo(TArray<T>), capacity);
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO}
     if IsManagedType(T) then
       IEnumeratorInternal(enumerator).GetCurrent(items[count])
-    else
-    {$ENDIF}
+    else{$ENDIF}
     items[count] := enumerator.Current;
     Inc(count, Ord(not other.Contains(items[count])));
   end;
@@ -929,7 +922,9 @@ end;
 function TSortedSet<T>.IsSubsetOf(const other: IEnumerable<T>): Boolean;
 var
   enumerator: IEnumerator<T>;
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   item: T;
+  {$ENDIF}
 begin
   if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
@@ -937,14 +932,15 @@ begin
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
-      IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
-    item := enumerator.Current;
-    if not other.Contains(item) then
-      Exit(False);
+    begin
+      IEnumeratorInternal(enumerator).GetCurrent(item);
+      Result := other.Contains(item);
+    end else{$ENDIF}
+    Result := other.Contains(enumerator.Current);
+    if not Result then
+      Exit;
   end;
 
   Result := True;
@@ -953,7 +949,9 @@ end;
 function TSortedSet<T>.IsSupersetOf(const other: IEnumerable<T>): Boolean;
 var
   enumerator: IEnumerator<T>;
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   item: T;
+  {$ENDIF}
 begin
   if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
@@ -961,14 +959,15 @@ begin
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
-      IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
-    item := enumerator.Current;
-    if not IEnumerable<T>(this).Contains(item) then
-      Exit(False);
+    begin
+      IEnumeratorInternal(enumerator).GetCurrent(item);
+      Result := IEnumerable<T>(this).Contains(item);
+    end else{$ENDIF}
+    Result := IEnumerable<T>(this).Contains(enumerator.Current);
+    if not Result then
+      Exit;
   end;
 
   Result := True;
@@ -990,28 +989,29 @@ begin
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
       IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
+    else{$ENDIF}
     item := enumerator.Current;
     localSet.Add(item);
-    if not IEnumerable<T>(this).Contains(item) then
-      Exit(False);
+    Result := IEnumerable<T>(this).Contains(item);
+    if not Result then
+      Exit;
   end;
 
   enumerator := IEnumerable<T>(this).GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
-      IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
-    item := enumerator.Current;
-    if not localSet.Contains(item) then
-      Exit(False);
+    begin
+      IEnumeratorInternal(enumerator).GetCurrent(item);
+      Result := localSet.Contains(item);
+    end else{$ENDIF}
+    Result := localSet.Contains(enumerator.Current);
+    if not Result then
+      Exit;
   end;
 
   Result := True;
@@ -1020,21 +1020,24 @@ end;
 function TSortedSet<T>.Overlaps(const other: IEnumerable<T>): Boolean;
 var
   enumerator: IEnumerator<T>;
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   item: T;
+  {$ENDIF}
 begin
   if not Assigned(other) then RaiseHelper.ArgumentNil(ExceptionArgument.other);
 
   enumerator := other.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
-      IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
-    item := enumerator.Current;
-    if IEnumerable<T>(this).Contains(item) then
-      Exit(True);
+    begin
+      IEnumeratorInternal(enumerator).GetCurrent(item);
+      Result := IEnumerable<T>(this).Contains(item);
+    end else{$ENDIF}
+    Result := IEnumerable<T>(this).Contains(enumerator.Current);
+    if Result then
+      Exit;
   end;
 
   Result := False;

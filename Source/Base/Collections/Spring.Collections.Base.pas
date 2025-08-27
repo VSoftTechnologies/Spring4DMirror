@@ -684,7 +684,7 @@ type
 
   TCollectionThunks<T> = record
   public type
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO}
     FuncInternal = reference to procedure({$IFDEF CPUX64}var result;{$ENDIF}const arg1, arg2: T{$IFDEF CPUX86}; var result{$ENDIF});
     {$ENDIF}
     ICollectionInternal = interface(IReadOnlyCollection<T>)
@@ -695,7 +695,7 @@ type
       // internal helper type to solve compiler issue with using Slice on the
       // overloaded AddRange method in older Delphi versions
       procedure AddRange(const values: array of T);
-      {$IFDEF RSP31615}overload;
+      {$IFDEF MANAGED_TYPE_RVO}overload;
       procedure AddRange(const values: IEnumerable<T>); overload;
       procedure Extract({$IFDEF CPUX64}var result; {$ENDIF}const item: T{$IFDEF CPUX86}; var result{$ENDIF});
       {$ENDIF}
@@ -3403,17 +3403,19 @@ end;
 function TEnumerableBase<T>.TEnumerator.GetCurrent: TIndexedItem<T>;
 begin
   Result.Index := fIndex;
-  {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+  {$IFDEF MANAGED_TYPE_RVO}
   if IsManagedType(T) then
     IEnumeratorInternal(fEnumerator).GetCurrent(Result.Item)
-  else if GetTypeKind(T) in [tkInteger, tkChar, tkWChar, tkEnumeration, tkInt64, tkClassRef, tkPointer, tkProcedure] then
+  else{$ENDIF}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
+  if GetTypeKind(T) in [tkInteger, tkChar, tkWChar, tkEnumeration, tkInt64, tkClassRef, tkPointer, tkProcedure] then
     case SizeOf(T) of
       1: PInt8(@Result.Item)^ := IEnumerator<Int8>(fEnumerator).Current;
       2: PInt16(@Result.Item)^ := IEnumerator<Int16>(fEnumerator).Current;
       4: PInt32(@Result.Item)^ := IEnumerator<Int32>(fEnumerator).Current;
       8: PInt64(@Result.Item)^ := IEnumerator<Int64>(fEnumerator).Current;
     end
-  else{$IFEND}
+  else{$ENDIF}
   Result.Item := fEnumerator.Current;
 end;
 
@@ -3674,10 +3676,19 @@ end;
 
 procedure TCollectionBase<T>.ExtractRange(const values: array of T);
 var
-  i: Integer;
+  this: Pointer;
+  i: NativeInt;
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
+  res: T;
+  {$ENDIF}
 begin
-  for i := 0 to High(values) do
-    ICollection<T>(this).Extract(values[i]);
+  this := Self.this;
+  for i := 1 to Length(values) do
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
+    if IsManagedType(T) then
+      TCollectionThunks<T>.ICollectionInternal(this).Extract({$IFDEF CPUX64}res, {$ENDIF}values[i-1]{$IFDEF CPUX86}, res{$ENDIF})
+    else{$ENDIF}
+      ICollection<T>(this).Extract(values[i-1]);
 end;
 
 procedure TCollectionBase<T>.ExtractRange(const values: IEnumerable<T>);
@@ -4072,11 +4083,10 @@ end;
 
 function THashMapInnerCollection<T>.TEnumerator.GetCurrent_Values: T;
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(fEnumerator).GetCurrent(Result)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   Result := fEnumerator.Current;
 end;
 
@@ -4386,14 +4396,12 @@ end;
 
 function TTreeMapInnerCollection<T>.TEnumerator.GetCurrent_Values: T;
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(fEnumerator).GetCurrent(Result)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   Result := fEnumerator.Current;
 end;
-
 
 {$ENDREGION}
 
@@ -4835,20 +4843,18 @@ end;
 
 class function TMapBase<TKey, TValue>.RemoveCurrentFromCollection(
   const enumerator: IEnumerator<TKey>; const collection: IMap<TKey, TValue>): Boolean;
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   key: TKey;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(TKey) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(key);
     Result := IMap<TKey, TValue>(collection).Remove(key);
-  end
-  else
-  {$ENDIF}
-  Result := IMap<TKey, TValue>(collection).Remove(IEnumerator<TKey>(enumerator).Current);
+  end else{$ENDIF}
+  Result := IMap<TKey, TValue>(collection).Remove(enumerator.Current);
 end;
 
 function TMapBase<TKey, TValue>.RemoveRange(const keys: array of TKey): Integer;
@@ -5488,11 +5494,10 @@ begin
       i := 0;
     Index := i + 1;
     Current := Items[i];
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Items[i])
-    else
-    {$ENDIF}
+    else{$ENDIF}
     Items[i] := Enumerator.Current;
     Result := True;
   end;
@@ -5628,19 +5633,17 @@ end;
 
 class function TCollectionThunks<T>.AddCurrentToCollection(
   const enumerator, collection: IInterface): Boolean;
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   item: T;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
     Result := ICollection<T>(collection).Add(item);
-  end
-  else
-  {$ENDIF}
+  end else{$ENDIF}
   Result := ICollection<T>(collection).Add(IEnumerator<T>(enumerator).Current);
 end;
 
@@ -5652,20 +5655,18 @@ end;
 
 class procedure TCollectionThunks<T>.AggregateCurrentWithValue(
   const enumerator, func: IInterface; var result);
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO}
 var
   item, res: T;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO}
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
     FuncInternal(func)({$IFDEF CPUX64}res, {$ENDIF}T(result), item{$IFDEF CPUX86}, res{$ENDIF});
     T(result) := res;
-  end
-  else
-  {$ENDIF}
+  end else{$ENDIF}
   T(result) := Func<T,T,T>(func)(T(result), IEnumerator<T>(enumerator).Current);
 end;
 
@@ -5675,19 +5676,17 @@ begin
 end;
 
 class procedure TCollectionThunks<T>.CallActionOnCurrent(const enumerator, action: IInterface);
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   item: T;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
     Action<T>(action)(item);
-  end
-  else
-  {$ENDIF}
+  end else{$ENDIF}
   Action<T>(action)(IEnumerator<T>(enumerator).Current);
 end;
 
@@ -5699,41 +5698,37 @@ end;
 
 class function TCollectionThunks<T>.EqualsCurrentWithOtherEnumerator(
   const enumerator1, enumerator2, comparer: IInterface): Boolean;
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   item1, item2: T;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator1).GetCurrent(item1);
     IEnumeratorInternal(enumerator2).GetCurrent(item2);
     Result := IEqualityComparer<T>(comparer).Equals(item1, item2);
-  end
-  else
-  {$ENDIF}
+  end else{$ENDIF}
   Result := IEqualityComparer<T>(comparer).Equals(
     IEnumerator<T>(enumerator1).Current, IEnumerator<T>(enumerator2).Current);
 end;
 
 class function TCollectionThunks<T>.EqualsCurrentWithArrayElement(
   const enumerator: IInterface; comparer, values: Pointer; index: NativeInt): Boolean;
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   item: T;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
     {$R-}
     Result := IEqualityComparer<T>(comparer).Equals(item, TArray<T>(values)[index]);
     {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
-  end
-  else
-  {$ENDIF}
+  end else{$ENDIF}
   {$R-}
   Result := IEqualityComparer<T>(comparer).Equals(
     IEnumerator<T>(enumerator).Current, TArray<T>(values)[index]);
@@ -5742,53 +5737,44 @@ end;
 
 class function TCollectionThunks<T>.EqualsCurrentWithValue(
   const enumerator, comparer: IInterface; const value): Boolean;
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   item: T;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
-    {$R-}
     Result := IEqualityComparer<T>(comparer).Equals(item, T(value));
-    {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
-  end
-  else
-  {$ENDIF}
-  {$R-}
+  end else{$ENDIF}
   Result := IEqualityComparer<T>(comparer).Equals(
     IEnumerator<T>(enumerator).Current, T(value));
-  {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
 end;
 
 class function TCollectionThunks<T>.ExtractCurrentFromCollection(
   const enumerator, collection: IInterface): Boolean;
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   item, res: T;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
     ICollectionInternal(collection).Extract({$IFDEF CPUX64}res, {$ENDIF}item{$IFDEF CPUX86}, res{$ENDIF});
-  end
-  else
-  {$ENDIF}
+  end else{$ENDIF}
   ICollection<T>(collection).Extract(IEnumerator<T>(enumerator).Current);
   Result := True;
 end;
 
 class procedure TCollectionThunks<T>.GetCurrent(const enumerator: IInterface; var value);
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO}
   if IsManagedType(T) then
     IEnumeratorInternal(enumerator).GetCurrent(value)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   T(value) := IEnumerator<T>(enumerator).Current;
 end;
 
@@ -5797,11 +5783,10 @@ class procedure TCollectionThunks<T>.GetCurrentIfGreaterThan(const enumerator,
 var
   item: T;
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(enumerator).GetCurrent(item)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   item := IEnumerator<T>(enumerator).Current;
   if IComparer<T>(comparer).Compare(item, T(result)) > 0 then
     T(result) := item;
@@ -5812,11 +5797,10 @@ class procedure TCollectionThunks<T>.GetCurrentIfLessThan(const enumerator,
 var
   item: T;
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(enumerator).GetCurrent(item)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   item := IEnumerator<T>(enumerator).Current;
   if IComparer<T>(comparer).Compare(item, T(result)) < 0 then
     T(result) := item;
@@ -5826,11 +5810,10 @@ class function TCollectionThunks<T>.GetCurrentWithPredicate(const enumerator, pr
 var
   item: T;
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(enumerator).GetCurrent(item)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   item := IEnumerator<T>(enumerator).Current;
   Result := Predicate<T>(predicate)(item);
   if Result then
@@ -5839,11 +5822,10 @@ end;
 
 class function TCollectionThunks<T>.GetCurrentWithSelector(const enumerator, selector: IInterface): T;
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(enumerator).GetCurrent(Result)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   Result := IEnumerator<T>(enumerator).Current;
 end;
 
@@ -5867,19 +5849,17 @@ end;
 
 class function TCollectionThunks<T>.RemoveCurrentFromCollection(
   const enumerator, collection: IInterface): Boolean;
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   item: T;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
     Result := ICollection<T>(collection).Remove(item);
-  end
-  else
-  {$ENDIF}
+  end else{$ENDIF}
   Result := ICollection<T>(collection).Remove(IEnumerator<T>(enumerator).Current);
 end;
 
@@ -5890,20 +5870,19 @@ end;
 
 class function TCollectionThunks<T1, T2>.GetCurrentWithSelector(
   const enumerator, selector: IInterface): T2;
-{$IFDEF RSP31615}
+{$IFDEF MANAGED_TYPE_RVO_BROKEN}
 var
   item: T1;
 {$ENDIF}
 begin
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T1) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
     Result := Func<T1, T2>(selector)(item);
-  end
-  else
-  {$ENDIF}
+  end else{$ENDIF}
   Result := Func<T1, T2>(selector)(IEnumerator<T1>(enumerator).Current);
+  // TODO optimization for T2 RVO
 end;
 
 {$ENDREGION}

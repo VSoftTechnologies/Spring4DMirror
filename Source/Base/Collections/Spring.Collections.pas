@@ -12532,20 +12532,18 @@ begin
   if not enumerator.MoveNext then
     RaiseHelper.NoElements;
 
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(enumerator).GetCurrent(Result)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   Result := enumerator.Current;
   maxKey := keySelector(Result);
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
       IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
+    else{$ENDIF}
     item := enumerator.Current;
     key := keySelector(item);
     if comparer.Compare(key, maxKey) > 0 then
@@ -12580,20 +12578,18 @@ begin
   if not enumerator.MoveNext then
     RaiseHelper.NoElements;
 
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(enumerator).GetCurrent(Result)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   Result := enumerator.Current;
   minKey := keySelector(Result);
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
       IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
+    else{$ENDIF}
     item := enumerator.Current;
     key := keySelector(item);
     if comparer.Compare(key, minKey) < 0 then

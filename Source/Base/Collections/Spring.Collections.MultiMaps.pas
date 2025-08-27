@@ -535,11 +535,10 @@ end;
 function TCollectionWrapper<T>.TEnumerator.GetCurrent: T;
 begin
   TCollectionWrapper.TEnumerator(Self).ValidateEnumerator;
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO_BROKEN}
   if IsManagedType(T) then
     IEnumeratorInternal(fEnumerator).GetCurrent(Result)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   Result := fEnumerator.Current;
 end;
 
@@ -694,11 +693,10 @@ begin
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(TValue) then
       IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
+    else{$ENDIF}
     item := enumerator.Current;
     TryAdd(key, item);
   end;
@@ -768,11 +766,10 @@ begin
   enumerator := item.values.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(TValue) then
       IEnumeratorInternal(enumerator).GetCurrent(value)
-    else
-    {$ENDIF}
+    else{$ENDIF}
     value := enumerator.Current;
     if Assigned(Notify) then
       DoNotify(item.key, value, action);
@@ -837,12 +834,11 @@ begin
   if Assigned(item) then
   begin
     count := item.Values.Count;
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO}
     if IsManagedType(TValue) then
       TCollectionThunks<TValue>.ICollectionInternal(item.Values).Extract(
         {$IFDEF CPUX64}Result.Value, {$ENDIF}value{$IFDEF CPUX86}, Result.Value{$ENDIF})
-    else
-    {$ENDIF}
+    else{$ENDIF}
     Result.Value := item.Values.Extract(value);
     newCount := item.Values.Count;
     if newCount < count then
@@ -1012,11 +1008,10 @@ end;
 function TMultiMap<TKey, TValue>.TEnumerator.GetCurrent: TKeyValuePair;
 begin
   Result.Key := fItem.Key;
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO}
   if IsManagedType(TValue) then
     IEnumeratorInternal(fEnumerator).GetCurrent(Result.Value)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   Result.Value := fEnumerator.Current;
 end;
 
@@ -1139,11 +1134,10 @@ begin
   enumerator := values.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(TValue) then
       IEnumeratorInternal(enumerator).GetCurrent(item)
-    else
-    {$ENDIF}
+    else{$ENDIF}
     item := enumerator.Current;
     TryAdd(key, item);
   end;
@@ -1215,11 +1209,10 @@ begin
   enumerator := node.values.GetEnumerator;
   while enumerator.MoveNext do
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(TValue) then
       IEnumeratorInternal(enumerator).GetCurrent(value)
-    else
-    {$ENDIF}
+    else{$ENDIF}
     value := enumerator.Current;
     if Assigned(Notify) then
       DoNotify(node.key, value, action);
@@ -1286,12 +1279,11 @@ begin
   if Assigned(node) then
   begin
     count := node.Values.Count;
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO}
     if IsManagedType(TValue) then
       TCollectionThunks<TValue>.ICollectionInternal(node.Values).Extract(
         {$IFDEF CPUX64}Result.Value, {$ENDIF}value{$IFDEF CPUX86}, Result.Value{$ENDIF})
-    else
-    {$ENDIF}
+    else{$ENDIF}
     Result.Value := node.Values.Extract(value);
     newCount := node.Values.Count;
     if newCount < count then
@@ -1458,11 +1450,10 @@ end;
 function TSortedMultiMap<TKey, TValue>.TEnumerator.GetCurrent: TKeyValuePair;
 begin
   Result.Key := fNode.Key;
-  {$IFDEF RSP31615}
+  {$IFDEF MANAGED_TYPE_RVO}
   if IsManagedType(TValue) then
     IEnumeratorInternal(fEnumerator).GetCurrent(Result.Value)
-  else
-  {$ENDIF}
+  else{$ENDIF}
   Result.Value := fEnumerator.Current;
 end;
 

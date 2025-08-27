@@ -4289,11 +4289,10 @@ function TIndexedIterator<T>.TryMoveNext(var current: TIndexedItem<T>): Boolean;
 begin
   if Assigned(fEnumerator) and fEnumerator.MoveNext then
   begin
-    {$IFDEF RSP31615}
+    {$IFDEF MANAGED_TYPE_RVO}
     if IsManagedType(T) then
       IEnumeratorInternal(fEnumerator).GetCurrent(current.Item)
-    else
-    {$ENDIF}
+    else{$ENDIF}
     current.Item := fEnumerator.Current;
     {$Q-}
     Inc(current.Index);
