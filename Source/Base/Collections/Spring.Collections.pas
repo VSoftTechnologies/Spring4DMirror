@@ -12513,7 +12513,7 @@ class function TEnumerable.MaxBy<T, TKey>(const source: IEnumerable<T>;
 var
   keyComparer: Pointer;
 begin
-  keyComparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+  keyComparer := _LookupVtableInfo(giComparer, TypeInfo(TKey), SizeOf(TKey));
   Result := MaxBy<T, TKey>(source, keySelector, IComparer<TKey>(keyComparer));
 end;
 
@@ -12561,7 +12561,7 @@ class function TEnumerable.MinBy<T, TKey>(const source: IEnumerable<T>;
 var
   keyComparer: Pointer;
 begin
-  keyComparer := _LookupVtableInfo(giComparer, TypeInfo(T), SizeOf(T));
+  keyComparer := _LookupVtableInfo(giComparer, TypeInfo(TKey), SizeOf(TKey));
   Result := MinBy<T, TKey>(source, keySelector, IComparer<TKey>(keyComparer));
 end;
 
