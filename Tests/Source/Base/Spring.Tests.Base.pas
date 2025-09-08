@@ -85,6 +85,8 @@ type
     procedure TestLocalVariable;
     procedure TestFromVariant;
     procedure TestEquals;
+    procedure TestEqualsOperator;
+    procedure TestNotEqualsOperator;
     procedure TestDefaultReturnsInitialValue;
     procedure TestAssignFloat;
     procedure TestAssignStringNonInt;
@@ -1098,9 +1100,73 @@ begin
 
   b := 2;
   CheckTrue(a.Equals(b));
+  CheckTrue(b.Equals(a));
 
   b := 3;
   CheckFalse(a.Equals(b));
+  CheckFalse(b.Equals(a));
+
+  a := nil;
+  CheckFalse(a.Equals(b));
+  CheckFalse(b.Equals(a));
+end;
+
+procedure TTestNullableInteger.TestEqualsOperator;
+var
+  a, b: Nullable<Integer>;
+begin
+  CheckTrue(a = b);
+  CheckTrue(b = a);
+  CheckTrue(a = nil);
+
+  a := 2;
+  CheckFalse(a = b);
+  CheckFalse(b = a);
+  CheckFalse(a = nil);
+
+  b := 2;
+  CheckTrue(a = b);
+  CheckTrue(b = a);
+  CheckTrue(a = 2);
+
+  b := 3;
+  CheckFalse(a = b);
+  CheckFalse(b = a);
+  CheckFalse(a = 3);
+
+  a := nil;
+  CheckFalse(a = b);
+  CheckFalse(b = a);
+  CheckFalse(a = 3);
+end;
+
+procedure TTestNullableInteger.TestNotEqualsOperator;
+var
+  a, b: Nullable<Integer>;
+begin
+  CheckFalse(a <> b);
+  CheckFalse(b <> a);
+  CheckFalse(a <> nil);
+
+  a := 2;
+  CheckTrue(a <> b);
+  CheckTrue(b <> a);
+  CheckTrue(a <> nil);
+
+  b := 2;
+  CheckFalse(a <> b);
+  CheckFalse(b <> a);
+  CheckFalse(a <> 2);
+
+  b := 3;
+  CheckTrue(a <> b);
+  CheckTrue(b <> a);
+  CheckTrue(a <> 3);
+
+  a := nil;
+  CheckTrue(a <> b);
+  CheckTrue(b <> a);
+  CheckTrue(a <> 3);
 end;
 
 {$ENDREGION}

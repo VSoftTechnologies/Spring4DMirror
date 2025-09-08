@@ -9603,8 +9603,8 @@ begin
         Exit(not CompareHelper.Equals(leftValue.fValue, right.fValue));
       end
     else
-      Exit(Boolean(hasValue));
-  Result := {$IFNDEF NULLABLE_CMR}hasValue = nil{$ELSE}not hasValue{$ENDIF};
+      Exit(True);
+  Result := {$IFNDEF NULLABLE_CMR}hasValue <> nil{$ELSE}hasValue{$ENDIF};
 end;
 {$ELSE}
 begin
@@ -9654,7 +9654,7 @@ begin
     else
       Exit(not CompareHelper.Equals(leftValue.fValue, right));
     end;
-  Result := Boolean(hasValue);
+  Result := True;
 end;
 {$ELSE}
 begin
