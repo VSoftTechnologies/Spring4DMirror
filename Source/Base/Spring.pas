@@ -3869,6 +3869,7 @@ var
   intf: IInterface;
   enumerable: IEnumerable;
   obj: TObject;
+  cls: TClass;
 begin
   case value.Kind of
     tkFloat:
@@ -3883,7 +3884,10 @@ begin
     tkClass:
     begin
       obj := value.AsObject;
-      Result := Format('%s($%x)', [StripUnitName(obj.ClassName), NativeInt(obj)]);
+      if Assigned(obj) then
+        Result := Format('%s($%x)', [StripUnitName(obj.ClassName), NativeInt(obj)])
+      else
+        Result := 'nil';
     end;
     tkInterface:
     begin
@@ -3893,8 +3897,11 @@ begin
       else
       begin
         obj := intf as TObject;
-        Result := Format('%s($%x) as %s', [StripUnitName(obj.ClassName),
-          NativeInt(intf), StripUnitName(value.TypeInfo.TypeName)]);
+        if Assigned(obj) then
+          Result := Format('%s($%x) as %s', [StripUnitName(obj.ClassName),
+            NativeInt(intf), StripUnitName(value.TypeInfo.TypeName)])
+        else
+          Result := 'nil';
       end;
     end;
     tkArray, tkDynArray:
@@ -3907,7 +3914,13 @@ begin
     tkString, tkLString, tkWString, tkUString:
       Result := QuotedStr(value.ToString);
     tkClassRef:
-      Result := value.AsClass.ClassName;
+    begin
+      cls := value.AsClass;
+      if Assigned(cls) then
+        Result := cls.ClassName
+      else
+        Result := 'nil';
+    end;
     tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
       Result := FormatRecord(value);
   else
