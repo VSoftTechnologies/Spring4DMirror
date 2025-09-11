@@ -1890,10 +1890,10 @@ type
     class operator Explicit(const value: Nullable<T>): T; inline;
 
     class operator Equal(const left, right: Nullable<T>): Boolean;
-    class operator Equal(const left: Nullable<T>; const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
+    class operator Equal(const left: Nullable<T>; {$IFDEF SUPPORTS_CONSTREF}{$IFNDEF CONSTREF_BROKEN}[ref]{$ENDIF}{$ENDIF} const right: T): Boolean;
     class operator Equal(const left: Nullable<T>; const right: Nullable.Null): Boolean; inline;
     class operator NotEqual(const left, right: Nullable<T>): Boolean;
-    class operator NotEqual(const left: Nullable<T>; const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
+    class operator NotEqual(const left: Nullable<T>; {$IFDEF SUPPORTS_CONSTREF}{$IFNDEF CONSTREF_BROKEN}[ref]{$ENDIF}{$ENDIF} const right: T): Boolean;
     class operator NotEqual(const left: Nullable<T>; const right: Nullable.Null): Boolean; inline;
     class operator LogicalOr(const left, right: Nullable<T>): Nullable<T>;
     class operator LogicalOr(const left: Nullable<T>; const right: T): T;
@@ -9519,7 +9519,8 @@ end;
 {$ENDIF}
 
 class operator Nullable<T>.Equal(const left: Nullable<T>;
-  const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
+  {$IFDEF SUPPORTS_CONSTREF}{$IFNDEF CONSTREF_BROKEN}[ref]{$ENDIF}{$ENDIF}
+  const right: T): Boolean;
 {$IFDEF DELPHIXE7_UP}
 var
   leftValue: ^Nullable<T>;
@@ -9626,7 +9627,8 @@ end;
 {$ENDIF}
 
 class operator Nullable<T>.NotEqual(const left: Nullable<T>;
-  const {$IFDEF SUPPORTS_CONSTREF}[ref]{$ENDIF}right: T): Boolean;
+  {$IFDEF SUPPORTS_CONSTREF}{$IFNDEF CONSTREF_BROKEN}[ref]{$ENDIF}{$ENDIF}
+  const right: T): Boolean;
 {$IFDEF DELPHIXE7_UP}
 var
   leftValue: ^Nullable<T>;
