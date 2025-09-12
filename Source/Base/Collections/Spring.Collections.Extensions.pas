@@ -597,6 +597,8 @@ type
   public
     constructor Create(const source: IEnumerable<TSource>;
       const selector: Func<TSource, IEnumerable<TResult>>);
+
+    function Contains(const value: TResult): Boolean;
   end;
 
   TSelectManyIndexIterator<TSource, TResult> = class(TIterator<TResult>, IEnumerable<TResult>)
@@ -2683,6 +2685,19 @@ begin
     fEnumerator2 := collection.GetEnumerator;
     fFlag := False;
   end;
+end;
+
+function TSelectManyIterator<TSource, TResult>.Contains(const value: TResult): Boolean;
+var
+  enumerator: IEnumerator<TSource>;
+begin
+  enumerator := fSource.GetEnumerator;
+  while enumerator.MoveNext do
+  begin
+    Result := fSelector(enumerator.Current).Contains(value);
+    if Result then Exit;
+  end;
+  Result := False;
 end;
 
 {$ENDREGION}
