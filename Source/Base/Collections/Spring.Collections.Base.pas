@@ -6813,7 +6813,7 @@ begin
         TExtensionKind.Distinct,
         TExtensionKind.Union:
           // if the used comparer is not the default one we cannot directly call fSource.Contains
-          if Pointer(fPredicate) <> comparer then Break;
+          if Pointer(fEqualityComparer) <> comparer then Break;
       end;
 
       Result := fSource.Contains(value);
