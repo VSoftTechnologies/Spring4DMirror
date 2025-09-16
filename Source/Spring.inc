@@ -67,9 +67,11 @@
 {$IFDEF DELPHIXE4_UP}
   {$DEFINE SUPPORTS_CONSTREF}
 
-  {$IFNDEF DELPHIXE8_UP}
-    {$DEFINE CONSTREF_BROKEN}
-  {$ENDIF}
+  // in some cases [ref] causes either bad code gen (this has been seen in
+  // versions before XE8)
+  // in other cases (seen with an enum type) that are still existing in
+  // Delphi 13 this causes internal compiler error
+  {$DEFINE CONSTREF_BROKEN}
 {$ENDIF}
 
 {$IFNDEF DELPHIX_RIO_UP}
