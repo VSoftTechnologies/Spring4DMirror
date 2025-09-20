@@ -1142,7 +1142,6 @@ type
   // special struct for quickly getting the typeInfo of TPair<TKey,TValue> fields
   PPairFieldTable = ^TPairFieldTable;
   TPairFieldTable = packed record
-    NumOps: Byte;           // always 0
     RecFldCnt: Integer;     // always 2
     KeyType: PPTypeInfo;
     KeyOffset: NativeInt;   // always 0
@@ -1318,10 +1317,14 @@ type
   end;
 var
   FT: PFieldTable;
+  NumOps: PByte;
 begin
   FT := PFieldTable(@PByte(typeInfo)[Byte(PTypeInfo(typeInfo).Name[0])]);
   {$R-,Q-}
-  Result := @FT.Fields[FT.Count];
+  NumOps := @FT.Fields[FT.Count];
+  // if one of the types in the pair is a custom managed record the pair gets
+  // some operators as well which we need to skip to get to the field table
+  Result := PPairFieldTable(NumOps + 1 + NumOps^ * SizeOf(Pointer));
   {$IFDEF RANGECHECKS_ON}{$R+}{$ENDIF}
   {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
 end;
