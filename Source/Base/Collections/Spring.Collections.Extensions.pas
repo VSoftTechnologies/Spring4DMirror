@@ -268,6 +268,8 @@ type
     function Distinct: IEnumerable<Integer>; overload;
     function GetEnumerator: IEnumerator<Integer>;
     procedure ForEach(const action: Action<Integer>);
+    function Min: Integer; overload;
+    function Max: Integer; overload;
     function Ordered: IEnumerable<Integer>; overload;
     function Skip(count: Integer): IEnumerable<Integer>;
     function SkipLast(count: Integer): IEnumerable<Integer>;
@@ -1704,6 +1706,16 @@ begin
     Result := item - fStart
   else
     Result := -1;
+end;
+
+function TRangeIterator.Min: Integer;
+begin
+  Result := fStart;
+end;
+
+function TRangeIterator.Max: Integer;
+begin
+  Result := fStart + fCount - 1;
 end;
 
 function TRangeIterator.Ordered: IEnumerable<Integer>;
