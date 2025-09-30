@@ -57,7 +57,7 @@ type
       const constructorArguments: array of TValue): TValue;
   public
     constructor Create(typeInfo: PTypeInfo; const interceptor: TMockInterceptor;
-      const proxy: TValue) overload;
+      const proxy: TValue); overload;
     constructor Create(typeInfo: PTypeInfo;
       behavior: TMockBehavior = DefaultMockBehavior); overload;
     constructor Create(typeInfo: PTypeInfo;

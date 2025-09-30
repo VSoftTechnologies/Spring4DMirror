@@ -382,7 +382,7 @@ type
     constructor Create(const initializer: TFieldInitializer); overload;
   public
     constructor Create(createInstance: Boolean = True); overload;
-    constructor Create(instanceClass: TClass) overload;
+    constructor Create(instanceClass: TClass); overload;
 
     property CreateInstance: Boolean read fCreateInstance;
     property InstanceClass: TClass read fInstanceClass;
