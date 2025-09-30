@@ -692,7 +692,7 @@ type
   {$ENDREGION}
 
 
-  {$REGION 'TGUIDToStringConverter}
+  {$REGION 'TGUIDToStringConverter'}
 
   /// <summary>
   ///   Provides conversion routine between TGUID and string
@@ -707,7 +707,7 @@ type
   {$ENDREGION}
 
 
-  {$REGION 'TVariantToGUIDConverter}
+  {$REGION 'TVariantToGUIDConverter'}
 
   /// <summary>
   ///   Provides conversion routine between Variant and TGUID
@@ -722,7 +722,7 @@ type
   {$ENDREGION}
 
 
-  {$REGION 'TByteArrayToGUIDConverter}
+  {$REGION 'TByteArrayToGUIDConverter'}
 
   /// <summary>
   ///   Provides conversion routine between TArray&lt;Byte&gt; and TGUID
@@ -737,7 +737,7 @@ type
   {$ENDREGION}
 
 
-  {$REGION 'TGUIDToByteArrayConverter}
+  {$REGION 'TGUIDToByteArrayConverter'}
 
   /// <summary>
   ///   Provides conversion routine between TGUID and TArray&lt;Byte&gt;

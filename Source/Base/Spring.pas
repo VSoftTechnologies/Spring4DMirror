@@ -511,7 +511,7 @@ type
   {$ENDREGION}
 
 
-  {$REGION 'TDictionaryOwnerships}
+  {$REGION 'TDictionaryOwnerships'}
 
   /// <summary>
   ///   Controls the ownership of objects stored in any associative collection.
