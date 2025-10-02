@@ -125,8 +125,7 @@ implementation
 uses
   TypInfo,
   Spring.Container.ResourceStrings,
-  Spring.Reflection,
-  Spring.ResourceStrings;
+  Spring.Reflection;
 
 
 {$REGION 'TInjectionBase'}

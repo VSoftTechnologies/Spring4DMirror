@@ -153,8 +153,8 @@ type
   {$REGION 'TType'}
 
   TType = class
-  private
-    class var fContext: TRttiContext;
+  private class var
+    fContext: TRttiContext;
   public
     class constructor Create;
     class destructor Destroy;
@@ -302,11 +302,11 @@ type
   TConstructor = function(InstanceOrVMT: Pointer; Alloc: ShortInt = 1): Pointer;
 
   TActivator = record
-  private
-    class var ConstructorCache: TDictionary<PTypeInfo,TConstructor>;
-    class var CacheLock: ReadWriteLock;
-    class var NameToClassLookup: TDictionary<string,TClass>;
-    class var LookupLock: ReadWriteLock;
+  private class var
+    ConstructorCache: TDictionary<PTypeInfo,TConstructor>;
+    CacheLock: ReadWriteLock;
+    NameToClassLookup: TDictionary<string,TClass>;
+    LookupLock: ReadWriteLock;
     class function FindConstructor(const classType: TRttiInstanceType;
       const arguments: array of TValue): TRttiMethod; overload; static;
     class procedure RaiseNoConstructorFound(classType: TClass); static;

@@ -28,9 +28,6 @@ unit Spring.Sorting;
 
 interface
 
-uses
-  Generics.Defaults;
-
 type
   TSort_Int8 = record
   private type

@@ -528,9 +528,7 @@ implementation
 uses
   Types,
   TypInfo,
-  Spring.Comparers,
-  Spring.Hash,
-  Spring.ResourceStrings;
+  Spring.Comparers;
 
 procedure ValidateParams(keyType, valueType: PTypeInfo; capacity: Integer; ownerships: TDictionaryOwnerships);
 begin

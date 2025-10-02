@@ -193,8 +193,7 @@ implementation
 
 uses
   Spring.Comparers,
-  Spring.Events.Base,
-  Spring.ResourceStrings;
+  Spring.Events.Base;
 
 
 {$REGION 'TAbstractMultiSet<T>'}

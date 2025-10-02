@@ -30,7 +30,6 @@ interface
 
 uses
   TestFramework,
-  Classes,
   Rtti,
   Spring;
 
@@ -170,7 +169,6 @@ type
 implementation
 
 uses
-  StrUtils,
   SysUtils,
   TypInfo,
   Spring.Reflection;

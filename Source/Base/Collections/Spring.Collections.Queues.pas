@@ -148,8 +148,7 @@ implementation
 
 uses
   TypInfo,
-  Spring.Events.Base,
-  Spring.ResourceStrings;
+  Spring.Events.Base;
 
 
 {$REGION 'TAbstractQueue<T>'}

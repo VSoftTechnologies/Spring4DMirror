@@ -1196,9 +1196,7 @@ uses
 {$IFDEF POSIX}
   Posix.Pthread,
 {$ENDIF}
-  Spring.Collections.Lists,
-  Spring.Comparers,
-  Spring.ResourceStrings;
+  Spring.Comparers;
 
 procedure AssignComparer(var comparer; const source: IInterface);
 begin

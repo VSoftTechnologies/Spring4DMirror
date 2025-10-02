@@ -125,8 +125,7 @@ uses
   Rtti, // suppress hint about inlining
 {$ENDIF}
   TypInfo,
-  Spring.Events.Base,
-  Spring.ResourceStrings;
+  Spring.Events.Base;
 
 
 {$REGION 'TAbstractStack<T>'}

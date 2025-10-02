@@ -371,8 +371,7 @@ implementation
 uses
   Types,
   TypInfo,
-  Spring.Comparers,
-  Spring.ResourceStrings;
+  Spring.Comparers;
 
 procedure ValidateParams(keyType, valueType: PTypeInfo; ownerships: TDictionaryOwnerships);
 begin

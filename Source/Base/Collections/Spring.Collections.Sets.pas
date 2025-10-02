@@ -189,8 +189,6 @@ implementation
 uses
   TypInfo,
   Spring.Comparers,
-  Spring.Events.Base,
-  Spring.ResourceStrings,
   Spring.Span;
 
 const

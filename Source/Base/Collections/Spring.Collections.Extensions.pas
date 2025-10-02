@@ -1048,8 +1048,7 @@ uses
   Rtti,
   SysUtils,
   TypInfo,
-  Spring.Comparers,
-  Spring.ResourceStrings;
+  Spring.Comparers;
 
 
 {$REGION 'TEmptyEnumerable<T>'}
