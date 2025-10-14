@@ -57,6 +57,11 @@ type
     function MoveTo(const collection: ICollection<TElement>;
       const predicate: Predicate<TElement>): Integer; overload;
     function Remove(const item: TElement): Boolean;
+    function RemoveAll(const predicate: Predicate<TElement>): Integer;
+    function RemoveRange(const values: array of TElement): Integer; overload;
+    function RemoveRange(const values: IEnumerable<TElement>): Integer; overload;
+    function ExtractAll: TArray<TElement>; overload;
+    function ExtractAll(const predicate: Predicate<TElement>): TArray<TElement>; overload;
   end;
 
   TCollectionWrapper = class;
@@ -257,6 +262,7 @@ type
     procedure AddRange(const key: TKey; const values: array of TValue); overload;
     procedure AddRange(const key: TKey; const values: IEnumerable<TValue>); overload;
     function Extract(const key: TKey): ICollection<TValue>; overload;
+    function ExtractAll(const key: TKey; const predicate: Predicate<TValue>): TArray<TValue>; overload;
     function TryGetValues(const key: TKey; var values: IReadOnlyCollection<TValue>): Boolean;
     function AsReadOnly: IReadOnlyMultiMap<TKey, TValue>;
   {$ENDREGION}
@@ -342,6 +348,7 @@ type
     function Remove(const key: TKey): Boolean; overload;
     function Remove(const key: TKey; const value: TValue): Boolean; overload;
     function Extract(const key: TKey; const value: TValue): TKeyValuePair; overload;
+    function ExtractAll(const key: TKey; const predicate: Predicate<TValue>): TArray<TValue>; overload;
     function Contains(const key: TKey; const value: TValue): Boolean; overload;
     function ContainsKey(const key: TKey): Boolean;
     function ContainsValue(const value: TValue): Boolean;
@@ -856,6 +863,18 @@ begin
     Result.Value := Default(TValue);
 end;
 
+function TMultiMap<TKey, TValue>.ExtractAll(const key: TKey;
+  const predicate: Predicate<TValue>): TArray<TValue>;
+var
+  item: PItem;
+begin
+  item := IHashTable<TKey>(@fHashTable).Find(key);
+  if Assigned(item) then
+    Result := item.Values.ExtractAll(predicate)
+  else
+    Result := nil;
+end;
+
 function TMultiMap<TKey, TValue>.GetCount: Integer;
 begin
   Result := fCount;
@@ -1302,6 +1321,18 @@ begin
   end
   else
     Result.Value := Default(TValue);
+end;
+
+function TSortedMultiMap<TKey, TValue>.ExtractAll(const key: TKey;
+  const predicate: Predicate<TValue>): TArray<TValue>;
+var
+  node: PNode;
+begin
+  node := Pointer(fTree.FindNode(key));
+  if Assigned(node) then
+    Result := node.Values.ExtractAll(predicate)
+  else
+    Result := nil;
 end;
 
 function TSortedMultiMap<TKey, TValue>.GetCount: Integer;

@@ -3772,12 +3772,34 @@ type
     /// <summary>
     ///   Extracts all values accociated with the given key from the multimap.
     /// </summary>
+    /// <param name="key">
+    ///   The key of the elements to extract.
+    /// </param>
     /// <remarks>
     ///   If the multimap has doOwnsValues set the items in the returned list
     ///   are not being owned by the list but have to be freed manually or
     ///   being passed to a collection that takes ownership.
     /// </remarks>
     function Extract(const key: TKey): ICollection<TValue>; overload;
+
+    /// <summary>
+    ///   Removes all values accociated with the given key that match the
+    ///   conditions defined by the specified predicate without triggering
+    ///   lifetime management for objects .
+    /// </summary>
+    /// <param name="key">
+    ///   The key of the elements to extract.
+    /// </param>
+    /// <param name="predicate">
+    ///   The predicate that defines the conditions of the elements to remove.
+    /// </param>
+    /// <returns>
+    ///   The elements that were removed from the collection.
+    /// </returns>
+    /// <exception cref="Spring|EArgumentNilException">
+    ///   <c>predicate</c> is <c>nil</c>.
+    /// </exception>
+    function ExtractAll(const key: TKey; const predicate: Predicate<TValue>): TArray<TValue>; overload;
 
     /// <summary>
     ///   Attempts to get the values associated with the specified key.
