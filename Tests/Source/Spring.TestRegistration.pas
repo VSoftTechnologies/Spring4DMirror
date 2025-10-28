@@ -235,6 +235,11 @@ begin
       TTestHashMultiSetChangedEvent.Suite,
       TTestTreeMultiSetChangedEvent.Suite
     ]);
+
+    RegisterTests('Spring.Base.Collections.Sets', [
+      TTestHashSetChangedEvent.Suite,
+      TTestTreeSetChangedEvent.Suite
+    ]);
   end;
 
   if BaseCommon in TestKinds then

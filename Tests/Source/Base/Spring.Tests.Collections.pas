@@ -789,6 +789,29 @@ type
     procedure TestRemovePair;
   end;
 
+  TTestSetChangedEventBase = class(TTestCollectionChangedEventBase)
+  private
+    procedure AddEventHandlers;
+  protected
+    SUT: ISet<Integer>;
+    procedure TearDown; override;
+  published
+    procedure TestAdd;
+    procedure TestClear;
+    procedure TestDestroy;
+    procedure TestRemove;
+  end;
+
+  TTestHashSetChangedEvent = class(TTestSetChangedEventBase)
+  protected
+    procedure SetUp; override;
+  end;
+
+  TTestTreeSetChangedEvent = class(TTestSetChangedEventBase)
+  protected
+    procedure SetUp; override;
+  end;
+
   TTestMultiSetChangedEventBase = class(TTestCollectionChangedEventBase)
   private
     procedure AddEventHandlers;
@@ -5737,6 +5760,108 @@ begin
   CheckEquals('a', items[1]);
   CheckEquals('b', items[2]);
   CheckEquals('c', items[3]);
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestSetChangedEventBase'}
+
+procedure TTestSetChangedEventBase.AddEventHandlers;
+begin
+  SUT.OnChanged.Add(Changed);
+end;
+
+procedure TTestSetChangedEventBase.TearDown;
+begin
+  SUT := nil;
+  inherited;
+end;
+
+procedure TTestSetChangedEventBase.TestAdd;
+begin
+  AddEventHandlers;
+  SUT.Add(1);
+  SUT.Add(2);
+  SUT.Add(3);
+
+  CheckEquals(3, fChangedEvents.Count);
+  CheckChanged(0, 1, caAdded);
+  CheckChanged(1, 2, caAdded);
+  CheckChanged(2, 3, caAdded);
+end;
+
+procedure TTestSetChangedEventBase.TestClear;
+begin
+  SUT.Add(1);
+  SUT.Add(2);
+  SUT.Add(3);
+  SUT.Add(4);
+  SUT.Remove(3);
+  AddEventHandlers;
+  SUT.Clear;
+
+  CheckEquals(4, fChangedEvents.Count);
+  CheckChanged(0, 0, caReset);
+  CheckChanged(1, 1, caRemoved);
+  CheckChanged(2, 2, caRemoved);
+  CheckChanged(3, 4, caRemoved);
+end;
+
+procedure TTestSetChangedEventBase.TestDestroy;
+begin
+  SUT.Add(1);
+  SUT.Add(2);
+  SUT.Add(3);
+  AddEventHandlers;
+  SUT := nil;
+
+  CheckEquals(4, fChangedEvents.Count);
+  CheckChanged(0, 0, caReset);
+  CheckChanged(1, 1, caRemoved);
+  CheckChanged(2, 2, caRemoved);
+  CheckChanged(3, 3, caRemoved);
+end;
+
+procedure TTestSetChangedEventBase.TestRemove;
+begin
+  SUT.Add(1);
+  SUT.Add(2);
+  SUT.Add(3);
+  AddEventHandlers;
+  Check(not SUT.Remove(4));
+  Check(SUT.Remove(2));
+  Check(SUT.Remove(1));
+  Check(SUT.Remove(3));
+
+  CheckEquals(3, fChangedEvents.Count);
+  CheckChanged(0, 2, caRemoved);
+  CheckChanged(1, 1, caRemoved);
+  CheckChanged(2, 3, caRemoved);
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestHashSetChangedEvent'}
+
+procedure TTestHashSetChangedEvent.SetUp;
+begin
+  inherited;
+  SUT := TCollections.CreateSet<Integer>;
+  Sender := SUT.AsObject;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestTreeSetChangedEvent'}
+
+procedure TTestTreeSetChangedEvent.SetUp;
+begin
+  inherited;
+  SUT := TCollections.CreateSortedSet<Integer>;
+  Sender := SUT.AsObject;
 end;
 
 {$ENDREGION}

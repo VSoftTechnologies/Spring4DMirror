@@ -355,10 +355,15 @@ begin
   begin
     itemCount := fHashTable.ItemCount;
     fHashTable.ClearCount;
+    if itemCount > 0 then
+      Reset;
     item := PItem(fHashTable.Items);
     for i := 1 to itemCount do //FI:W528
+    begin
       if item.HashCode >= 0 then
         Notify(Self, item.Item, caRemoved);
+      Inc(item);
+    end;
   end;
 
   fHashTable.Clear;
@@ -767,8 +772,12 @@ begin
   begin
     node := fTree.Root.LeftMost;
     fTree.ClearCount;
+    Reset;
     while Assigned(node) do
+    begin
       Notify(Self, PNode(node).Key, caRemoved);
+      node := PBinaryTreeNode(node).Next;
+    end;
   end;
 
   fTree.Clear;
