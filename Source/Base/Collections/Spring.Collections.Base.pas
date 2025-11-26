@@ -6149,11 +6149,17 @@ begin
 end;
 
 procedure TEnumerableExtension.ToArray(var values: Pointer; typeInfo: PTypeInfo; getCurrent: TGetCurrent);
+var
+  count: Integer;
 begin
   case fKind of
     TExtensionKind.Repeated: RepeatedToArray(values, typeInfo);
     TExtensionKind.Items: DynArrayCopyRange(values, fItems, typeInfo, 0, fCount);
-    TExtensionKind.Memoize: DynArrayCopyRange(values, fItems, typeInfo, 0, GetCount);
+    TExtensionKind.Memoize:
+    begin
+      count := GetCount;
+      DynArrayCopyRange(values, fItems, typeInfo, 0, count);
+    end;
     TExtensionKind.Partition: PartitionToArray(values, typeInfo, getCurrent);
   else
     inherited ToArray(values, typeInfo, getCurrent);
