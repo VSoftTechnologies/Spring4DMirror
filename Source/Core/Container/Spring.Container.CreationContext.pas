@@ -64,6 +64,7 @@ type
     fWriteThread: TThreadID;
     fWriteLocks: Integer;
   public
+    procedure Initialize; inline;
     procedure EnterRead;
     procedure EnterWrite;
     procedure LeaveRead;
@@ -116,6 +117,13 @@ uses
   Spring.Container.Injection,
   Spring.Container.ResourceStrings,
   Spring.Reflection;
+
+procedure TSlimRWLock.Initialize;
+begin
+  {$IFDEF POSIX}
+  fLock := PTHREAD_RWLOCK_INITIALIZER;
+  {$ENDIF}
+end;
 
 procedure TSlimRWLock.EnterRead;
 begin
@@ -217,6 +225,7 @@ constructor TCreationContext.Create(const model: TComponentModel;
 var
   i: Integer;
 begin
+  fLock.Initialize;
   fModel := model;
   for i := Low(arguments) to High(arguments) do
     AddArgument(arguments[i]);
