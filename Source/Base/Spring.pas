@@ -593,6 +593,8 @@ type
     function GetValueType: TRttiType;
     function TryAsInterface(typeInfo: PTypeInfo; out Intf): Boolean;
     class procedure RaiseConversionError(source, target: PTypeInfo); static;
+    function NullableToString: string; overload;
+    function NullableToString(const formatSettings: TFormatSettings): string; overload;
   public
     class function &&op_Equality(const left, right: TValue): Boolean; static; inline;
     class function &&op_Inequality(const left, right: TValue): Boolean; static; inline;
@@ -798,7 +800,13 @@ type
     /// <summary>
     ///   Returns the string representation of the stored value.
     /// </summary>
-    function ToString: string;
+    function ToString: string; overload;
+
+    /// <summary>
+    ///   Returns the string representation of the stored value using the
+    ///   specified format settings.
+    /// </summary>
+    function ToString(const formatSettings: TFormatSettings): string; overload;
 
     /// <summary>
     ///   Converts stored value to the specified type.
@@ -3416,7 +3424,8 @@ procedure CheckArgumentNotNull(value: Pointer; const argumentName: string); over
 function GetQualifiedClassName(AInstance: TObject): string; overload; inline;
 function GetQualifiedClassName(AClass: TClass): string; overload; {$IFDEF DELPHIXE2_UP}inline;{$ENDIF}
 
-function FormatValue(const value: TValue): string;
+function FormatValue(const value: TValue): string; overload;
+function FormatValue(const value: TValue; const formatSettings: TFormatSettings): string; overload;
 
 /// <summary>
 ///   Determines whether an instance of <c>leftType</c> can be assigned from an
@@ -3791,8 +3800,13 @@ begin
 end;
 
 function FormatValue(const value: TValue): string;
+begin
+  Result := FormatValue(value, FormatSettings);
+end;
 
-  function FormatArray(const value: TValue): string;
+function FormatValue(const value: TValue; const formatSettings: TFormatSettings): string;
+
+  function FormatArray(const value: TValue; const formatSettings: TFormatSettings): string;
   var
     i: Integer;
   begin
@@ -3801,12 +3815,12 @@ function FormatValue(const value: TValue): string;
     begin
       if i > 0 then
         Result := Result + ',';
-      Result := Result + FormatValue(value.GetArrayElement(i));
+      Result := Result + FormatValue(value.GetArrayElement(i), formatSettings);
     end;
     Result := Result + ']';
   end;
 
-  function FormatRecord(const value: TValue): string;
+  function FormatRecord(const value: TValue; const formatSettings: TFormatSettings): string;
   var
     guid: TGUID;
     method: TRttiMethod;
@@ -3834,14 +3848,14 @@ function FormatValue(const value: TValue): string;
         Result := Result + '; ';
       Result := Result + fields[i].Name +': ';
       if Assigned(fields[i].FieldType) then
-        Result := Result + FormatValue(fields[i].GetValue(value.GetReferenceToRawData))
+        Result := Result + FormatValue(fields[i].GetValue(value.GetReferenceToRawData), formatSettings)
       else
         Result := Result + '(unknown)';
     end;
     Result := Result + ')';
   end;
 
-  function FormatEnumerable(const enumerable: IEnumerable): string;
+  function FormatEnumerable(const enumerable: IEnumerable; const formatSettings: TFormatSettings): string;
   var
     i: Integer;
     value: TValue;
@@ -3853,7 +3867,7 @@ function FormatValue(const value: TValue): string;
       if i > 0 then
         Result := Result + ',';
       Inc(i);
-      Result := Result + FormatValue(value);
+      Result := Result + FormatValue(value, formatSettings);
     end;
     Result := Result + ']';
   end;
@@ -3880,7 +3894,7 @@ begin
       else if value.TypeInfo = TypeInfo(TTime) then
         Result := TimeToStr(TValueData(value).FAsDouble)
       else
-        Result := value.ToString;
+        Result := value.ToString(formatSettings);
     tkClass:
     begin
       obj := value.AsObject;
@@ -3893,7 +3907,7 @@ begin
     begin
       intf := value.AsInterface;
       if Supports(intf, IEnumerableGuid, enumerable) then
-        Result := FormatEnumerable(enumerable)
+        Result := FormatEnumerable(enumerable, formatSettings)
       else
       begin
         obj := intf as TObject;
@@ -3905,7 +3919,7 @@ begin
       end;
     end;
     tkArray, tkDynArray:
-      Result := FormatArray(value);
+      Result := FormatArray(value, formatSettings);
     tkChar, tkWChar:
       if TValueData(value).FAsUWord < 20 then
         Result := '#' + IntToStr(TValueData(value).FAsUWord)
@@ -3922,7 +3936,7 @@ begin
         Result := 'nil';
     end;
     tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
-      Result := FormatRecord(value);
+      Result := FormatRecord(value, formatSettings);
   else
     Result := value.ToString;
   end;
@@ -7175,6 +7189,26 @@ begin
   Result := TypeInfo = System.TypeInfo(Variant);
 end;
 
+function TValueHelper.NullableToString: string;
+var
+  value: TValue;
+begin
+  if TryGetNullableValue(value) then
+    Result := value.ToString
+  else
+    Result := '(null)'
+end;
+
+function TValueHelper.NullableToString(const formatSettings: TFormatSettings): string;
+var
+  value: TValue;
+begin
+  if TryGetNullableValue(value) then
+    Result := value.ToString(formatSettings)
+  else
+    Result := '(null)'
+end;
+
 class function TValueHelper.&&op_Equality(const left, right: TValue): Boolean;
 begin
   Result := left.Equals(right);
@@ -7284,16 +7318,41 @@ type
   TValueHack = type TValue; // make an alias to access "inherited" ToString
 
 function TValueHelper.ToString: string;
-var
-  value: TValue;
 begin
-  if IsNullable(TypeInfo) then
-    if TryGetNullableValue(value) then
-      Result := value.ToString
-    else
-      Result := '(null)'
+  if IsNullable(TValueData(Self).FTypeInfo) then
+    Result := NullableToString
   else
     Result := TValueHack(Self).ToString;
+end;
+
+function TValueHelper.ToString(const formatSettings: TFormatSettings): string;
+begin
+  if IsNullable(TValueData(Self).FTypeInfo) then
+    Result := NullableToString(formatSettings)
+  else
+    {$IFDEF DELPHI_ATHENS_UP}
+    Result := TValueHack(Self).ToString(formatSettings);
+    {$ELSE}
+    with TValueData(Self) do
+    if GetTypeKind = tkFloat then
+      case GetTypeData(FTypeInfo).FloatType of
+        ftSingle: Result := FloatToStr(FAsSingle, formatSettings);
+        ftDouble:
+          if FTypeInfo = System.TypeInfo(TDate) then
+            Result := DateToStr(FAsDouble, formatSettings)
+          else if FTypeInfo = System.TypeInfo(TTime) then
+            Result := TimeToStr(FAsDouble, formatSettings)
+          else if FTypeInfo = System.TypeInfo(TDateTime) then
+            Result := DateTimeToStr(FAsDouble, formatSettings)
+          else
+            Result := FloatToStr(FAsDouble, formatSettings);
+        ftExtended: Result := FloatToStr(FAsExtended, formatSettings);
+        ftComp: Result := IntToStr(FAsSInt64);
+        ftCurr: Result := CurrToStr(FAsCurr, formatSettings);
+      end
+    else
+      Result := TValueHack(Self).ToString;
+    {$ENDIF}
 end;
 
 function TValueHelper.ToType<T>: T;
