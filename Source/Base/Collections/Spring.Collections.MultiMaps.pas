@@ -843,7 +843,7 @@ begin
     {$IFDEF MANAGED_TYPE_RVO}
     if IsManagedType(TValue) then
       TCollectionThunks<TValue>.ICollectionInternal(item.Values).Extract(
-        {$IFDEF CPUX64}Result.Value, {$ENDIF}value{$IFDEF CPUX86}, Result.Value{$ENDIF})
+        {$IFDEF CPU64BITS}Result.Value, {$ENDIF}value{$IFDEF CPUX86}, Result.Value{$ENDIF})
     else{$ENDIF}
     Result.Value := item.Values.Extract(value);
     newCount := item.Values.Count;
@@ -1300,7 +1300,7 @@ begin
     {$IFDEF MANAGED_TYPE_RVO}
     if IsManagedType(TValue) then
       TCollectionThunks<TValue>.ICollectionInternal(node.Values).Extract(
-        {$IFDEF CPUX64}Result.Value, {$ENDIF}value{$IFDEF CPUX86}, Result.Value{$ENDIF})
+        {$IFDEF CPU64BITS}Result.Value, {$ENDIF}value{$IFDEF CPUX86}, Result.Value{$ENDIF})
     else{$ENDIF}
     Result.Value := node.Values.Extract(value);
     newCount := node.Values.Count;

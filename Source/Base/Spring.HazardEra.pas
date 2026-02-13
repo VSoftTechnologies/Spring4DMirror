@@ -77,6 +77,7 @@ const
 
 {$IFDEF MSWINDOWS}
 function GetCurrentThreadID: TThreadID;
+{$IFDEF ASSEMBLER}
 asm
 {$IFDEF CPUX86}
   mov eax,fs:[$24]
@@ -84,6 +85,9 @@ asm
   mov eax,gs:[$48]
 {$ENDIF}
 end;
+{$ELSE}
+external 'kernel32.dll' name 'GetCurrentThreadId';
+{$ENDIF}
 {$ENDIF}
 
 function GetMem_Aligned64(size: Integer): Pointer;

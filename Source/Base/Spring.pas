@@ -13059,6 +13059,10 @@ begin
   else
     Result := 0;
 end;
+{$ELSEIF Defined(ARM64EC)}
+begin
+  Result := BinaryCompare(left, right, size);
+end;
 {$ELSE}
   {$MESSAGE ERROR 'Missing platform support'}
 {$IFEND}

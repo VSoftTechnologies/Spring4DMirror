@@ -685,7 +685,7 @@ type
   TCollectionThunks<T> = record
   public type
     {$IFDEF MANAGED_TYPE_RVO}
-    FuncInternal = reference to procedure({$IFDEF CPUX64}var result;{$ENDIF}const arg1, arg2: T{$IFDEF CPUX86}; var result{$ENDIF});
+    FuncInternal = reference to procedure({$IFDEF CPU64BITS}var result;{$ENDIF}const arg1, arg2: T{$IFDEF CPUX86}; var result{$ENDIF});
     {$ENDIF}
     ICollectionInternal = interface(IReadOnlyCollection<T>)
       // IMPORTANT NOTICE:
@@ -697,7 +697,7 @@ type
       procedure AddRange(const values: array of T);
       {$IFDEF MANAGED_TYPE_RVO}overload;
       procedure AddRange(const values: IEnumerable<T>); overload;
-      procedure Extract({$IFDEF CPUX64}var result; {$ENDIF}const item: T{$IFDEF CPUX86}; var result{$ENDIF});
+      procedure Extract({$IFDEF CPU64BITS}var result; {$ENDIF}const item: T{$IFDEF CPUX86}; var result{$ENDIF});
       {$ENDIF}
     end;
   public
@@ -3687,7 +3687,7 @@ begin
   for i := 1 to Length(values) do
     {$IFDEF MANAGED_TYPE_RVO_BROKEN}
     if IsManagedType(T) then
-      TCollectionThunks<T>.ICollectionInternal(this).Extract({$IFDEF CPUX64}res, {$ENDIF}values[i-1]{$IFDEF CPUX86}, res{$ENDIF})
+      TCollectionThunks<T>.ICollectionInternal(this).Extract({$IFDEF CPU64BITS}res, {$ENDIF}values[i-1]{$IFDEF CPUX86}, res{$ENDIF})
     else{$ENDIF}
       ICollection<T>(this).Extract(values[i-1]);
 end;
@@ -5665,7 +5665,7 @@ begin
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
-    FuncInternal(func)({$IFDEF CPUX64}res, {$ENDIF}T(result), item{$IFDEF CPUX86}, res{$ENDIF});
+    FuncInternal(func)({$IFDEF CPU64BITS}res, {$ENDIF}T(result), item{$IFDEF CPUX86}, res{$ENDIF});
     T(result) := res;
   end else{$ENDIF}
   T(result) := Func<T,T,T>(func)(T(result), IEnumerator<T>(enumerator).Current);
@@ -5764,7 +5764,7 @@ begin
   if IsManagedType(T) then
   begin
     IEnumeratorInternal(enumerator).GetCurrent(item);
-    ICollectionInternal(collection).Extract({$IFDEF CPUX64}res, {$ENDIF}item{$IFDEF CPUX86}, res{$ENDIF});
+    ICollectionInternal(collection).Extract({$IFDEF CPU64BITS}res, {$ENDIF}item{$IFDEF CPUX86}, res{$ENDIF});
   end else{$ENDIF}
   ICollection<T>(collection).Extract(IEnumerator<T>(enumerator).Current);
   Result := True;
