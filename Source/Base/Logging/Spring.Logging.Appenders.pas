@@ -284,7 +284,10 @@ begin
   if Assigned(encoding) then
     fEncoding := encoding
   else
-    fEncoding := TEncoding.UTF8;
+    if fStream is TStringStream then
+      fEncoding := TStringStream(fStream).Encoding
+    else
+      fEncoding := TEncoding.UTF8;
   fLock := TCriticalSection.Create;
 end;
 
