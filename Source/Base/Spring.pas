@@ -4104,7 +4104,7 @@ end;
 procedure InvokeImplGetter(const self: TObject; implGetter: NativeUInt; var result: IInterface);
 {$IFNDEF CPUX86}
 type
-{$IF Defined(MSWINDOWS) or Defined(OSX32)}
+{$IF Defined(WIN32) or Defined(WIN64) or Defined(OSX32)}
   TGetProc = procedure (const Self: TObject; var Result: IInterface);
 {$ELSEIF Defined(LINUX64) or Defined(OSX64) or Defined(CPUARM32)}
   TGetProc = procedure (var Result: IInterface; const Self: TObject);
@@ -4124,12 +4124,12 @@ begin
       getProc := PPointer(PNativeInt(self)^ + SmallInt(implGetter))^
     else
       getProc := Pointer(implGetter);
-{$IF Defined(MSWINDOWS) or Defined(OSX32)}
-    GetProc(Self, Result);
+{$IF Defined(WIN32) or Defined(WIN64) or Defined(OSX32)}
+    getProc(Self, Result);
 {$ELSEIF Defined(LINUX64) or Defined(OSX64) or Defined(CPUARM32)}
-    GetProc(Result, Self);
+    getProc(Result, Self);
 {$ELSEIF Defined(CPUARM64)}
-    Result := GetProc(Self);
+    Result := getProc(Self);
 {$ELSE}
     {$MESSAGE Fatal 'InvokeImplGetter not implemented for platform'}
 {$IFEND}
@@ -13061,7 +13061,7 @@ begin
 end;
 {$ELSEIF Defined(ARM64EC)}
 begin
-  Result := BinaryCompare(left, right, size);
+  Result := Generics.Defaults.BinaryCompare(left, right, size);
 end;
 {$ELSE}
   {$MESSAGE ERROR 'Missing platform support'}

@@ -450,7 +450,7 @@ begin
   begin
     Parent := Self;
     fCollection := Self.fCollection;
-    {$IFDEF MSWINDOWS}
+    {$IFDEF INTERFACE_RVO}
     IEnumerableInternal(fCollection).GetEnumerator(fEnumerator);
     {$ELSE}
     fEnumerator := fCollection.GetEnumerator;

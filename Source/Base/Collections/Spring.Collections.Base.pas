@@ -43,7 +43,7 @@ uses
 {$IFDEF DELPHIXE6_UP}{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS(FieldVisibility)}{$ENDIF}
 
 type
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
   IEnumerableInternal = interface //FI:W523
     procedure GetEnumerator(var result);
     function GetCount: Integer;
@@ -1866,7 +1866,7 @@ end;
 
 procedure TEnumerableBase.ExtractAll(var result);
 begin
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
   IEnumerableInternal(this).ToArray(result);
   {$ELSE}
   TArray<Pointer>(result) := IEnumerable<Pointer>(this).ToArray;
@@ -1880,7 +1880,7 @@ begin
   if not Assigned(match) then RaiseHelper.ArgumentNil(ExceptionArgument.match);
 
   // little hack - we can hardcast here since we are just passing along a predicate
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
   IEnumerableInternal(IEnumerable<Pointer>(this).Where(Predicate<Pointer>(match))).ToArray(result);
   {$ELSE}
   TArray<Pointer>(result) := IEnumerable<Pointer>(this).Where(Predicate<Pointer>(match)).ToArray;
@@ -2209,7 +2209,7 @@ begin
   if not Assigned(collection) then RaiseHelper.ArgumentNil(ExceptionArgument.collection);
 
   values := nil;
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
   IEnumerableInternal(this).ToArray(values);
   {$ELSE}
   values := Pointer(IEnumerable<Pointer>(this).ToArray);
@@ -2233,7 +2233,7 @@ begin
 
   values := nil;
   // little hack - we can hardcast here since we are just passing along a predicate
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
   IEnumerableInternal(IEnumerable<Pointer>(this).Where(Predicate<Pointer>(predicate))).ToArray(values);
   {$ELSE}
   values := Pointer(IEnumerable<Pointer>(this).Where(Predicate<Pointer>(predicate)).ToArray);
@@ -2273,7 +2273,7 @@ begin
 
   values := nil;
   // little hack - we can hardcast here since we are just passing along a predicate
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
   IEnumerableInternal(IEnumerable<Pointer>(this).Where(Predicate<Pointer>(match))).ToArray(values);
   {$ELSE}
   values := Pointer(IEnumerable<Pointer>(this).Where(Predicate<Pointer>(match)).ToArray);
@@ -2781,7 +2781,7 @@ begin
     {$Q-}
     fIndex := fStart - 1;
     {$IFDEF OVERFLOWCHECKS_ON}{$Q+}{$ENDIF}
-    {$IFDEF MSWINDOWS}
+    {$IFDEF INTERFACE_RVO}
     IEnumerableInternal(fSource).GetEnumerator(fEnumerator);
     {$ELSE}
     fEnumerator := fSource.GetEnumerator;
@@ -3983,7 +3983,7 @@ begin
           begin
             fItem := item;
             values := PPointer(@item[offset])^;
-            {$IFDEF MSWINDOWS}
+            {$IFDEF INTERFACE_RVO}
             IEnumerableInternal(values).GetEnumerator(fEnumerator);
             {$ELSE}
             fEnumerator := IEnumerable(values).GetEnumerator;
@@ -4303,7 +4303,7 @@ begin
         begin
           fNode := node;
           values := PPointer(@PByte(@PNode(node).Key)[offset])^;
-          {$IFDEF MSWINDOWS}
+          {$IFDEF INTERFACE_RVO}
           IEnumerableInternal(values).GetEnumerator(fEnumerator);
           {$ELSE}
           fEnumerator := IEnumerable(values).GetEnumerator;
@@ -4992,7 +4992,7 @@ end;
 
 function TIteratorBlock.GetEnumerator: Boolean;
 begin
-{$IFDEF MSWINDOWS}
+{$IFDEF INTERFACE_RVO}
   IEnumerableInternal(Source).GetEnumerator(Enumerator);
 {$ELSE}
   Enumerator := Source.GetEnumerator;
@@ -5003,7 +5003,7 @@ end;
 
 function TIteratorBlock.GetEnumeratorAndSkip: Boolean;
 begin
-{$IFDEF MSWINDOWS}
+{$IFDEF INTERFACE_RVO}
   IEnumerableInternal(Source).GetEnumerator(Enumerator);
 {$ELSE}
   Enumerator := Source.GetEnumerator;
@@ -5020,7 +5020,7 @@ end;
 
 function TIteratorBlock.GetEnumeratorDefaultIfEmpty: Boolean;
 begin
-{$IFDEF MSWINDOWS}
+{$IFDEF INTERFACE_RVO}
   IEnumerableInternal(Source).GetEnumerator(Enumerator);
 {$ELSE}
   Enumerator := Source.GetEnumerator;
@@ -5037,7 +5037,7 @@ function TIteratorBlock.GetEnumeratorHashTable(
 var
   entry: PByte;
 begin
-{$IFDEF MSWINDOWS}
+{$IFDEF INTERFACE_RVO}
   IEnumerableInternal(Predicate).GetEnumerator(Enumerator);
 {$ELSE}
   Enumerator := IEnumerable(Predicate).GetEnumerator;
@@ -5057,7 +5057,7 @@ function TIteratorBlock.GetEnumeratorMemoize: Boolean;
 begin
   if TEnumerableExtension(Parent).fCount = 0 then
   begin
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
     IEnumerableInternal(Source).GetEnumerator(IEnumerator(TEnumerableExtension(Parent).fPredicate));
   {$ELSE}
     IEnumerator(TEnumerableExtension(Parent).fPredicate) := Source.GetEnumerator;
@@ -5099,7 +5099,7 @@ function TIteratorBlock.GetEnumeratorSkipLast(getCurrent: TGetCurrent; typeInfo:
 var
   i, capacity, elSize: NativeInt;
 begin
-{$IFDEF MSWINDOWS}
+{$IFDEF INTERFACE_RVO}
   IEnumerableInternal(Source).GetEnumerator(Enumerator);
 {$ELSE}
   Enumerator := Source.GetEnumerator;
@@ -5127,7 +5127,7 @@ var
 begin
   if Self.Count = 0 then Exit(Boolean(Self.Count));
 
-{$IFDEF MSWINDOWS}
+{$IFDEF INTERFACE_RVO}
   IEnumerableInternal(Source).GetEnumerator(Enumerator);
 {$ELSE}
   Enumerator := Source.GetEnumerator;
@@ -5363,7 +5363,7 @@ begin
   repeat
     repeat
       if not Enumerator.MoveNext then Break;
-      {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+      {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
       if IsManagedType(T) then
         IEnumeratorInternal(Enumerator).GetCurrent(Current)
       else
@@ -5386,7 +5386,7 @@ begin
     if p = nil then
       Exit(Boolean(p));
 
-    {$IFDEF MSWINDOWS}
+    {$IFDEF INTERFACE_RVO}
     IEnumerableInternal(Predicate).GetEnumerator(Enumerator);
     {$ELSE}
     Enumerator := IEnumerable<T>(Predicate).GetEnumerator;
@@ -5400,7 +5400,7 @@ begin
   Result := Enumerator.MoveNext;
   if Result then
   begin
-    {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+    {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Current)
     else
@@ -5418,7 +5418,7 @@ begin
     Result := Enumerator.MoveNext;
     if Result then
     begin
-      {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+      {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
       if IsManagedType(T) then
         IEnumeratorInternal(Enumerator).GetCurrent(Current)
       else
@@ -5438,7 +5438,7 @@ begin
   repeat
     Result := Enumerator.MoveNext;
     if not Result then Break;
-    {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+    {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Current)
     else
@@ -5510,7 +5510,7 @@ begin
     Result := Enumerator.MoveNext;
     if not Result then
       Break;
-    {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+    {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Current)
     else
@@ -5530,7 +5530,7 @@ begin
     Result := Enumerator.MoveNext;
     if not Result then
       Break;
-    {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+    {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Current)
     else
@@ -5550,7 +5550,7 @@ begin
   Result := Enumerator.MoveNext;
   if Result then
   begin
-    {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+    {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Current)
     else
@@ -5565,7 +5565,7 @@ begin
   Result := Enumerator.MoveNext;
   if Result then
   begin
-    {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+    {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Current)
     else
@@ -5582,7 +5582,7 @@ begin
     Result := Enumerator.MoveNext;
     if not Result then
       Break;
-    {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+    {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Current)
     else
@@ -5598,7 +5598,7 @@ begin
     Result := Enumerator.MoveNext;
     if not Result then
       Break;
-    {$IF defined(DELPHIXE7_UP) and defined(MSWINDOWS)}
+    {$IF defined(DELPHIXE7_UP) and defined(INTERFACE_RVO)}
     if IsManagedType(T) then
       IEnumeratorInternal(Enumerator).GetCurrent(Current)
     else
@@ -5611,7 +5611,7 @@ end;
 
 function TIteratorBlock<T>.ToArray: Boolean;
 begin
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
   IEnumerableInternal(Source).ToArray(Items);
   {$ELSE}
   Items := Source.ToArray;
@@ -6371,7 +6371,7 @@ var
   items: Pointer;
   count, offset, elSize: NativeInt;
   source, predicate: Pointer;
-  enumerator: {$IFDEF MSWINDOWS}Pointer{$ELSE}IEnumerator{$ENDIF};
+  enumerator: {$IFDEF INTERFACE_RVO}Pointer{$ELSE}IEnumerator{$ENDIF};
 begin
   case fKind of
     TExtensionKind.DefaultIfEmpty:
@@ -6447,7 +6447,7 @@ begin
           end
           else
           begin
-            {$IFDEF MSWINDOWS}
+            {$IFDEF INTERFACE_RVO}
             enumerator := nil;
             IEnumerableInternal(source).GetEnumerator(enumerator);
             try
@@ -6463,7 +6463,7 @@ begin
               end;
               Dec(index);
             end;
-            {$IFDEF MSWINDOWS}
+            {$IFDEF INTERFACE_RVO}
             finally
               IEnumerator(enumerator) := nil;
             end;
@@ -6492,7 +6492,7 @@ begin
       begin
         items := nil;
         try
-          {$IFDEF MSWINDOWS}
+          {$IFDEF INTERFACE_RVO}
           IEnumerableInternal(fSource).ToArray(items);
           {$ELSE}
           items := Pointer(IEnumerable<Pointer>(fSource).ToArray);
@@ -6514,7 +6514,7 @@ begin
       if index >= 0 then
       begin
         predicate := Pointer(fPredicate);
-        {$IFDEF MSWINDOWS}
+        {$IFDEF INTERFACE_RVO}
         enumerator := nil;
         IEnumerableInternal(fSource).GetEnumerator(enumerator);
         try
@@ -6528,7 +6528,7 @@ begin
               Exit(True);
             Dec(index);
           end;
-        {$IFDEF MSWINDOWS}
+        {$IFDEF INTERFACE_RVO}
         finally
           IEnumerator(enumerator) := nil;
         end;

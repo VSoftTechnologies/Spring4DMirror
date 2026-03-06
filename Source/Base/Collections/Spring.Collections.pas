@@ -12987,7 +12987,7 @@ begin
       until False;
       Exit;
     end;
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
     IEnumerableInternal(Parent.fSource).GetEnumerator(IEnumerator(fEnumerator));
   {$ELSE}
     fEnumerator := Parent.fSource.GetEnumerator;

@@ -4301,7 +4301,7 @@ end;
 
 procedure TIndexedIterator<T>.Start;
 begin
-  {$IFDEF MSWINDOWS}
+  {$IFDEF INTERFACE_RVO}
   IEnumerableInternal(fSource).GetEnumerator(fEnumerator);
   {$ELSE}
   fEnumerator := fSource.GetEnumerator;

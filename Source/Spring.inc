@@ -85,13 +85,17 @@
   // otherwise a global dictionary will be used which is slightly slower
   {$DEFINE USE_VMTAUTOTABLE}
 
-  {$IFDEF DELPHIXE7_UP}
-    {$DEFINE MANAGED_TYPE_RVO}
-  {$ENDIF}
+  {$IFNDEF CPUARM}
+    {$DEFINE INTERFACE_RVO}
 
-  // see https://quality.embarcadero.com/browse/RSP-31615
-  {$IFDEF DELPHIX_SYDNEY_UP}
-    {$DEFINE MANAGED_TYPE_RVO_BROKEN}
+    {$IFDEF DELPHIXE7_UP}
+      {$DEFINE MANAGED_TYPE_RVO}
+    {$ENDIF}
+
+    // see https://quality.embarcadero.com/browse/RSP-31615
+    {$IFDEF DELPHIX_SYDNEY_UP}
+      {$DEFINE MANAGED_TYPE_RVO_BROKEN}
+    {$ENDIF}
   {$ENDIF}
 {$ELSE}
   // cannot use the vmtAutoTable slot on any platform except Windows (yet)
