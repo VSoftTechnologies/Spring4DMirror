@@ -306,7 +306,7 @@ begin
   else
   begin
     heapAlloc := True;
-    bitHelper := AllocMem(intArrayLength);
+    bitHelper := AllocMem(intArrayLength shl 2);
   end;
 
   try
@@ -464,7 +464,7 @@ begin
   else
   begin
     heapAlloc := True;
-    bitHelper := AllocMem(intArrayLength);
+    bitHelper := AllocMem(intArrayLength shl 2);
   end;
 
   try
