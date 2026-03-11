@@ -713,38 +713,6 @@ type
   {$ENDREGION}
 
 
-  {$REGION 'Callback'}
-
-  /// <summary>
-  ///   Defines an anonymous function which returns a callback pointer.
-  /// </summary>
-  TCallbackFunc = TFunc<Pointer>;
-
-  /// <summary>
-  ///   Adapts class instance (object) method as standard callback function.
-  /// </summary>
-  /// <remarks>
-  ///   Both the object method and the callback function need to be declared as
-  ///   stdcall.
-  /// </remarks>
-  /// <example>
-  ///   This sample shows how to call CreateCallback method.
-  ///   <code>private
-  ///   fCallback: TCallbackFunc;
-  /// //...
-  /// fCallback := CreateCallback(Self, @TSomeClass.SomeMethod);</code>
-  /// </example>
-  TCallback = class(TInterfacedObject, TCallbackFunc)
-  private
-    fInstance: Pointer;
-  public
-    constructor Create(objectAddress: TObject; methodAddress: Pointer);
-    destructor Destroy; override;
-    function Invoke: Pointer;
-  end; // Consider hide the implementation.
-
-  {$ENDREGION}
-
   /// <summary>
   ///   Provides an abstract class base of TThread that implements the
   ///   IInterface.
@@ -786,18 +754,6 @@ type
   ///   Returns the last system error message.
   /// </summary>
   function GetLastErrorMessage: string;
-
-  /// <summary>
-  ///   Creates a standard callback function which was adapted from a instance
-  ///   method.
-  /// </summary>
-  /// <param name="obj">
-  ///   an instance
-  /// </param>
-  /// <param name="methodAddress">
-  ///   address of an instance method
-  /// </param>
-  function CreateCallback(obj: TObject; methodAddress: Pointer): TCallbackFunc;
 
 {$IFDEF MSWINDOWS}
   /// <summary>
@@ -1102,13 +1058,6 @@ end;
 function GetLastErrorMessage: string;
 begin
   Result := SysErrorMessage(GetLastError);
-end;
-
-function CreateCallback(obj: TObject; methodAddress: Pointer): TCallbackFunc;
-begin
-  Guard.CheckNotNull(obj, 'obj');
-  Guard.CheckNotNull(methodAddress, 'methodAddress');
-  Result := TCallback.Create(obj, methodAddress);
 end;
 
 {$IFDEF MSWINDOWS}
@@ -2379,54 +2328,6 @@ begin
 {$IFDEF POSIX}
   SysUtils.SetCurrentDir(value);
 {$ENDIF POSIX}
-end;
-
-{$ENDREGION}
-
-
-{$REGION 'TCallback'}
-
-type
-  PInstruction = ^TInstruction;
-  TInstruction = array[1..16] of Byte;
-
-{----------------------------}
-{        Code DASM           }
-{----------------------------}
-{  push  [ESP]               }
-{  mov   [ESP+4], ObjectAddr }
-{  jmp   MethodAddr          }
-{----------------------------}
-
-/// <author>savetime</author>
-/// <seealso>
-///   http://savetime.delphibbs.com
-/// </seealso>
-constructor TCallback.Create(objectAddress: TObject; methodAddress: Pointer);
-const
-  Instruction: TInstruction = (
-    $FF,$34,$24,$C7,$44,$24,$04,$00,$00,$00,$00,$E9,$00,$00,$00,$00
-  );
-var
-  p: PInstruction;
-begin
-  inherited Create;
-  New(p);
-  Move(Instruction, p^, SizeOf(Instruction));
-  PInteger(@p[8])^ := Integer(objectAddress);
-  PInteger(@p[13])^ := Longint(methodAddress) - (Longint(p) + SizeOf(Instruction));
-  fInstance := p;
-end;
-
-destructor TCallback.Destroy;
-begin
-  Dispose(fInstance);
-  inherited Destroy;
-end;
-
-function TCallback.Invoke: Pointer;
-begin
-  Result := fInstance;
 end;
 
 {$ENDREGION}
