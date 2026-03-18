@@ -516,7 +516,9 @@ end;
 constructor TEvent.Create(typeInfo: PTypeInfo);
 var
   method: TRttiMethod;
-{$IFNDEF USE_RTTI_FOR_PROXY}
+{$IFDEF USE_RTTI_FOR_PROXY}
+  rttiType: TRttiType;
+{$ELSE}
   typeData: PTypeData;
   invokeEvent: procedure(Params: PParameters; StackSize: Integer) of object;
 {$ENDIF}
@@ -531,8 +533,9 @@ begin
     tkMethod:
     begin
 {$IFDEF USE_RTTI_FOR_PROXY}
-      TMethodImplementation(fProxy) := TRttiInvokableType(typeInfo.RttiType)
-        .CreateImplementation(nil, InternalInvokeMethod);
+      rttiType := typeInfo.RttiType;
+      TMethodImplementation(fProxy) := TRttiInvokableType(rttiType)
+        .CreateImplementation(rttiType, InternalInvokeMethod);
       TMethod(fInvoke) := TMethodImplementation(fProxy).AsMethod;
 {$ELSE}
       typeData := typeInfo.TypeData;

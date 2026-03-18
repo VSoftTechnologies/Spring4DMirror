@@ -940,13 +940,13 @@ type
 
   {$REGION 'TRttiInvokableTypeHelper'}
 
-  {$IFDEF DELPHIXE2_UP}
+  {$IF defined(DELPHIXE2_UP) and not defined(DELPHI_ATHENS_UP)}
   TRttiInvokableTypeHelper = class helper for TRttiInvokableType
   public
     function CreateImplementation(AUserData: Pointer;
       const ACallback: TMethodImplementationCallback): TMethodImplementation;
   end;
-  {$ENDIF}
+  {$IFEND}
 
   {$ENDREGION}
 
@@ -8426,7 +8426,7 @@ end;
 
 {$REGION 'TRttiInvokableTypeHelper'}
 
-{$IFDEF DELPHIXE2_UP}
+{$IF defined(DELPHIXE2_UP) and not defined(DELPHI_ATHENS_UP)}
 type
   // this is the class used to create a TMethodImplementation for a
   // TRttiInvokableType by passing in an instance of TRttiInvokableType
@@ -8545,7 +8545,7 @@ begin
     // since TRttiInvokableMethod has the necessary private virtual methods
     // "overridden" it will create the correct TMethodImplementation instance
     // for the given TRttiInvokableType
-    Result := m.CreateImplementation(Self, ACallback);
+    Result := m.CreateImplementation(AUserData, ACallback);
     // "override" the destructor so FInvokeMethod which is not owned by the
     // TRttiInvokableMethod is properly destroyed at the end
     PPointer(Result)^ := TMethodImplementationHack;
@@ -8553,7 +8553,7 @@ begin
     m.Free;
   end;
 end;
-{$ENDIF}
+{$IFEND}
 
 {$ENDREGION}
 
