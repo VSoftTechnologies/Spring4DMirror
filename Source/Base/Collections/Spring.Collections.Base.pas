@@ -113,18 +113,23 @@ type
   TGetDefault = procedure(var value);
   TCollectionOperation = function(const enumerator, collection: IInterface): Boolean;
   TAddToCollection = function(const collection: IInterface; const value): Boolean;
+  TPredicateMethod<T> = function(const item: T): Boolean of object;
+  TEqualsMethod<T> = function(const left, right: T): Boolean of object;
 
   TEnumerableBase = class abstract(TRefCountedObject)
   private
     // Win64 compilers of XE2 and XE3 generate some bad code when using nil directly
     const emptyComparer{$IF defined(WIN64) and not defined(DELPHIXE4_UP)}: Pointer{$IFEND} = nil;
+
+    function IsCountInRange(min, max, limit: Integer): Boolean;
     function IsEmptyExtension: Boolean;
     function MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
   protected
     this: Pointer;
     fElementType: PTypeInfo;
   {$REGION 'Property Accessors'}
-    function GetCount: Integer;
+    function GetCount: Integer; overload;
+    function GetCount(limit: Integer): Integer; overload; virtual;
     function GetElementType: PTypeInfo;
     function GetIsEmpty: Boolean;
     function GetNonEnumeratedCount: Integer;
@@ -455,7 +460,7 @@ type
 
   TExtensionEnumeratorVtables = array[{$IFNDEF DELPHIXE}TExtensionKind.{$ENDIF}Repeated..TExtensionKind.Items] of TEnumeratorVtable;
 
-  TEnumerableExtension = class sealed(TEnumerableBase)
+  TEnumerableExtension = class(TEnumerableBase)
   private type
   {$REGION 'Nested Types'}
     PEnumerator = ^TEnumerator;
@@ -500,6 +505,7 @@ type
 
     function Any(var value; getCurrent: TGetCurrent; default: TGetDefault;
       assign: TAssign): Boolean;
+    function GetCount: Integer; overload;
     function GetNonEnumeratedCount: Integer;
     procedure GetEnumerator(var result; var enumeratorVTables: TExtensionEnumeratorVtables;
       typeInfo, getCurrent: Pointer);
@@ -555,6 +561,8 @@ type
     fEqualityComparer: IEqualityComparer<T>;
     fKind: TExtensionKind;
 
+    function GetCount: Integer; overload;
+    function GetCount(limit: Integer): Integer; overload; override;
     function GetNonEnumeratedCount: Integer;
 
   {$REGION 'Implements IReadOnlyList<T>'}
@@ -1254,7 +1262,7 @@ type
     code: Pointer;
   end;
 const
-  ChangedVirtualIndex = 0;
+  ChangedVirtualIndex = 1;
 var
   baseAddress, actualAddress: Pointer;
 begin
@@ -1475,27 +1483,6 @@ begin
     Result := inherited QueryInterface(IID, obj);
 end;
 
-function IsCountInRange(const this: IEnumerable; min, max, limit: Integer): Boolean;
-
-  function SkipAndCountSlow(const this: IEnumerable; limit: Integer): Integer;
-  var
-    enumerator: IEnumerator;
-  begin
-    Result := 0;
-    enumerator := this.GetEnumerator;
-    while (Result < limit) and enumerator.MoveNext do
-      Inc(Result);
-  end;
-
-var
-  count: Integer;
-begin
-  count := this.GetNonEnumeratedCount;
-  if count < 0 then
-    count := SkipAndCountSlow(this, limit);
-  Result := {$B+}(count >= min) and (count <= max);{$B-}
-end;
-
 function HasAnyItems(const this: IEnumerable): Boolean;
 var
   enumerator: IEnumerator;
@@ -1561,7 +1548,7 @@ end;
 function TEnumerableBase.AtLeast(count: Integer): Boolean;
 begin
   if count >= 0 then
-    Result := IsCountInRange(IEnumerable(this), count, MaxInt, count)
+    Result := IsCountInRange(count, MaxInt, count)
   else
     Result := Boolean(RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum));
 end;
@@ -1569,7 +1556,7 @@ end;
 function TEnumerableBase.AtMost(count: Integer): Boolean;
 begin
   if count >= 0 then
-    Result := IsCountInRange(IEnumerable(this), 0, count, count + 1)
+    Result := IsCountInRange(0, count, count + 1)
   else
     Result := Boolean(RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum));
 end;
@@ -1680,7 +1667,7 @@ function TEnumerableBase.Between(min, max: Integer): Boolean;
 begin
   if min >= 0 then
     if max >= min then
-      Result := IsCountInRange(IEnumerable(this), min, max, max + 1)
+      Result := IsCountInRange(min, max, max + 1)
     else
       Result := Boolean(RaiseHelper.ArgumentOutOfRange(ExceptionArgument.max))
   else
@@ -1838,7 +1825,7 @@ end;
 function TEnumerableBase.Exactly(count: Integer): Boolean;
 begin
   if count >= 0 then
-    Result := IsCountInRange(IEnumerable(this), count, count, count + 1)
+    Result := IsCountInRange(count, count, count + 1)
   else
     Result := Boolean(RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum));
 end;
@@ -1930,6 +1917,16 @@ begin
     Result := GetEnumeratedCount(IEnumerable(this));
 end;
 
+function TEnumerableBase.GetCount(limit: Integer): Integer;
+var
+  enumerator: IEnumerator;
+begin
+  Result := 0;
+  enumerator := IEnumerable(this).GetEnumerator;
+  while (Result < limit) and enumerator.MoveNext do
+    Inc(Result);
+end;
+
 function TEnumerableBase.GetElementType: PTypeInfo;
 begin
   Result := fElementType;
@@ -1974,6 +1971,16 @@ begin
     fEqualityComparer := IInterface(comparer);
     IInterface(result) := IInterface(@IMT);
   end;
+end;
+
+function TEnumerableBase.IsCountInRange(min, max, limit: Integer): Boolean;
+var
+  count: Integer;
+begin
+  count := IEnumerable(this).GetNonEnumeratedCount;
+  if count < 0 then
+    count := GetCount(limit);
+  Result := {$B+}(count >= min) and (count <= max);{$B-}
 end;
 
 function TEnumerableBase.IsEmptyExtension: Boolean;
@@ -6047,6 +6054,18 @@ begin
     RaiseHelper.ArgumentOutOfRange(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 end;
 
+function TEnumerableExtension.GetCount: Integer;
+begin
+  case fKind of //FI:W535
+    TExtensionKind.Ordered, TExtensionKind.Reversed, TExtensionKind.Shuffled:
+      Result := fSource.GetCount;
+    TExtensionKind.Where:
+      Result := GetCount(MaxInt);
+  else
+    Result := inherited GetCount;
+  end;
+end;
+
 procedure TEnumerableExtension.GetEnumerator(var result;
   var enumeratorVTables: TExtensionEnumeratorVtables; typeInfo, getCurrent: Pointer);
 begin
@@ -6694,7 +6713,6 @@ begin
       Exit(True);
     end;
     TExtensionKind.Partition:
-    begin
       if IEnumerable<Pointer>(fSource).TryGetSpan(span) then
       begin
         index := fIndex;
@@ -6704,7 +6722,6 @@ begin
         span.Init(span[index], count);
         Exit(True);
       end;
-    end
   end;
   Result := False;
 end;
@@ -6774,7 +6791,9 @@ var
   items: Pointer<T>.Idx;
   span: Span<T>;
   count, index, foundIndex: Integer;
-  comparer: Pointer;
+  comparer, comparerPtr, predicate: Pointer;
+  item: ^T;
+  i: NativeInt;
 begin
   case fKind of
     TExtensionKind.Empty: Exit(False);
@@ -6839,6 +6858,23 @@ begin
       end;
       Exit;
     until True;
+    TExtensionKind.Where:
+      if fSource.TryGetSpan(span) then
+      begin
+        predicate := Pointer(fPredicate);
+        comparerPtr := _LookupVtableInfo(giEqualityComparer, fElementType, SizeOf(T));
+        item := span.Data;
+        for i := 1 to span.Length do
+        begin
+          if Predicate<T>(predicate)(item^) then
+          begin
+            Result := IEqualityComparer<T>(comparerPtr).Equals(item^, value);
+            if Result then Exit;
+          end;
+          Inc(item);
+        end;
+        Exit(False);
+      end;
   end;
   Result := inherited Contains(value);
 end;
@@ -6862,6 +6898,38 @@ begin
   else
     Result := TEnumerableBase(Self).CopyTo(Pointer(values), index, SizeOf(T), TCollectionThunks<T>.GetCurrent);
   end;
+end;
+
+function TEnumerableExtension<T>.GetCount: Integer;
+begin
+  Result := TEnumerableExtension(Self).GetCount;
+end;
+
+function TEnumerableExtension<T>.GetCount(limit: Integer): Integer;
+var
+  span: Span<T>;
+  predicate: Pointer;
+  count: Integer;
+  item: ^T;
+  i: NativeInt;
+begin
+  if fKind = TExtensionKind.Where then
+  begin
+    if fSource.TryGetSpan(span) then
+    begin
+      predicate := Pointer(fPredicate);
+      count := 0;
+      item := span.Data;
+      for i := 1 to span.Length do
+      begin
+        Inc(count, Ord(Predicate<T>(predicate)(item^)));
+        Inc(item);
+        if count = limit then Break;        
+      end;
+      Exit(count);
+    end;
+  end;
+  Result := inherited GetCount(limit);
 end;
 
 function TEnumerableExtension<T>.GetEnumerator: IEnumerator<T>; //FI:W521
