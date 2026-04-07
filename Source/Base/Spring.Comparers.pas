@@ -2244,7 +2244,7 @@ const
   ComparerTable: array[TFloatType, TDefaultGenericInterface] of Pointer = (
    (@Comparer_Single, @EqualityComparer_Single), (@Comparer_Double, @EqualityComparer_Double),
    (@Comparer_Extended, @EqualityComparer_Extended),
-   (@Comparer_UInt64, @EqualityComparer_Int64), (@Comparer_UInt64, @EqualityComparer_Int64)
+   (@Comparer_UInt64, @EqualityComparer_Int64), (@Comparer_Int64, @EqualityComparer_Int64)
   );
 begin
   Result := ComparerTable[GetTypeInfoData(typeInfo).FloatType, intf];

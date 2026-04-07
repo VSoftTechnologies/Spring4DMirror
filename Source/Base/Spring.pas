@@ -4386,9 +4386,9 @@ function CompareValue(const left, right: TValue): Integer;
 
   function CompareValueCurr(const A, B: Currency): TValueRelationship;
   begin
-    if A = B then
+    if Int64(Int64Rec(A)) = Int64(Int64Rec(B)) then
       Result := EqualsValue
-    else if A < B then
+    else if Int64(Int64Rec(A)) < Int64(Int64Rec(B)) then
       Result := LessThanValue
     else
       Result := GreaterThanValue;
