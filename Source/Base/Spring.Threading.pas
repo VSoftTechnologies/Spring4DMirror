@@ -30,10 +30,10 @@ interface
 
 uses
   Classes,
+  Generics.Collections,
   SyncObjs,
   SysUtils,
-  Spring,
-  Spring.Collections;
+  Spring;
 
 type
   TRunTask = function(const proc: TProc): IInterface;
@@ -100,6 +100,10 @@ type
       property Signal: TEvent read fSignal;
     end;
 
+    TTaskQueue = class(TQueue<ITask>)
+      function TryDequeue(var item: ITask): Boolean;
+    end;
+
     TTask = class(TRefCountedObject, ITask)
     strict private
       fExceptObj: TObject;
@@ -114,7 +118,7 @@ type
       property ExceptObj: TObject read GetExceptObj;
     end;
   strict private
-    fTasks: IQueue<ITask>;
+    fTasks: TTaskQueue;
     fThreads: TArray<TWorkerThread>;
     fInactiveThreads: TArray<TWorkerThread>;
     fInactiveTop: NativeInt;
@@ -159,7 +163,7 @@ var
   thread: TWorkerThread;
 begin
   Assert(numThreads > 0);
-  fTasks := TCollections.CreateQueue<ITask>;
+  fTasks := TTaskQueue.Create;
   SetLength(fInactiveThreads, numThreads);
   SetLength(fThreads, numThreads);
 
@@ -181,6 +185,7 @@ begin
     fThreads[i].Terminate;
   for i := 0 to DynArrayHigh(fThreads) do
     fThreads[i].Free;
+  fTasks.Free;
 end;
 
 procedure TThreadPool.EnterLock;
@@ -321,6 +326,22 @@ end;
 procedure TThreadPool.TWorkerThread.TerminatedSet;
 begin
   fSignal.SetEvent;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TThreadPool.TTaskQueue'}
+
+function TThreadPool.TTaskQueue.TryDequeue(var item: ITask): Boolean;
+begin
+  if Count > 0 then
+  begin
+    item := Dequeue;
+    Exit(True);
+  end;
+  item := nil;
+  Result := False;
 end;
 
 {$ENDREGION}
