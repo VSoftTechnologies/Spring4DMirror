@@ -122,7 +122,6 @@ type
     const emptyComparer{$IF defined(WIN64) and not defined(DELPHIXE4_UP)}: Pointer{$IFEND} = nil;
 
     function IsCountInRange(min, max, limit: Integer): Boolean;
-    function IsEmptyExtension: Boolean;
     function MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
   protected
     this: Pointer;
@@ -1255,6 +1254,31 @@ begin
   end;
 end;
 
+function IsEmptyExtension(obj: TObject): Boolean; overload;
+var
+  table: PInterfaceTable;
+begin
+  table := PPointer(@PByte(PPointer(obj)^)[vmtIntfTable])^;
+  if table = nil then Exit(Boolean(NativeInt(table)));
+  Result := SameGuid(table.Entries[0].IID, IEnumerableExtensionOfTGuid);
+  if Result then
+    Result := TEnumerableExtension(obj).fKind = TExtensionKind.Empty;
+end;
+
+function IsEmptyExtension(const source: IInterface): Boolean; overload;
+var
+  obj: TObject;
+  table: PInterfaceTable;
+begin
+  if source = nil then Exit(Boolean(NativeInt(source)));
+  obj := IEnumerable(source).AsObject;
+  table := PPointer(@PByte(PPointer(obj)^)[vmtIntfTable])^;
+  if table = nil then Exit(Boolean(NativeInt(table)));
+  Result := SameGuid(table.Entries[0].IID, IEnumerableExtensionOfTGuid);
+  if Result then
+    Result := TEnumerableExtension(obj).fKind = TExtensionKind.Empty;
+end;
+
 procedure UpdateNotify(instance: TObject; baseClass: TClass; var notify);
 type
   TNotifyRec = record
@@ -1678,9 +1702,15 @@ procedure TEnumerableBase.Concat(const second: IInterface; var result; classType
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := second;
+    Exit;
+  end;
+
+  if IsEmptyExtension(second) then
+  begin
+    IInterface(result) := IInterface(this);
     Exit;
   end;
 
@@ -1771,7 +1801,7 @@ end;
 
 procedure TEnumerableBase.Distinct(comparer: Pointer; var result; classType: TClass);
 begin
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -1834,7 +1864,7 @@ procedure TEnumerableBase.Exclude(const second: IInterface; comparer: Pointer; v
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) or IsEmptyExtension(second) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -1956,9 +1986,15 @@ procedure TEnumerableBase.Intersect(const second: IInterface; comparer: Pointer;
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
+    Exit;
+  end;
+
+  if IsEmptyExtension(second) then
+  begin
+    IInterface(result) := second;
     Exit;
   end;
 
@@ -1981,12 +2017,6 @@ begin
   if count < 0 then
     count := GetCount(limit);
   Result := {$B+}(count >= min) and (count <= max);{$B-}
-end;
-
-function TEnumerableBase.IsEmptyExtension: Boolean;
-begin
-  Result := Assigned(GetInterfaceEntry(IEnumerableExtensionOfTGuid))
-    and (TEnumerableExtension(Self).fKind = TExtensionKind.Empty);
 end;
 
 function TEnumerableBase.MemoizeCanReturnThis(iteratorClass: TClass): Boolean;
@@ -2106,7 +2136,7 @@ end;
 
 procedure TEnumerableBase.Memoize(var result; classType: TClass);
 begin
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2259,7 +2289,7 @@ procedure TEnumerableBase.Ordered(const comparer: IInterface; var result; classT
 begin
   if not Assigned(comparer) then RaiseHelper.ArgumentNil(ExceptionArgument.comparer);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2307,7 +2337,7 @@ end;
 
 procedure TEnumerableBase.Reversed(var result; classType: TClass);
 begin
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2319,7 +2349,7 @@ end;
 
 procedure TEnumerableBase.Shuffled(var result; classType: TClass);
 begin
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2333,7 +2363,7 @@ procedure TEnumerableBase.Skip(count: Integer; var result; classType: TClass);
 var
   maxCount: Integer;
 begin
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2355,7 +2385,7 @@ end;
 
 procedure TEnumerableBase.SkipLast(count: Integer; var result; classType: TClass);
 begin
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2375,7 +2405,7 @@ procedure TEnumerableBase.SkipWhile(const predicate: IInterface; var result; cla
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2392,7 +2422,7 @@ procedure TEnumerableBase.SkipWhileIndex(const predicate: IInterface; var result
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2466,7 +2496,7 @@ end;
 
 procedure TEnumerableBase.Take(count: Integer; var result; classType: TClass);
 begin
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2509,7 +2539,7 @@ procedure TEnumerableBase.TakeWhile(const predicate: IInterface; var result; cla
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2526,7 +2556,7 @@ procedure TEnumerableBase.TakeWhileIndex(const predicate: IInterface; var result
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2719,6 +2749,18 @@ procedure TEnumerableBase.Union(const second: IInterface; comparer: Pointer; var
 begin
   if not Assigned(second) then RaiseHelper.ArgumentNil(ExceptionArgument.second);
 
+  if IsEmptyExtension(Self) then
+  begin
+    IInterface(result) := IEnumerable<Pointer>(second).Distinct(IEqualityComparer<Pointer>(comparer));
+    Exit;
+  end;
+
+  if IsEmptyExtension(second) then
+  begin
+    Distinct(comparer, result, classType);
+    Exit;
+  end;
+
   if not Assigned(comparer) then
     comparer := _LookupVtableInfo(giEqualityComparer, fElementType, GetTypeSize(fElementType));
 
@@ -2734,7 +2776,7 @@ procedure TEnumerableBase.Where(const predicate: IInterface; var result; classTy
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
@@ -2751,7 +2793,7 @@ procedure TEnumerableBase.WhereIndex(const predicate: IInterface; var result; cl
 begin
   if not Assigned(predicate) then RaiseHelper.ArgumentNil(ExceptionArgument.predicate);
 
-  if IsEmptyExtension then
+  if IsEmptyExtension(Self) then
   begin
     IInterface(result) := IInterface(this);
     Exit;
