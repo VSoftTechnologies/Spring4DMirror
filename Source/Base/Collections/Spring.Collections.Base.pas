@@ -753,7 +753,6 @@ type
   private
     fThreadId: TThreadID;
     fState: Integer;
-    fTryMoveNext: function (self: TObject; var current: T): Boolean;
     const
       STATE_INITIAL    = -2; // initial state, before GetEnumerator
       STATE_FINISHED   = -1; // end of enumerator
@@ -3582,14 +3581,10 @@ end;
 {$REGION 'TIterator<T>'}
 
 procedure TIterator<T>.AfterConstruction;
-var
-  method: function (var current: T): Boolean of object;
 begin
   inherited AfterConstruction;
   fState := STATE_INITIAL;
   fThreadId := GetCurrentThreadId;
-  method := TryMoveNext;
-  fTryMoveNext := TMethod(method).Code;
 end;
 
 procedure TIterator<T>.Dispose;
@@ -3614,15 +3609,12 @@ begin
 end;
 
 function TIterator<T>.MoveNext: Boolean;
-label
-  _STATE_RUNNING;
 begin
   repeat
     case fState of
       STATE_RUNNING:
-      _STATE_RUNNING:
       begin
-        Result := fTryMoveNext(Self, fCurrent);
+        Result := TryMoveNext(fCurrent);
         if Result then
           Exit;
 
