@@ -389,6 +389,8 @@ type
     IEnumerable<IInterface>)
   private
     type
+      TKeyGroupingComparer = TGroupingComparer<TKey>;
+
       TEnumerator = class(TRefCountedObject, IEnumerator<IInterface>)
       private
         fSource: IEnumerable<TSource>;
@@ -410,7 +412,7 @@ type
     fSource: IEnumerable<TSource>;
     fKeySelector: Func<TSource, TKey>;
     fElementSelector: Func<TSource, TElement>;
-    fComparer: IEqualityComparer<TKey>;
+    fKeyComparer: IEqualityComparer<TKey>;
   public
     constructor Create(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>;
@@ -418,7 +420,8 @@ type
     constructor Create(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>;
       const elementSelector: Func<TSource, TElement>;
-      const comparer: IEqualityComparer<TKey>); overload;
+      const keyComparer: IEqualityComparer<TKey>); overload;
+    procedure AfterConstruction; override;
     function GetEnumerator: IEnumerator<IInterface>;
   end;
 
@@ -465,6 +468,8 @@ type
     IEnumerable<IInterface>, IReadOnlyCollection<IInterface>, ILookupInternal<TKey, TElement>)
   private
     type
+      TKeyGroupingComparer = TGroupingComparer<TKey>;
+
       TGrouping = class(TEnumerableBase<TElement>,
         IEnumerable<TElement>, IReadOnlyCollection<TElement>, IGrouping<TKey, TElement>)
       private
@@ -493,7 +498,7 @@ type
         function MoveNext: Boolean;
       end;
   private
-    fComparer: IEqualityComparer<TKey>;
+    fKeyComparer: IEqualityComparer<TKey>;
     fGroupings: IList<TObject>;
     fGroupingKeys: IDictionary<TKey, TGrouping>;
   {$REGION 'Property Accessors'}
@@ -504,18 +509,19 @@ type
   {$ENDREGION}
   public
     constructor Create; reintroduce; overload;
-    constructor Create(const comparer: IEqualityComparer<TKey>); overload;
+    constructor Create(const keyComparer: IEqualityComparer<TKey>); overload;
     class function Create<TSource>(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>;
       const elementSelector: Func<TSource, TElement>): TLookup<TKey, TElement>; overload; static;
     class function Create<TSource>(const source: IEnumerable<TSource>;
       const keySelector: Func<TSource, TKey>;
       const elementSelector: Func<TSource, TElement>;
-      const comparer: IEqualityComparer<TKey>): TLookup<TKey, TElement>; overload; static;
+      const keyComparer: IEqualityComparer<TKey>): TLookup<TKey, TElement>; overload; static;
     class function CreateForJoin(const source: IEnumerable<TElement>;
       const keySelector: Func<TElement, TKey>;
-      const comparer: IEqualityComparer<TKey>): TLookup<TKey, TElement>; static;
+      const keyComparer: IEqualityComparer<TKey>): TLookup<TKey, TElement>; static;
 
+    procedure AfterConstruction; override;
     function Contains(const key: TKey): Boolean; overload;
     function GetEnumerator: IEnumerator<IInterface>;
     property Items[const key: TKey]: IReadOnlyCollection<TElement> read GetItem; default;
@@ -2163,7 +2169,7 @@ end;
 constructor TGroupedEnumerable<TSource, TKey, TElement>.Create(
   const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
   const elementSelector: Func<TSource, TElement>;
-  const comparer: IEqualityComparer<TKey>);
+  const keyComparer: IEqualityComparer<TKey>);
 begin
   if not Assigned(source) then RaiseHelper.ArgumentNil(ExceptionArgument.source);
   if not Assigned(keySelector) then RaiseHelper.ArgumentNil(ExceptionArgument.keySelector);
@@ -2172,14 +2178,23 @@ begin
   fSource := source;
   fKeySelector := keySelector;
   fElementSelector := elementSelector;
-  fComparer := comparer;
-  if not Assigned(fComparer) then
-    fComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, TypeInfo(TKey), SizeOf(TKey)));
+  fKeyComparer := keyComparer;
+  if not Assigned(fKeyComparer) then
+    fKeyComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, TypeInfo(TKey), SizeOf(TKey)));
+end;
+
+procedure TGroupedEnumerable<TSource, TKey, TElement>.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  TGroupingComparer.Create(@fComparer,
+    @TKeyGroupingComparer.Comparer_Vtable,
+    @TKeyGroupingComparer.Compare,
+    TypeInfo(TKey));
 end;
 
 function TGroupedEnumerable<TSource, TKey, TElement>.GetEnumerator: IEnumerator<IInterface>;
 begin
-  Result := TEnumerator.Create(fSource, fKeySelector, fElementSelector, fComparer);
+  Result := TEnumerator.Create(fSource, fKeySelector, fElementSelector, fKeyComparer);
 end;
 
 {$ENDREGION}
@@ -2304,13 +2319,13 @@ begin
   Create(nil);
 end;
 
-constructor TLookup<TKey, TElement>.Create(const comparer: IEqualityComparer<TKey>);
+constructor TLookup<TKey, TElement>.Create(const keyComparer: IEqualityComparer<TKey>);
 begin
-  fComparer := comparer;
-  if not Assigned(fComparer) then
-    fComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, TypeInfo(TKey), SizeOf(TKey)));
+  fKeyComparer := keyComparer;
+  if not Assigned(fKeyComparer) then
+    fKeyComparer := IEqualityComparer<TKey>(_LookupVtableInfo(giEqualityComparer, TypeInfo(TKey), SizeOf(TKey)));
   fGroupings := TGroupings.Create;
-  fGroupingKeys := TCollections.CreateDictionary<TKey, TGrouping>(fComparer);
+  fGroupingKeys := TCollections.CreateDictionary<TKey, TGrouping>(fKeyComparer);
 end;
 
 class function TLookup<TKey, TElement>.Create<TSource>(
@@ -2323,11 +2338,11 @@ end;
 class function TLookup<TKey, TElement>.Create<TSource>(
   const source: IEnumerable<TSource>; const keySelector: Func<TSource, TKey>;
   const elementSelector: Func<TSource, TElement>;
-  const comparer: IEqualityComparer<TKey>): TLookup<TKey, TElement>;
+  const keyComparer: IEqualityComparer<TKey>): TLookup<TKey, TElement>;
 var
   item: TSource;
 begin
-  Result := TLookup<TKey, TElement>.Create(comparer);
+  Result := TLookup<TKey, TElement>.Create(keyComparer);
   try
     for item in source do
       Result.GetGrouping(keySelector(item), True).Add(elementSelector(item));
@@ -2339,12 +2354,12 @@ end;
 
 class function TLookup<TKey, TElement>.CreateForJoin(
   const source: IEnumerable<TElement>; const keySelector: Func<TElement, TKey>;
-  const comparer: IEqualityComparer<TKey>): TLookup<TKey, TElement>;
+  const keyComparer: IEqualityComparer<TKey>): TLookup<TKey, TElement>;
 var
   element: TElement;
   key: TKey;
 begin
-  Result := TLookup<TKey, TElement>.Create(comparer);
+  Result := TLookup<TKey, TElement>.Create(keyComparer);
   try
     for element in source do
     begin
@@ -2355,6 +2370,15 @@ begin
     FreeAndNil(Result);
     raise;
   end;
+end;
+
+procedure TLookup<TKey, TElement>.AfterConstruction;
+begin
+  inherited AfterConstruction;
+  TGroupingComparer.Create(@fComparer,
+    @TKeyGroupingComparer.Comparer_Vtable,
+    @TKeyGroupingComparer.Compare,
+    TypeInfo(TKey));
 end;
 
 function TLookup<TKey, TElement>.Contains(const key: TKey): Boolean;

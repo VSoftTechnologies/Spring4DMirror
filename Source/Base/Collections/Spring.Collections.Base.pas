@@ -94,6 +94,25 @@ type
     class function Default: IComparer<TPair<TKey, TValue>>; static;
   end;
 
+  PGroupingComparer = ^TGroupingComparer;
+  TGroupingComparer = record
+    Vtable: Pointer;
+    RefCount: Integer;
+    KeyComparer: IInterface;
+    function _Release: Integer; stdcall;
+    class function Create(comparer: PPointer; vtable: PComparerVtable;
+      compare: Pointer; keyType: PTypeInfo): Pointer; static;
+  end;
+
+  TGroupingComparer<TKey> = record
+    Vtable: Pointer;
+    RefCount: Integer;
+    KeyComparer: IComparer<TKey>;
+    class var Comparer_Vtable: TComparerVtable;
+    // only the key type is needed here so we omit the value type to reduce bloat
+    function Compare(const left, right: IGrouping<TKey, Pointer>): Integer;
+  end;
+
   TComparerThunks<T> = record
     class function Compare(const comparer: IInterface; const left, right): Integer; static;
     class function Equals(const comparer: IInterface; const left, right): Boolean; static;
@@ -1454,6 +1473,47 @@ class function TPairComparer<TKey, TValue>.Default: IComparer<TPair<TKey, TValue
 begin
   TPairComparer.Create(@Result, @Comparer_Vtable,
     @TPairComparer<TKey, TValue>.Compare, TypeInfo(TPair<TKey, TValue>));
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TGroupingComparer' }
+
+class function TGroupingComparer.Create(comparer: PPointer;
+  vtable: PComparerVtable; compare: Pointer; keyType: PTypeInfo): Pointer;
+begin
+  vtable[0] := @NopQueryInterface;
+  vtable[1] := @RecAddRef;
+  vtable[2] := @TGroupingComparer._Release;
+  vtable[3] := compare;
+
+  IInterface(comparer^) := nil;
+  Result := AllocMem(SizeOf(TGroupingComparer));
+  PGroupingComparer(Result).Vtable := vtable;
+  PGroupingComparer(Result).RefCount := 1;
+  PGroupingComparer(Result).KeyComparer := IInterface(_LookupVtableInfo(giComparer, keyType, GetTypeSize(keyType)));
+  comparer^ := Result;
+end;
+
+function TGroupingComparer._Release: Integer;
+begin
+  Result := AtomicDecrement(RefCount);
+  if Result = 0 then
+  begin
+    KeyComparer := nil;
+    FreeMem(@Self);
+  end;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TGroupingComparer<TKey>'}
+
+function TGroupingComparer<TKey>.Compare(const left, right: IGrouping<TKey, Pointer>): Integer;
+begin
+  Result := KeyComparer.Compare(left.Key, right.Key);
 end;
 
 {$ENDREGION}
