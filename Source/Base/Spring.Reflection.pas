@@ -100,16 +100,23 @@ type
 
   {$REGION 'TRttiTypeIterator<T>'}
 
-  TRttiTypeIterator<T: TRttiType> = class(TIterator<T>, IEnumerable<T>)
+  TRttiTypeIterator = class(TIterator<TObject>, IEnumerable<TObject>)
   private
     fContext: TRttiContext;
     fIndex: Integer;
     fTypes: TArray<TRttiType>;
   protected
-    function Clone: TIterator<T>; override;
+    function Clone: TIterator<TObject>; override;
     procedure Dispose; override;
     procedure Start; override;
-    function TryMoveNext(var current: T): Boolean; override;
+    function TryMoveNext(var current: TObject): Boolean; overload; override;
+    function TryMoveNext(var current: TObject; typeClass: TClass): Boolean; reintroduce; overload;
+  end;
+  TRttiTypeIteratorClass = class of TRttiTypeIterator;
+
+  TRttiTypeIterator<T: TRttiType> = class(TRttiTypeIterator)
+  protected
+    function TryMoveNext(var current: TObject): Boolean; override;
   end;
 
   {$ENDREGION}
@@ -165,6 +172,7 @@ type
 
   TRttiTypeHelper = class helper for TRttiType
   private
+    class function InheritsFrom(cls: TClass): Boolean;
     function GetAsInterface: TRttiInterfaceType;
     function GetIsClass: Boolean;
     function GetIsInterface: Boolean;
@@ -725,17 +733,17 @@ end;
 
 class function TType.GetClasses: IEnumerable<TRttiInstanceType>;
 begin
-  Result := TRttiTypeIterator<TRttiInstanceType>.Create;
+  IEnumerable<TObject>(Result) := TRttiTypeIterator<TRttiInstanceType>.Create;
 end;
 
 class function TType.GetInterfaces: IEnumerable<TRttiInterfaceType>;
 begin
-  Result := TRttiTypeIterator<TRttiInterfaceType>.Create;
+  IEnumerable<TObject>(Result) := TRttiTypeIterator<TRttiInterfaceType>.Create;
 end;
 
 class function TType.GetTypes: IEnumerable<TRttiType>;
 begin
-  Result := TRttiTypeIterator<TRttiType>.Create;
+  IEnumerable<TObject>(Result) := TRttiTypeIterator.Create;
 end;
 
 class function TType.IsAssignable(typeFrom, typeTo: PTypeInfo): Boolean;
@@ -830,38 +838,84 @@ end;
 {$ENDREGION}
 
 
-{$REGION 'TRttiTypeIterator<T>'}
+{$REGION 'TRttiTypeIterator'}
 
-function TRttiTypeIterator<T>.Clone: TIterator<T>;
+function TRttiTypeIterator.Clone: TIterator<TObject>;
 begin
-  Result := TRttiTypeIterator<T>.Create;
+  Result := TRttiTypeIteratorClass(ClassType).Create;
 end;
 
-procedure TRttiTypeIterator<T>.Dispose;
+procedure TRttiTypeIterator.Dispose;
 begin
   fTypes := nil;
 end;
 
-procedure TRttiTypeIterator<T>.Start;
+procedure TRttiTypeIterator.Start;
 begin
   fTypes := fContext.GetTypes;
 end;
 
-function TRttiTypeIterator<T>.TryMoveNext(var current: T): Boolean;
+function TRttiTypeIterator.TryMoveNext(var current: TObject): Boolean;
 var
-  typ: TRttiType;
+  types: Pointer;
+  index: NativeInt;
 begin
-  while fIndex < Length(fTypes) do
+  types := Pointer(fTypes);
+  if Assigned(types) then
   begin
-    typ := fTypes[fIndex];
-    Inc(fIndex);
-    if typ.InheritsFrom(T) then
+    index := fIndex;
+    {$POINTERMATH ON}
+    if index < PNativeInt(types)[-1] then
+    {$POINTERMATH OFF}
     begin
-      current := T(typ);
+      Inc(fIndex);
+      current := TArray<TRttiType>(types)[index];
       Exit(True);
     end;
   end;
   Result := False;
+end;
+
+function TRttiTypeIterator.TryMoveNext(var current: TObject;
+  typeClass: TClass): Boolean;
+var
+  types: Pointer;
+  index: NativeInt;
+  typ: TRttiType;
+begin
+  types := Pointer(fTypes);
+  if Assigned(types) then
+  begin
+    index := fIndex;
+    {$POINTERMATH ON}
+    if index < PNativeInt(types)[-1] then
+    {$POINTERMATH OFF}
+    repeat
+      Inc(fIndex);
+      typ := TArray<TRttiType>(types)[index];
+      Result := typ.InheritsFrom(typeClass);
+      if not Result then
+      begin
+        index := fIndex;
+        {$POINTERMATH ON}
+        if index < PNativeInt(types)[-1] then Continue else Break;
+        {$POINTERMATH OFF}
+      end;
+      current := typ;
+      Exit;
+    until False;
+  end;
+  Result := False;
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TRttiTypeIterator<T>'}
+
+function TRttiTypeIterator<T>.TryMoveNext(var current: TObject): Boolean;
+begin
+  Result := TryMoveNext(current, TClass(T));
 end;
 
 {$ENDREGION}
@@ -951,6 +1005,26 @@ end;
 
 
 {$REGION 'TRttiTypeHelper'}
+
+class function TRttiTypeHelper.InheritsFrom(cls: TClass): Boolean;
+label
+  ReturnFalse;
+var
+  P: Pointer;
+begin
+  P := Self;
+  if P <> Pointer(cls) then
+  repeat
+    if P = TRttiType then goto ReturnFalse;
+    P := PPointer(@PByte(P)[vmtParent])^;
+    if P = nil then
+      Exit(Boolean(P));
+    P := PPointer(P)^;
+  until P = Pointer(cls);
+  Exit(True);
+ReturnFalse:
+  Result := False;
+end;
 
 function TRttiTypeHelper.GetAttributes(
   inherit: Boolean): TArray<TCustomAttribute>;
