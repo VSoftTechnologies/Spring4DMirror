@@ -6726,11 +6726,7 @@ begin
       lastIndex := fCount - 1;
       if lastIndex >= 0 then
       begin
-        case fElementType.Kind of
-          tkString: elSize := GetTypeInfoData(fElementType).MaxLength;
-        else
-          elSize := GetTypeSize(fElementType);
-        end;
+        elSize := GetTypeSize(fElementType);
         assign(value, PByte(fItems)[lastIndex * elSize]);
         Exit(True);
       end;

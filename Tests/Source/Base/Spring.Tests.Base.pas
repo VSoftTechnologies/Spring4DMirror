@@ -168,6 +168,11 @@ type
       TThreeBytes = array[0..2] of Byte;
       TEventThreeBytes = procedure(const Value: TThreeBytes) of object;
       TEventThreeBytesVar = procedure(var Value: TThreeBytes) of object;
+      TString1 = string[1];
+      TString2 = string[2];
+      TString3 = string[3];
+      TString4 = string[4];
+      TString7 = string[7];
 
       TEventArgs = record i: Integer; s: string; v: Variant; end;
       TEventInt32 = procedure(const Value: Int32) of object;
@@ -187,6 +192,7 @@ type
       TEventWithStackParams2 = procedure(const Value1, Value2, Value3, Value4, Value5, Value6, Value7: NativeInt) of object;
       TEventWithRegisterParams = procedure(const Value1, Value2, Value3: NativeInt) of object;
       TEventWithFloatParams = procedure(const Value1, Value2, Value3: Double) of object;
+      TEventWithShortStringParams = procedure(Value1: TString1; Value2: TString2; Value3: TString3; Value4: TString4) of object;
     const
       CNumber = 5;
       CText = 'test';
@@ -223,6 +229,7 @@ type
     procedure HandlerWithStackParams2(const value1, value2, value3, value4, value5, value6, value7: NativeInt);
     procedure HandlerWithRegisterParams(const value1, value2, value3: NativeInt);
     procedure HandlerWithFloatParams(const value1, value2, value3: Double);
+    procedure HandlerWithShortStringParams(value1: TString1; value2: TString2; value3: TString3; value4: TString4);
     procedure HandleChanged(Sender: TObject);
   published
     procedure TestInvoke;
@@ -236,6 +243,7 @@ type
     procedure TestStackParams2;
     procedure TestRegisterParams;
     procedure TestFloatParams;
+    procedure TestShortStringParams;
     procedure TestNotify;
     procedure TestNotifyDelegate;
     procedure TestRemove;
@@ -1383,6 +1391,16 @@ begin
   Inc(fHandlerInvokeCount);
 end;
 
+procedure TTestMulticastEvent.HandlerWithShortStringParams(value1: TString1;
+  value2: TString2; value3: TString3; value4: TString4);
+begin
+  CheckEquals('a', string(value1));
+  CheckEquals('bb', string(value2));
+  CheckEquals('ccc', string(value3));
+  CheckEquals('dddd', string(value4));
+  Inc(fHandlerInvokeCount);
+end;
+
 procedure TTestMulticastEvent.HandlerWithStackParams(const value1: Int64;
   const value2: Single; const value3: Double; const value4: Extended;
   const value5: TEventArgs);
@@ -1721,6 +1739,22 @@ begin
   CheckTrue(fEvent.UseFreeNotification);
   fEvent.UseFreeNotification := True;
   CheckTrue(fEvent.UseFreeNotification);
+end;
+
+procedure TTestMulticastEvent.TestShortStringParams;
+var
+  event: Event<TEventWithShortStringParams>;
+  expected: Integer;
+begin
+  expected := 1;
+
+  event.Add(HandlerWithShortStringParams);
+  HandlerWithShortStringParams('a', 'bb', 'ccc', 'dddd');
+  event.Invoke('a', 'bb', 'ccc', 'dddd'); Inc(expected);
+  event.Enabled := False;
+  event.Invoke('a', 'bb', 'ccc', 'dddd');
+
+  CheckEquals(expected, fHandlerInvokeCount);
 end;
 
 procedure TTestMulticastEvent.TestStackParams;
@@ -2538,22 +2572,22 @@ end;
 
 procedure TTestSpringEventsMethods.Test_GetTypeSize_ShortString;
 begin
-  MatchType(TypeInfo(ShortString), tkString, PointerSize);
+  MatchType(TypeInfo(ShortString), tkString, SizeOf(ShortString));
 end;
 
 procedure TTestSpringEventsMethods.Test_GetTypeSize_ShortString0;
 begin
-  MatchType(TypeInfo(TShortString0), tkString, PointerSize);
+  MatchType(TypeInfo(TShortString0), tkString, SizeOf(TShortString0));
 end;
 
 procedure TTestSpringEventsMethods.Test_GetTypeSize_ShortString1;
 begin
-  MatchType(TypeInfo(TShortString1), tkString, PointerSize);
+  MatchType(TypeInfo(TShortString1), tkString, SizeOf(TShortString1));
 end;
 
 procedure TTestSpringEventsMethods.Test_GetTypeSize_ShortString2;
 begin
-  MatchType(TypeInfo(TShortString2), tkString, PointerSize);
+  MatchType(TypeInfo(TShortString2), tkString, SizeOf(TShortString2));
 end;
 
 procedure TTestSpringEventsMethods.Test_GetTypeSize_Interface;
@@ -2593,12 +2627,12 @@ end;
 
 procedure TTestSpringEventsMethods.Test_GetTypeSize_ShortString255;
 begin
-  MatchType(TypeInfo(TShortString255), tkString, PointerSize);
+  MatchType(TypeInfo(TShortString255), tkString, SizeOf(TShortString255));
 end;
 
 procedure TTestSpringEventsMethods.Test_GetTypeSize_ShortString7;
 begin
-  MatchType(TypeInfo(TShortString7), tkString, PointerSize);
+  MatchType(TypeInfo(TShortString7), tkString, SizeOf(TShortString7));
 end;
 
 procedure TTestSpringEventsMethods.Test_GetTypeSize_string;
