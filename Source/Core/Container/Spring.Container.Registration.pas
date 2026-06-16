@@ -195,13 +195,13 @@ begin
   fModels := TCollections.CreateObjectList<TComponentModel>(True);
   fModels.OnChanged.Add(fOnChanged.Invoke);
   fDefaultRegistrations := TCollections.CreateDictionary<PTypeInfo, TComponentModel>(
-    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));;
+    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));
   fDefaultRegistrations.OnValueChanged.Add(fOnChanged.Invoke);
   fUnnamedRegistrations := TCollections.CreateMultiMap<PTypeInfo, TComponentModel>(
-    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));;
+    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));
   fUnnamedRegistrations.OnValueChanged.Add(fOnChanged.Invoke);
   fServiceTypeMappings := TCollections.CreateMultiMap<PTypeInfo, TComponentModel>(
-    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));;
+    IEqualityComparer<PTypeInfo>(GetTypeInfoEqualityComparer));
   fServiceTypeMappings.OnValueChanged.Add(fOnChanged.Invoke);
   fServiceNameMappings := TCollections.CreateDictionary<string, TComponentModel>;
   fServiceNameMappings.OnValueChanged.Add(fOnChanged.Invoke);
