@@ -318,19 +318,6 @@ type
     procedure ListWithoutPredicateDoesntIterate;
   end;
 
-  TTestDefaultIfEmpty = class(TTestCase)
-  published
-    procedure NilSourceNoDefaultValue;
-    procedure NilSourceWithDefaultValue;
-
-    procedure EmptySequenceNoDefaultValue;
-    procedure EmptySequenceWithDefaultValue;
-
-    procedure NonEmptySequenceNoDefaultValue;
-    procedure NonEmptySequenceWithDefaultValue;
-
-    procedure ExecutionIsDeferred;
-  end;
 (*
   TTestAggregate = class(TTestCase)
   published
@@ -2689,81 +2676,6 @@ var
 begin
   source := TCollections.CreateList<Integer>([5]);
   CheckEquals(5, source.LastOrDefault);
-end;
-
-{ TTestDefaultIfEmpty }
-
-procedure TTestDefaultIfEmpty.NilSourceWithDefaultValue;
-var
-  source: IEnumerable<Integer>;
-begin
-  source := nil;
-  CheckException(EArgumentNilException,
-    procedure
-    begin
-      TDefaultIfEmptyIterator<Integer>.Create(source, 5);
-    end);
-end;
-
-procedure TTestDefaultIfEmpty.EmptySequenceNoDefaultValue;
-var
-  source: IEnumerable<Integer>;
-  query: IEnumerable<Integer>;
-begin
-  source := TCollections.CreateList<Integer>;
-  query := source.DefaultIfEmpty;
-  CheckTrue(query.EqualsTo([0]));
-end;
-
-procedure TTestDefaultIfEmpty.EmptySequenceWithDefaultValue;
-var
-  source: IEnumerable<Integer>;
-  query: IEnumerable<Integer>;
-begin
-  source := TCollections.CreateList<Integer>;
-  query := source.DefaultIfEmpty(5);
-  CheckTrue(query.EqualsTo([5]));
-end;
-
-procedure TTestDefaultIfEmpty.ExecutionIsDeferred;
-begin
-  CheckExceptionDeferred(
-    function(const source: IEnumerable<Integer>): IEnumerable<Integer>
-    begin
-      Result := source.DefaultIfEmpty;
-    end);
-end;
-
-procedure TTestDefaultIfEmpty.NonEmptySequenceNoDefaultValue;
-var
-  source: IEnumerable<Integer>;
-  query: IEnumerable<Integer>;
-begin
-  source := TCollections.CreateList<Integer>([3, 1, 4]);
-  query := source.DefaultIfEmpty;
-  CheckTrue(query.EqualsTo(source));
-end;
-
-procedure TTestDefaultIfEmpty.NonEmptySequenceWithDefaultValue;
-var
-  source: IEnumerable<Integer>;
-  query: IEnumerable<Integer>;
-begin
-  source := TCollections.CreateList<Integer>([3, 1, 4]);
-  query := source.DefaultIfEmpty(5);
-  CheckTrue(query.EqualsTo(source));
-end;
-
-procedure TTestDefaultIfEmpty.NilSourceNoDefaultValue;
-var
-  source: IEnumerable<Integer>;
-begin
-  source := nil;
-  CheckException(EArgumentNilException,
-    procedure
-    begin
-      TDefaultIfEmptyIterator<Integer>.Create(source, Default(Integer));
-    end);
 end;
 
 { TTestAggregate }

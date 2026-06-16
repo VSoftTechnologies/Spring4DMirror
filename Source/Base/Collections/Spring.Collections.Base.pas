@@ -6717,7 +6717,7 @@ begin
     end;
     TExtensionKind.DefaultIfEmpty:
     begin
-      if not IEnumerable<Pointer>(fSource).TryGetFirst(Pointer(value)) then
+      if not IEnumerable<Pointer>(fSource).TryGetLast(Pointer(value)) then
         default(value);
       Exit(True);
     end;

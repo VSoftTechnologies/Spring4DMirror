@@ -1200,6 +1200,20 @@ type
     procedure DoesNotPrematurelyAllocateHugeArray;
   end;
 
+  TTestDefaultIfEmpty = class(TEnumerableTestCase)
+  public
+    class function TestData: TArray<TArray<TValue>>; static;
+  published
+    procedure SameResultsRepeatCallsNonEmptyQuery;
+    procedure SameResultsRepeatCallsEmptyQuery;
+    [TestCaseSource('TestData')]
+    procedure DefaultIfEmpty(const source: IEnumerable<Integer>; defaultValue: Integer; const expected: TArray<Integer>);
+    [TestCaseSource('TestData')]
+    procedure DefaultIfEmptyRunOnce(const source: IEnumerable<Integer>; defaultValue: Integer; const expected: TArray<Integer>);
+    procedure ElementAtOrDefault_OutOfBounds_ReturnsTypeDefault;
+    procedure LastShouldReturnLastItem;
+  end;
+
 implementation
 
 uses
@@ -7902,6 +7916,134 @@ var
 begin
   chunks := TEnumerable.Chunk<Integer>(TEnumerable.Range(0, 10), MaxInt).ToArray;
   CheckEquals(TEnumerable.Range(0, 10).ToArray, chunks[0]);
+end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestDefaultIfEmpty'}
+
+procedure TTestDefaultIfEmpty.SameResultsRepeatCallsNonEmptyQuery;
+var
+  q: IEnumerable<Integer>;
+begin
+  q := TEnumerable.From<Integer>([9999, 0, 888, -1, 66, -777, 1, 2, -12345])
+    .Where(function(const x: Integer): Boolean begin Result := x > Low(Integer) end);
+
+  CheckEquals(q.DefaultIfEmpty(5), q.DefaultIfEmpty(5));
+end;
+
+procedure TTestDefaultIfEmpty.SameResultsRepeatCallsEmptyQuery;
+var
+  q: IEnumerable<Integer>;
+begin
+  q := NumberRangeGuaranteedNotCollectionType(0, 0);
+
+  CheckEquals(q.DefaultIfEmpty(88), q.DefaultIfEmpty(88));
+end;
+
+class function TTestDefaultIfEmpty.TestData: TArray<TArray<TValue>>;
+begin
+  Result := TArray<TArray<TValue>>.Create(
+    TArray<TValue>.Create(
+      TValue.From(TEnumerable.Empty<Integer>),
+      TValue.From<Integer>(0),
+      TValue.From<TArray<Integer>>(TArray<Integer>.Create(0))
+    ),
+    TArray<TValue>.Create(
+      TValue.From(TEnumerable.From<Integer>([3])),
+      TValue.From<Integer>(0),
+      TValue.From<TArray<Integer>>(TArray<Integer>.Create(3))
+    ),
+    TArray<TValue>.Create(
+      TValue.From(TEnumerable.From<Integer>([3, -1, 0, 10, 15])),
+      TValue.From<Integer>(0),
+      TValue.From<TArray<Integer>>(TArray<Integer>.Create(3, -1, 0, 10, 15))
+    ),
+
+    TArray<TValue>.Create(
+      TValue.From(TEnumerable.Empty<Integer>),
+      TValue.From<Integer>(-10),
+      TValue.From<TArray<Integer>>(TArray<Integer>.Create(-10))
+    ),
+    TArray<TValue>.Create(
+      TValue.From(TEnumerable.From<Integer>([3])),
+      TValue.From<Integer>(9),
+      TValue.From<TArray<Integer>>(TArray<Integer>.Create(3))
+    ),
+    TArray<TValue>.Create(
+      TValue.From(TEnumerable.From<Integer>([3, -1, 0, 10, 15])),
+      TValue.From<Integer>(9),
+      TValue.From<TArray<Integer>>(TArray<Integer>.Create(3, -1, 0, 10, 15))
+    ),
+    TArray<TValue>.Create(
+      TValue.From(TEnumerable.Empty<Integer>),
+      TValue.From<Integer>(0),
+      TValue.From<TArray<Integer>>(TArray<Integer>.Create(0))
+    )
+  );
+end;
+
+procedure TTestDefaultIfEmpty.DefaultIfEmpty(const source: IEnumerable<Integer>;
+  defaultValue: Integer; const expected: TArray<Integer>);
+var
+  result: IEnumerable<Integer>;
+begin
+  if defaultValue = 0 then
+  begin
+    result := source.DefaultIfEmpty;
+    CheckEquals(result, result);
+    CheckEquals(expected, result);
+    CheckEquals(Length(expected), result.Count);
+    CheckEquals(expected, TCollections.CreateList<Integer>(result));
+    CheckEquals(expected, result.ToArray);
+  end;
+  result := source.DefaultIfEmpty(defaultValue);
+  CheckEquals(result, result);
+  CheckEquals(expected, result);
+  CheckEquals(Length(expected), result.Count);
+  CheckEquals(expected, TCollections.CreateList<Integer>(result));
+  CheckEquals(expected, result.ToArray);
+end;
+
+procedure TTestDefaultIfEmpty.DefaultIfEmptyRunOnce(
+  const source: IEnumerable<Integer>; defaultValue: Integer;
+  const expected: TArray<Integer>);
+begin
+   if defaultValue = 0 then
+     CheckEquals(expected, GuaranteedRunOnce<Integer>(source).DefaultIfEmpty);
+   CheckEquals(expected, GuaranteedRunOnce<Integer>(source).DefaultIfEmpty(defaultValue));
+end;
+
+procedure TTestDefaultIfEmpty.ElementAtOrDefault_OutOfBounds_ReturnsTypeDefault;
+var
+  empty, defaultIfEmpty: IEnumerable<Integer>;
+  emptyStrings, defaultIfEmptyString: IEnumerable<string>;
+begin
+  empty := TEnumerable.Empty<Integer>;
+  defaultIfEmpty := empty.DefaultIfEmpty(999);
+
+  CheckEquals(999, defaultIfEmpty.ElementAtOrDefault(0));
+
+  CheckEquals(0, defaultIfEmpty.ElementAtOrDefault(1));
+  CheckEquals(0, defaultIfEmpty.ElementAtOrDefault(2));
+  CheckEquals(0, defaultIfEmpty.ElementAtOrDefault(-1));
+
+  emptyStrings := TEnumerable.Empty<string>;
+  defaultIfEmptyString := emptyStrings.DefaultIfEmpty('default');
+
+  CheckEquals('default', defaultIfEmptyString.ElementAtOrDefault(0));
+
+  CheckEquals('', defaultIfEmptyString.ElementAtOrDefault(1));
+  CheckEquals('', defaultIfEmptyString.ElementAtOrDefault(2));
+end;
+
+procedure TTestDefaultIfEmpty.LastShouldReturnLastItem;
+var
+  q: IEnumerable<Integer>;
+begin
+  q := TEnumerable.From<Integer>([10, 20, 30]).DefaultIfEmpty;
+  CheckEquals(30, q.Last);
 end;
 
 {$ENDREGION}
