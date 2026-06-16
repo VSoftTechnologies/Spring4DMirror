@@ -209,6 +209,7 @@ end;
 
 destructor TComponentRegistry.Destroy;
 begin
+  UnregisterAll;
   fOnChanged.Free;
   inherited;
 end;

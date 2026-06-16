@@ -231,7 +231,6 @@ destructor TContainer.Destroy;
 begin
   fChangedModels.Clear;
   Builder.ClearInspectors;
-  Registry.UnregisterAll;
   inherited Destroy;
 end;
 
