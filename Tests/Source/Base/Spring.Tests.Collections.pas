@@ -526,6 +526,31 @@ type
     procedure TestDeleteRangeFront;
   end;
 
+  TTestWeakRefRecList = class(TTestCase)
+  {$IFDEF WEAKINTFREF}
+  private type
+    TWeakRefRec = record
+      [weak]
+      intf: IInterface;
+      i: Integer;
+    end;
+  private
+    SUT: IList<TWeakRefRec>;
+    Intf: IInterface;
+    procedure FillList;
+    procedure HandleChange(Sender: TObject; const item: TWeakRefRec; action: TCollectionChangedAction);
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure TestListCreate;
+    procedure TestGetElementType;
+    procedure TestCopyTo;
+    procedure TestDelete;
+    procedure TestDeleteRangeFront;
+  {$ENDIF}
+  end;
+
   TMyCollectionItem = class(TCollectionItem);
   TMyOtherCollectionItem = class(TCollectionItem);
 
@@ -3953,9 +3978,98 @@ end;
 
 procedure TTestInterfaceList.TestInterfaceListCreate;
 begin
-  SUT := TCollections.CreateList<IInvokable>;
   CheckNotNull(SUT.Comparer);
 end;
+
+{$ENDREGION}
+
+
+{$REGION 'TTestWeakRefRecList'}
+
+{$IFDEF WEAKINTFREF}
+procedure TTestWeakRefRecList.FillList;
+var
+  i: Integer;
+  r: TWeakRefRec;
+begin
+  r.Intf := Intf;
+  for i := 1 to 4 do
+  begin
+    r.i := i;
+    SUT.Add(r);
+  end;
+end;
+
+procedure TTestWeakRefRecList.HandleChange(Sender: TObject;
+  const item: TWeakRefRec; action: TCollectionChangedAction);
+begin
+
+end;
+
+procedure TTestWeakRefRecList.SetUp;
+begin
+  SUT := TCollections.CreateList<TWeakRefRec>;
+  SUT.OnChanged.Add(HandleChange);
+  Intf := TInterfacedObject.Create;
+end;
+
+procedure TTestWeakRefRecList.TearDown;
+begin
+  SUT := nil;
+  Intf := nil;
+end;
+
+procedure TTestWeakRefRecList.TestCopyTo;
+var
+  values: TArray<TWeakRefRec>;
+  i: Integer;
+  r: TWeakRefRec;
+begin
+  r.Intf := Intf;
+  for i := 0 to MaxItems - 1 do
+    SUT.Add(r);
+  SetLength(values, MaxItems);
+  SUT.CopyTo(values, 0);
+  CheckEquals(MaxItems, Length(values));
+  CheckSame(SUT.First.Intf, values[0].Intf);
+  CheckSame(SUT.Last.Intf, values[MaxItems-1].Intf);
+end;
+
+procedure TTestWeakRefRecList.TestDelete;
+begin
+  FillList;
+  SUT.Delete(3);
+  SUT.Delete(1);
+  Pass;
+end;
+
+procedure TTestWeakRefRecList.TestDeleteRangeFront;
+var
+  i: Integer;
+  r: TWeakRefRec;
+begin
+  FillList;
+  SUT.DeleteRange(0, 2);
+  CheckSame(SUT[0].Intf, Intf);
+  CheckSame(SUT[1].Intf, Intf);
+  SUT.DeleteRange(0, 2);
+  r.Intf := Intf;
+  for i := 1 to 4 do
+    SUT.Add(r);
+  SUT.Clear;
+  Pass;
+end;
+
+procedure TTestWeakRefRecList.TestGetElementType;
+begin
+  Check(TypeInfo(TWeakRefRec) = SUT.ElementType);
+end;
+
+procedure TTestWeakRefRecList.TestListCreate;
+begin
+  CheckNotNull(SUT.Comparer);
+end;
+{$ENDIF}
 
 {$ENDREGION}
 
@@ -5660,6 +5774,12 @@ begin
   SUT['a'] := 3;
   CheckEquals(3, SUT.Count);
   CheckEquals(3, SUT['a']);
+  SUT['a'] := 2;
+  CheckEquals(2, SUT.Count);
+  CheckEquals(2, SUT['a']);
+  SUT['a'] := 0;
+  CheckEquals(0, SUT.Count);
+  CheckEquals(0, SUT['a']);
 end;
 
 {$ENDREGION}

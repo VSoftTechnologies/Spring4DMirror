@@ -131,6 +131,7 @@ begin
       TTestLinkedList.Suite,
       TTestObjectList.Suite,
       TTestInterfaceList.Suite,
+      TTestWeakRefRecList.Suite,
       TTestCollectionList.Suite,
       TTestEnumerable.Suite,
       TTestListMultiMap.Suite,
