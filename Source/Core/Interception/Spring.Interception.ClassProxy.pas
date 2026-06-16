@@ -216,6 +216,7 @@ var
   interfaces: IEnumerable<TRttiInterfaceType>;
   intf: TRttiInterfaceType;
   additionalInterface: PTypeInfo;
+  proxy: IInterface;
 begin
   entryCount := Length(additionalInterfaces) + 1;
   for i := 0 to options.Mixins.Count - 1 do
@@ -243,9 +244,8 @@ begin
   for i := 1 to Length(additionalInterfaces) do
   begin
     additionalInterface := additionalInterfaces[i - 1];
-    TInterfaceProxy.Create(additionalInterface, [], options, nil,
-      fInterceptors.ToArray).QueryInterface(
-      additionalInterface.TypeData.Guid, fAdditionalInterfaces[i - 1]);
+    proxy := TInterfaceProxy.Create(additionalInterface, [], options, nil, fInterceptors.ToArray);
+    proxy.QueryInterface(additionalInterface.TypeData.Guid, fAdditionalInterfaces[i - 1]);
     table.Entries[i].IID := additionalInterfaces[i - 1].TypeData.Guid;
     table.Entries[i].VTable := nil;
     table.Entries[i].IOffset := 0;
