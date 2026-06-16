@@ -488,11 +488,11 @@ begin
   begin
     entry := IHashTable<T>(@fHashTable).Find(item, InsertNonExisting);
     entry.Item := item;
-//    entry.Count := 0;
     Inc(fCount, count - entry.Count);
     i := entry.Count;
     entry.Count := count;
     if Assigned(Notify) then
+    begin
       while i > count do
       begin
         Notify(Self, item, caRemoved);
@@ -503,6 +503,7 @@ begin
         Notify(Self, item, caAdded);
         Inc(i);
       end;
+    end;
   end;
 end;
 
@@ -762,12 +763,16 @@ begin
   begin
     node := fTree.FindNode(item);
     if Assigned(node) then
+    begin
+      Dec(fCount, PNode(node).Count);
       fTree.DeleteNode(node);
+    end;
   end
   else
   begin
     node := fTree.AddNode(item, True);
     node := Pointer(IntPtr(node) and not 1);
+    Inc(fCount, count - PNode(node).Count);
     PNode(node).Count := count;
   end;
 end;

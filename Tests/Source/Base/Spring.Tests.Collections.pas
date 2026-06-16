@@ -717,6 +717,7 @@ type
     procedure TestAdd;
     procedure TestRemove;
     procedure TestEnumerate;
+    procedure TestSetItemCount;
 
     procedure TestOrderedByCount;
     procedure TestSetEquals;
@@ -5652,6 +5653,13 @@ begin
   CheckFalse(SUT.SetEquals(TEnumerable.From<string>(['b', 'b', 'c', 'a', 'a', 'b', 'd'])));
   CheckFalse(SUT.SetEquals(TEnumerable.From<string>(['a', 'b', 'c'])));
   CheckFalse(SUT.SetEquals(TEnumerable.From<string>(['a', 'b', 'c'])));
+end;
+
+procedure TTestMultiSetBase.TestSetItemCount;
+begin
+  SUT['a'] := 3;
+  CheckEquals(3, SUT.Count);
+  CheckEquals(3, SUT['a']);
 end;
 
 {$ENDREGION}
