@@ -3631,9 +3631,22 @@ type
     Kind: TTypeKind;
     Name: Byte; {string[0];}
     case TTypeKind of
-      tkInteger, tkChar, tkEnumeration, tkWChar: (OrdType: TOrdType);
+      tkInteger, tkChar, tkEnumeration{$IFNDEF DELPHIX_TOKYO_UP}, tkSet{$ENDIF}, tkWChar: (
+        OrdType: TOrdType;
+        case TTypeKind of
+          tkInteger, tkChar, tkEnumeration, tkWChar: (
+            MinValue: Integer;
+            MaxValue: Integer);
+          {$IFNDEF DELPHIX_TOKYO_UP}
+          tkSet: (CompType: PPTypeInfo)
+          {$ENDIF});
       tkFloat: (FloatType: TFloatType);
       tkString: (MaxLength: Byte);
+      {$IFDEF DELPHIX_TOKYO_UP}
+      tkSet: (
+        OrdTypeOrSize: Int8;
+        CompType: PPTypeInfo);
+      {$ENDIF}
       tkClass: (
         ClassType: TClass;
         ParentInfo: PPTypeInfo;
@@ -4457,25 +4470,6 @@ begin
     Result := 0;
 end;
 
-function GetSetSize(typeInfo: PTypeInfo): Integer;
-var
-  typeData: PTypeData;
-  count: Integer;
-begin
-  typeData := GetTypeData(typeInfo);
-  typeData := GetTypeData(typeData.CompType^);
-  if typeData.MinValue = 0 then
-    case typeData.MaxValue of
-      0..7: Exit(1);
-      8..15: Exit(2);
-      16..31: Exit(4);
-    end;
-  count := typeData.MaxValue - typeData.MinValue + 1;
-  Result := count div 8;
-  if count mod 8 <> 0 then
-    Inc(Result);
-end;
-
 function GetTypeInfoData(typeInfo: Pointer): PTypeInfoData;
 var
   len: NativeInt;
@@ -4484,7 +4478,6 @@ begin
   Result := Pointer(PByte(typeInfo) + len);
 end;
 
-function GetTypeSize(typeInfo: PTypeInfo): Integer;
 const
   COrdinalSizes: array[TOrdType] of ShortInt = (
     SizeOf(ShortInt),   // otSByte
@@ -4493,6 +4486,39 @@ const
     SizeOf(Word),       // otUWord
     SizeOf(Integer),    // otSLong
     SizeOf(Cardinal));  // otULong
+
+function GetSetSize(typeInfo: PTypeInfo): Integer;
+const
+  sizes: array[0..3] of Byte = (1, 2, 4, 4);
+var
+  typeData: PTypeInfoData;
+  {$IFNDEF DELPHIX_TOKYO_UP}
+  count: Integer;
+  {$ELSE}
+  ordTypeOrSize: Int8;
+  {$ENDIF}
+begin
+  typeData := GetTypeInfoData(typeInfo);
+  {$IFNDEF DELPHIX_TOKYO_UP}
+  typeData := GetTypeInfoData(typeData.CompType^);
+  if typeData.MinValue = 0 then
+    if Cardinal(typeData.MaxValue) < 32 then
+      Exit(sizes[typedata.MaxValue shr 3]);
+  count := typeData.MaxValue - typeData.MinValue + 1;
+  Result := (count shr 3) + Ord(count and 7 <> 0);
+  {$ELSE}
+  ordTypeOrSize := typeData.OrdTypeOrSize;
+  // highest bit = 0 -> contains OrdType
+  // otherwise the lower 7 bits contain the Size
+  if ordTypeOrSize >= 0 then
+    Result := COrdinalSizes[TOrdType(ordTypeOrSize)]
+  else
+    Result := Int8(ordTypeOrSize and $7F);
+  {$ENDIF}
+end;
+
+function GetTypeSize(typeInfo: PTypeInfo): Integer;
+const
   CFloatSizes: array[TFloatType] of ShortInt = (
     SizeOf(Single),     // ftSingle
     SizeOf(Double),     // ftDouble
@@ -4505,7 +4531,7 @@ const
     SizeOf(AnsiChar),   // tkChar
     -1,                 // tkEnumeration
     -1,                 // tkFloat,
-    SizeOf(Pointer),    // tkString
+    -1,                 // tkString
     -1,                 // tkSet
     SizeOf(Pointer),    // tkClass
     SizeOf(TMethod),    // tkMethod
@@ -4526,19 +4552,23 @@ const
     , 1                 // tkMRecord
     {$IFEND}
     );
+var
+  data: PTypeInfoData;
 begin
+  data := GetTypeInfoData(typeInfo);
   case typeInfo.Kind of
     tkInteger, tkEnumeration:
-      Result := COrdinalSizes[GetTypeInfoData(typeInfo).OrdType];
+      Exit(COrdinalSizes[data.OrdType]);
     tkFloat:
-      Result := CFloatSizes[GetTypeInfoData(typeInfo).FloatType];
+      Exit(CFloatSizes[data.FloatType]);
+    tkString:
+      Exit(data.MaxLength + 1);
     tkSet:
-      Result := GetSetSize(typeInfo);
+      Exit(GetSetSize(typeInfo));
     tkArray, tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
-      Result := GetTypeInfoData(typeInfo).Size;
-  else
-    Result := CTypeSizes[typeInfo.Kind];
+      Exit(data.Size);
   end;
+  Result := CTypeSizes[typeInfo.Kind];
 end;
 
 function TypesOf(const values: array of TValue): TArray<PTypeInfo>;
