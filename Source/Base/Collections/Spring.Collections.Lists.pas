@@ -1055,8 +1055,11 @@ begin
     if ItemType.HasWeakRef then
     begin
       if tailCount > 0 then
+      begin
         MoveManaged(@TArray<T>(items)[count], items, TypeInfo(T), tailCount);
-      System.Finalize(TArray<T>(items)[tailCount], count);
+        Inc(PByte(items), tailCount * SizeOf(T));
+      end;
+      System.Finalize(TArray<T>(items)[0], count);
     end
     else
       if tailCount > 0 then
