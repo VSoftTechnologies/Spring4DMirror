@@ -2020,7 +2020,7 @@ begin
       typeToTypeMapping.TargetType := targetTypeInfo;
       System.MonitorEnter(fTypeInfoToTypeInfoRegistry);
       try
-        fTypeInfoToTypeInfoRegistry.Add(typeToTypeMapping, converter);
+        fTypeInfoToTypeInfoRegistry.AddOrSetValue(typeToTypeMapping, converter);
       finally
         System.MonitorExit(fTypeInfoToTypeInfoRegistry);
       end;
