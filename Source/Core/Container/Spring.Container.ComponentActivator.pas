@@ -133,6 +133,7 @@ begin
         begin
           instance.AsObject.Free;
           instance := nil;
+          doRefCountRelease := False;
         end;
         if E is EContainerException then
           raise
