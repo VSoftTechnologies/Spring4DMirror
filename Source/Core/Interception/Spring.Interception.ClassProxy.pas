@@ -153,7 +153,8 @@ begin
         Exit(False);
       if method.DispatchKind <> dkVtable then
       begin
-        hook.NonVirtualMemberNotification(method);
+        if Assigned(hook) then
+          hook.NonVirtualMemberNotification(method);
         Exit(False);
       end;
       if method.VirtualIndex < 0 then
