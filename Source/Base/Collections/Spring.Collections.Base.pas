@@ -6766,7 +6766,7 @@ begin
     TExtensionKind.Where:
       Exit(IEnumerable<Pointer>(fSource).TryGetLast(Pointer(value), Predicate<Pointer>(fPredicate)));
   end;
-  Result := inherited TryGetLast(value, getCurrent, default);;
+  Result := inherited TryGetLast(value, getCurrent, default);
 end;
 
 function TEnumerableExtension.TryGetLast_PartitionEnumerator(var value;
