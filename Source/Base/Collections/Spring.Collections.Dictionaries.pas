@@ -2940,8 +2940,14 @@ begin
       Notify(Self, PKeyValuePair(@node.Key)^, caRemoved);
     with fOnValueChanged do if CanInvoke then
       Invoke(Self, node.Value, caRemoved);
+  {$IFDEF DELPHIXE7_UP}
+    if GetTypeKind(TKey) = tkClass then
+  {$ENDIF}
+    if doOwnsKeys in fOwnerships then
+      PObject(@node.Key).Free;
   end;
 
+  node.Key := key;
   node.Value := value;
 
   if Assigned(Notify) then
