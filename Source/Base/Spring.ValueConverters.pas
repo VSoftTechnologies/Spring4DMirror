@@ -841,14 +841,6 @@ uses
   Spring.SystemUtils;
 
 
-function SameTypeInfo(const left, right: PTypeInfo): Boolean;
-begin
-  Result := left = right;
-  if Assigned(left) and Assigned(right) then
-    Result := Result or ((left.Kind = right.Kind)
-      and (left.TypeName = right.TypeName));
-end;
-
 procedure RaiseConvertError(sourceType, targetType: PTypeInfo);
 begin
   raise EConvertError.CreateFmt('Trying to convert %s to %s',
@@ -1154,9 +1146,10 @@ begin
   if Assigned(innerTypeInfo) then
   begin
     innerValue := value;
-    if innerTypeInfo.TypeName <> value.TypeInfo.TypeName then
-      Result := TValueConverter.Default.TryConvertTo(value, innerTypeInfo,
-        innerValue, parameter);
+    if not SameTypeInfo(value.TypeInfo, innerTypeInfo) then
+      if not TValueConverter.Default.TryConvertTo(value, innerTypeInfo,
+        innerValue, parameter) then
+        RaiseConvertError(value.TypeInfo, targetTypeInfo);
 
     TValue.Make(nil, targetTypeInfo, Result);
     Result.SetNullableValue(innerValue);
