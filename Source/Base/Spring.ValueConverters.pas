@@ -2052,8 +2052,8 @@ var
   targetTypeKind: TTypeKind;
 begin
 {$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckFalse(SizeOf(sourceTypeKinds) = 0, SEmptySourceTypeKind);
-  Guard.CheckFalse(SizeOf(targetTypeKinds) = 0, SEmptyTargetTypeKind);
+  Guard.CheckFalse(sourceTypeKinds = [], SEmptySourceTypeKind);
+  Guard.CheckFalse(targetTypeKinds = [], SEmptyTargetTypeKind);
 {$ENDIF}
 
   System.MonitorEnter(fTypeKindsToTypeKindsRegistry);
@@ -2101,7 +2101,7 @@ var
 begin
 {$IFDEF SPRING_ENABLE_GUARD}
   Guard.CheckNotNull(sourceTypeInfo, 'sourceTypeInfo');
-  Guard.CheckFalse(SizeOf(targetTypeKinds) = 0, SEmptyTargetTypeKind);
+  Guard.CheckFalse(targetTypeKinds = [], SEmptyTargetTypeKind);
 {$ENDIF}
 
   System.MonitorEnter(fTypeInfoToTypeKindsRegistry);
@@ -2126,7 +2126,7 @@ var
   sourceTypeKind: TTypeKind;
 begin
 {$IFDEF SPRING_ENABLE_GUARD}
-  Guard.CheckFalse(SizeOf(sourceTypeKinds) = 0, SEmptySourceTypeKind);
+  Guard.CheckFalse(sourceTypeKinds = [], SEmptySourceTypeKind);
   Guard.CheckNotNull(targetTypeInfo, 'targetTypeInfo');
 {$ENDIF}
 
