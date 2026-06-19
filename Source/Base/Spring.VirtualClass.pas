@@ -314,7 +314,7 @@ begin
     Result := CreateVirtualClass(classType);
     fClasses.Add(Result);
   finally
-    fLock.Release;
+    fLock.Leave;
   end;
 end;
 
@@ -326,9 +326,16 @@ end;
 procedure TVirtualClasses.Unproxify(const instance: TObject);
 var
   classType: TClass;
+  index: Integer;
 begin
   classType := PPointer(instance)^;
-  if fClasses.IndexOf(classType) > -1 then
+  fLock.Enter;
+  try
+    index := fClasses.IndexOf(classType);
+  finally
+    fLock.Leave;
+  end;
+  if index > -1 then
     PPointer(instance)^ := classType.ClassParent;
 end;
 
