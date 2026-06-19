@@ -6065,7 +6065,16 @@ function GetInitTable(classType: TClass): TInitTable;
 begin
   Result := PPointer(NativeInt(classType) + vmtAutoTable)^;
   if Result = nil then
-    Result := CreateFieldTable(classType);
+  begin
+    TMonitor.Enter(TInitTable.InitTables);
+    try
+      Result := PPointer(NativeInt(classType) + vmtAutoTable)^;
+      if Result = nil then
+        Result := CreateFieldTable(classType);
+    finally
+      TMonitor.Exit(TInitTable.InitTables);
+    end;
+  end;
 {$ELSE}
 begin
   TMonitor.Enter(TInitTable.InitTables);
@@ -9774,8 +9783,6 @@ end;
 begin
   Result := not left.Equals(right);
 end;
-{$ELSE}
-
 {$ENDIF}
 
 class operator Nullable<T>.NotEqual(const left: Nullable<T>; const right: Nullable.Null): Boolean;
