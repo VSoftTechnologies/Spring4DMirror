@@ -1,5 +1,5 @@
 var
-  limit: NativeUInt;
+  limit: NativeInt;
   cur, sift: PDataType;
   tmp: TDataType;
 begin

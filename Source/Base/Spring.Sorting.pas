@@ -984,7 +984,7 @@ end;
 class function TSort_Ref.PartialInsertionSort(lo, hi: PByte; size: NativeUInt;
   const compare: TLessThanFunc): Boolean;
 var
-  limit: NativeUInt;
+  limit: NativeInt;
   cur, sift: PByte;
 begin
   limit := PartialInsertionSortLimit * size;
@@ -1310,7 +1310,7 @@ label
   ExitFalse;
 {$ENDIF}
 var
-  limit: NativeUInt;
+  limit: NativeInt;
   cur, sift: Pointer<T>.Idx;
   temp: T;
   comp: TCompareMethod<T>;
@@ -1692,7 +1692,7 @@ label
   ExitFalse;
 {$ENDIF}
 var
-  limit: NativeUInt;
+  limit: NativeInt;
   cur, sift: Pointer<T>.Idx;
   temp: T;
   comp: TLessThanFunc<T>;
