@@ -401,7 +401,7 @@ begin
   begin
     Assert(NativeUInt(@GlobalThreadPool) mod SizeOf(pointer) = 0, 'TTask.Run: storage is not properly aligned!');
     Assert(NativeUInt(@newThreadPool) mod SizeOf(pointer) = 0, 'TTask.Run: temp is not properly aligned!');
-    newThreadPool := TThreadPool.Create(CPUCount - 1);
+    newThreadPool := TThreadPool.Create(CPUCount);
     if AtomicCmpExchange(Pointer(GlobalThreadPool), Pointer(newThreadPool), nil) <> nil then
       newThreadPool.Free;
   end;
