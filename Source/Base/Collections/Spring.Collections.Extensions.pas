@@ -3429,6 +3429,7 @@ end;
 function TRepeatIterator<T>.TryMoveNext(var current: T): Boolean;
 begin
   Result := fIndex < fCount;
+  if Result then
   begin
     Inc(fIndex);
     current := fElement;
