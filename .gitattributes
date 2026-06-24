@@ -11,3 +11,7 @@
 # Denote all files that are truly binary and should not be modified.
 *.exe binary
 *.res binary
+
+# ensures dpm packages have correct commit hash in metadata
+# see gitconfig.bat
+*.dspec filter=insert-hash

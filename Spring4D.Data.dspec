@@ -14,7 +14,7 @@ metadata:
   readme: README.md
   copyright: Spring4D Team
   tags: [spring4d, data, orm]
-  repositoryCommit: Id:59e350e18d9a064a81fabf73ca5d5ad2de859524
+  repositoryCommit: #HASH#
 
 # define variable defaults - can be overriden in targetPlatforms
 variables:
